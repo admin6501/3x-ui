@@ -2533,11 +2533,13 @@ Inbound.ClientBase = class extends XrayCommonClass {
     }
 
     get _totalGB() {
-        return NumberFormatter.roundedFixed(this.totalGB / SizeFormatter.ONE_GB, 2);
+        // Use Math.round (not floor) to avoid losing ~10MB on every
+        // bytes<->GB round-trip caused by floating-point error.
+        return Math.round((this.totalGB / SizeFormatter.ONE_GB) * 100) / 100;
     }
 
     set _totalGB(gb) {
-        this.totalGB = NumberFormatter.roundedFixed(gb * SizeFormatter.ONE_GB, 0);
+        this.totalGB = Math.round(gb * SizeFormatter.ONE_GB);
     }
 };
 

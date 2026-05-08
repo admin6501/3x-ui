@@ -28,11 +28,13 @@ class DBInbound {
     }
 
     get totalGB() {
-        return NumberFormatter.roundedFixed(this.total / SizeFormatter.ONE_GB, 2);
+        // Use Math.round (not floor) to avoid losing ~10MB on every
+        // bytes<->GB round-trip caused by floating-point error.
+        return Math.round((this.total / SizeFormatter.ONE_GB) * 100) / 100;
     }
 
     set totalGB(gb) {
-        this.total = NumberFormatter.roundedFixed(gb * SizeFormatter.ONE_GB, 0);
+        this.total = Math.round(gb * SizeFormatter.ONE_GB);
     }
 
     get isVMess() {
