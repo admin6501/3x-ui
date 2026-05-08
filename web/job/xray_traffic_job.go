@@ -44,15 +44,42 @@ func (j *XrayTrafficJob) Run() {
 		logger.Warning("add outbound traffic failed:", err)
 	}
 	if clientsDisabled {
+		// BUG FIX: When a client's quota/expiry is exhausted, calling
+		// xrayApi.RemoveUser() only removes the user from Xray's auth list —
+		// it does NOT terminate already-established sessions. As a result,
+		// over-quota users could keep using the proxy via their existing
+		// connection until Xray was restarted (manually or by config change).
+		//
+		// Per requirement, over-quota / expired clients must be disconnected
+		// IMMEDIATELY. The only reliable way Xray-core supports this today
+		// is a full process restart, which forcibly drops all active
+		// sessions. We therefore force a restart whenever any client is
+		// auto-disabled in this cycle.
+		//
+		// The legacy "restartXrayOnClientDisable" setting (default: true) is
+		// still consulted, but acts only as an opt-out for users who
+		// explicitly disabled it. If they did, we still mark Xray as needing
+		// a restart so the periodic restart job (@every 30s) eventually
+		// drops the leaked connections instead of leaving them open
+		// indefinitely.
 		restartOnDisable, settingErr := j.settingService.GetRestartXrayOnClientDisable()
 		if settingErr != nil {
 			logger.Warning("get RestartXrayOnClientDisable failed:", settingErr)
+			// On error, default to the safe behaviour: force a restart so
+			// active sessions of disabled clients are actually terminated.
+			restartOnDisable = true
 		}
 		if restartOnDisable {
+			logger.Info("auto-disabled clients detected (quota/expiry); restarting Xray to drop their active sessions")
 			if err := j.xrayService.RestartXray(true); err != nil {
 				logger.Warning("restart xray after disabling clients failed:", err)
 				j.xrayService.SetToNeedRestart()
 			}
+		} else {
+			// User opted out of immediate restart. Schedule one via the
+			// periodic restart job so leaked sessions still get cleaned up.
+			logger.Warning("auto-disabled clients detected but RestartXrayOnClientDisable=false; scheduling deferred restart so leaked sessions are eventually dropped")
+			j.xrayService.SetToNeedRestart()
 		}
 	}
 	if ExternalTrafficInformEnable, err := j.settingService.GetExternalTrafficInformEnable(); ExternalTrafficInformEnable {

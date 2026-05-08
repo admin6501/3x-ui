@@ -1,0 +1,96 @@
+# 3x-ui — Quota-Exhaustion Disconnect Fix
+
+## Original Problem (translated from user, fa → en)
+> "I'll give you a link to a GitHub project. Please review it and, if you can,
+> fork it under my GitHub. There is a bug: when a user's data quota runs out,
+> they keep being able to use the proxy until I manually restart the Xray core.
+> Please fix this consumption issue for me."
+>
+> Link: https://github.com/MHSanaei/3x-ui
+>
+> Clarified by user:
+> - Use the "Save to GitHub" feature on Emergent to push to the user's fork.
+> - Expected behaviour when quota is exhausted: **Option A — the user is
+>   disabled immediately and any of their active connections are dropped.**
+
+## Stack
+- Language: Go 1.26
+- Project: 3x-ui (xray-core based proxy panel)
+- Cloned from: https://github.com/MHSanaei/3x-ui
+
+## Root Cause Analysis
+1. Every 10s, `web/job/xray_traffic_job.go::Run()` collects traffic from xray
+   and calls `inboundService.AddTraffic(...)` which internally invokes
+   `disableInvalidClients()`.
+2. `disableInvalidClients()` flags exhausted/expired clients with
+   `enable=false` in the DB, updates `inbounds.settings`, and calls
+   `xrayApi.RemoveUser(tag, email)` over the gRPC handler service.
+3. **Critical xray-core limitation**: `RemoveUser` only removes the user from
+   the inbound's auth/account list. It does **NOT** kill already-established
+   sessions. Existing TCP/TLS sessions belonging to the just-removed user keep
+   forwarding traffic until the underlying connection is closed.
+4. The only reliable way xray-core supports per-user disconnect today is a
+   full process restart (the new process simply won't accept those clients
+   because the rebuilt config in `XrayService.GetXrayConfig()` filters them
+   out via the `enableMap`).
+5. The existing code gated the post-disable restart behind the
+   `restartXrayOnClientDisable` setting:
+   - If `true` → restart immediately. ✅
+   - If `false` → **do nothing**, so leaked sessions of over-quota users kept
+     working until the next manual/auto restart. ❌ (the reported bug)
+
+## Fix (single-file change)
+File: `web/job/xray_traffic_job.go`
+
+When `clientsDisabled == true`:
+- If the setting is `true` (default), force a restart as before.
+- If the setting read fails, default to `true` (safe behaviour).
+- If the setting is explicitly `false`, **fallback to scheduling** a restart
+  via `xrayService.SetToNeedRestart()`. The `@every 30s` cron in
+  `web/web.go::startTask()` will then execute `RestartXray(false)` on the next
+  tick, which in turn rebuilds the config (now without the disabled clients)
+  and drops all active sessions.
+
+Net effect: there is no longer any code path where over-quota / expired
+clients can keep proxying through their stale session indefinitely. With
+defaults, disconnect is immediate; with the legacy opt-out, disconnect happens
+within ≤30s instead of waiting for a manual restart.
+
+## Verification
+- `go vet ./web/job/` → clean.
+- `go build ./...` → succeeds.
+- `go test ./web/job/ ./xray/` → all existing tests pass.
+- Manual reasoning: `RestartXray(true)` was already proven (used by the
+  original branch); we're just ensuring it is reached on every disable cycle
+  one way or another.
+
+## Deployment
+- User will use Emergent's "Save to GitHub" to publish this repo as their own
+  fork. After deployment, they should rebuild & restart x-ui as usual
+  (`./x-ui restart` or `systemctl restart x-ui`) so the new binary is in use.
+- The default value of the setting `restartXrayOnClientDisable` remains
+  `true`, so first-time installs are unaffected. Existing installs that had
+  it set to `false` will now also get an automatic deferred restart instead
+  of leaking sessions.
+
+## Files Modified
+- `web/job/xray_traffic_job.go` — fixed the `clientsDisabled` branch.
+
+## Backlog / Possible Enhancements (not in scope of this fix)
+- P2: Add a short cooldown (e.g. don't restart more than once per N seconds)
+  if pathological churn is observed in deployments with many simultaneous
+  expirations. Current behaviour already limits restarts to once per 10s job
+  cycle and disabled rows are not re-picked, so this is mostly defensive.
+- P2: Expose a per-inbound “graceful drain” option in the panel so admins can
+  choose whether the auto-restart should also affect non-expired users
+  (currently it does, because xray-core has no per-user connection-kill API).
+- P3: When the user-facing settings page is opened, surface a hint near the
+  `restartXrayOnClientDisable` toggle explaining that turning it off will
+  delay (not skip) the disconnect of over-quota clients.
+
+## Smart Improvement Suggestion
+While we're at it — would you like me to add a small Telegram/webhook
+notification when a client is auto-disabled by quota or expiry? It's a tiny
+add-on (uses the existing `tgbot` plumbing) and gives admins instant
+visibility into who got cut off, which usually translates to faster renewals
+and happier (paying) customers.
