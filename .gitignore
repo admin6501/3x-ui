@@ -41,4 +41,12 @@ x-ui.db
 docker-compose.override.yml
 
 # Ignore .env (Environment Variables) file
+.env-e 
+# Environment and credential files
 .env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
