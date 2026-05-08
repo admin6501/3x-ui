@@ -2533,11 +2533,11 @@ Inbound.ClientBase = class extends XrayCommonClass {
     }
 
     get _totalGB() {
-        return NumberFormatter.toFixed(this.totalGB / SizeFormatter.ONE_GB, 2);
+        return NumberFormatter.roundedFixed(this.totalGB / SizeFormatter.ONE_GB, 2);
     }
 
     set _totalGB(gb) {
-        this.totalGB = NumberFormatter.toFixed(gb * SizeFormatter.ONE_GB, 0);
+        this.totalGB = NumberFormatter.roundedFixed(gb * SizeFormatter.ONE_GB, 0);
     }
 };
 

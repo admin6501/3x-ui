@@ -629,6 +629,21 @@ class NumberFormatter {
         n = Math.pow(10, n);
         return Math.floor(num * n) / n;
     }
+
+    /**
+     * Round (not truncate) a number to `n` decimal places.
+     *
+     * `toFixed` above uses Math.floor, which causes user-input volumes to
+     * display ~10MB short. Example: typing `0.03` GB stores
+     * floor(0.03 * 1073741824) = 32212254 bytes, then displaying that back
+     * with floor(_, 2) gives floor(0.029999..., 2) = 0.02 GB, dropping
+     * ~10 MB. Use `roundedFixed` whenever the value is meant to round-trip
+     * (display ⇄ store) without surprising the user.
+     */
+    static roundedFixed(num, n) {
+        n = Math.pow(10, n);
+        return Math.round(num * n) / n;
+    }
 }
 
 class Utils {
