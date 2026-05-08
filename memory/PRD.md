@@ -75,6 +75,41 @@ within ≤30s instead of waiting for a manual restart.
 
 ## Files Modified
 - `web/job/xray_traffic_job.go` — fixed the `clientsDisabled` branch.
+- `install.sh`, `update.sh`, `x-ui.sh` — every download URL now points at the
+  user's fork `admin6501/3x-ui` (raw.githubusercontent + api.github.com +
+  github.com/releases/download). This means:
+    * `install.sh` / `update.sh` fetch the release tarball
+      (`x-ui-linux-<arch>.tar.gz`), `x-ui.sh`, `x-ui.rc`, and the systemd
+      `x-ui.service.{debian,arch,rhel}` units from `admin6501/3x-ui`.
+    * The `x-ui` CLI's `update` / `install_legacy` / `print install
+      command` actions all reference `admin6501/3x-ui/main` instead of
+      `mhsanaei/3x-ui/master`.
+- `README.md`, `README.fa_IR.md`, `README.ar_EG.md`, `README.es_ES.md`,
+  `README.ru_RU.md`, `README.zh_CN.md` — the one-liner install command at
+  the top of each README now points at the user's fork. Badges,
+  buymeacoffee, wiki, and starchart links are intentionally left
+  attributing the upstream project.
+
+## IMPORTANT — Releases must exist on the fork
+`install.sh` and `update.sh` download the prebuilt binary from
+`https://github.com/admin6501/3x-ui/releases/download/<tag>/x-ui-linux-<arch>.tar.gz`.
+GitHub forks do **not** copy releases automatically. So after pushing the
+fork, the user must either:
+
+1. Create a release on `admin6501/3x-ui` with the same tag (e.g. `v2.x.y`)
+   and upload `x-ui-linux-amd64.tar.gz` / `x-ui-linux-arm64.tar.gz`
+   built from this codebase. (Easiest path: enable GitHub Actions, run the
+   existing release workflow under `.github/workflows/release.yml`.)
+2. OR build locally on the VPS from source:
+   ```
+   git clone -b main https://github.com/admin6501/3x-ui /usr/local/src/3x-ui
+   cd /usr/local/src/3x-ui
+   go build -o /usr/local/x-ui/x-ui main.go
+   cp x-ui.sh /usr/bin/x-ui && chmod +x /usr/bin/x-ui /usr/local/x-ui/x-ui
+   cp x-ui.service.debian /etc/systemd/system/x-ui.service   # or .arch / .rhel
+   systemctl daemon-reload && systemctl enable --now x-ui
+   ```
+   This bypasses the release-tarball download entirely.
 
 ## Backlog / Possible Enhancements (not in scope of this fix)
 - P2: Add a short cooldown (e.g. don't restart more than once per N seconds)
