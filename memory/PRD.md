@@ -77,18 +77,16 @@ within ≤30s instead of waiting for a manual restart.
 - `web/job/xray_traffic_job.go` — fixed the `clientsDisabled` branch.
 - `install.sh`, `update.sh`, `x-ui.sh` — every download URL now points at the
   user's fork `admin6501/3x-ui` (raw.githubusercontent + api.github.com +
-  github.com/releases/download). This means:
-    * `install.sh` / `update.sh` fetch the release tarball
-      (`x-ui-linux-<arch>.tar.gz`), `x-ui.sh`, `x-ui.rc`, and the systemd
-      `x-ui.service.{debian,arch,rhel}` units from `admin6501/3x-ui`.
-    * The `x-ui` CLI's `update` / `install_legacy` / `print install
-      command` actions all reference `admin6501/3x-ui/main` instead of
-      `mhsanaei/3x-ui/master`.
-- `README.md`, `README.fa_IR.md`, `README.ar_EG.md`, `README.es_ES.md`,
-  `README.ru_RU.md`, `README.zh_CN.md` — the one-liner install command at
-  the top of each README now points at the user's fork. Badges,
-  buymeacoffee, wiki, and starchart links are intentionally left
-  attributing the upstream project.
+  github.com/releases/download).
+- `README.md` + 5 translated READMEs — the top-level install command points
+  at the user's fork. Attribution links (badges / wiki / buymeacoffee /
+  starchart) left pointing upstream.
+- `install_offline.sh` (new) + `offline/x-ui-linux-amd64.tar.gz` (new) +
+  `offline/README.md` (new) + `.gitignore` — three-file offline install
+  flow for Iranian VPS with no internet. The tarball contains a
+  statically-linked x-ui binary (with the quota-exhaust fix), xray-linux-
+  amd64, geo .dat files, and systemd units. The installer performs zero
+  network calls and skips acme/SSL (can be enabled from the panel later).
 
 ## IMPORTANT — Releases must exist on the fork
 `install.sh` and `update.sh` download the prebuilt binary from
