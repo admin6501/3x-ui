@@ -226,14 +226,14 @@
         return ib ? ib.label : `#${id}`;
       },
       async loadAdmins() {
-        const r = await HttpUtil.get(`{{ .base_path }}panel/admin/list`);
+        const r = await HttpUtil.get(`/panel/admin/list`);
         if (r.success) this.admins = r.obj || [];
       },
       async loadInbounds() {
         this.formModal.inboundsLoading = true;
         this.inboundsLoadError = '';
         try {
-          const r = await HttpUtil.get(`{{ .base_path }}panel/api/inbounds/list`);
+          const r = await HttpUtil.get(`/panel/api/inbounds/list`);
           if (!r || !r.success) {
             this.inboundsLoadError = (r && r.msg) || 'request failed';
             this.inboundOptions = [];
@@ -270,7 +270,7 @@
         }
       },
       async loadAudit() {
-        const r = await HttpUtil.get(`{{ .base_path }}panel/admin/auditLog?limit=100`);
+        const r = await HttpUtil.get(`/panel/admin/auditLog?limit=100`);
         if (r.success) this.auditRows = r.obj || [];
       },
       openCreate() {
@@ -301,14 +301,14 @@
           };
           if (!this.formModal.isEdit) {
             payload.password = this.formModal.password;
-            const r = await HttpUtil.post(`{{ .base_path }}panel/admin/add`, payload);
+            const r = await HttpUtil.post(`/panel/admin/add`, payload);
             if (r.success) {
               this.formModal.visible = false;
               this.$message.success('{{ i18n "pages.admins.toasts.created" }}');
               await Promise.all([this.loadAdmins(), this.loadAudit()]);
             }
           } else {
-            const r = await HttpUtil.post(`{{ .base_path }}panel/admin/update/${this.formModal.id}`, payload);
+            const r = await HttpUtil.post(`/panel/admin/update/${this.formModal.id}`, payload);
             if (r.success) {
               this.formModal.visible = false;
               this.$message.success('{{ i18n "pages.admins.toasts.updated" }}');
@@ -322,7 +322,7 @@
       async doResetPassword() {
         this.resetPwdModal.saving = true;
         try {
-          const r = await HttpUtil.post(`{{ .base_path }}panel/admin/resetPassword/${this.resetPwdModal.id}`, { password: this.resetPwdModal.password });
+          const r = await HttpUtil.post(`/panel/admin/resetPassword/${this.resetPwdModal.id}`, { password: this.resetPwdModal.password });
           if (r.success) {
             this.resetPwdModal.visible = false;
             this.$message.success('{{ i18n "pages.admins.toasts.passwordReset" }}');
@@ -333,7 +333,7 @@
         }
       },
       async doDelete(rec) {
-        const r = await HttpUtil.post(`{{ .base_path }}panel/admin/delete/${rec.id}`);
+        const r = await HttpUtil.post(`/panel/admin/delete/${rec.id}`);
         if (r.success) {
           this.$message.success('{{ i18n "pages.admins.toasts.deleted" }}');
           await Promise.all([this.loadAdmins(), this.loadAudit()]);
