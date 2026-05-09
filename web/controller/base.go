@@ -29,6 +29,67 @@ func (a *BaseController) checkLogin(c *gin.Context) {
 	}
 }
 
+// requireRole returns a Gin middleware that aborts with 403 for any user
+// whose RBAC role is not in the allowed set. Pre-RBAC sessions (no Role
+// field) are treated as super_admin — see session.HasRole for rationale.
+func requireRole(roles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !session.IsLogin(c) {
+			pureJsonMsg(c, http.StatusUnauthorized, false, I18nWeb(c, "pages.login.loginAgain"))
+			c.Abort()
+			return
+		}
+		if !session.HasRole(c, roles...) {
+			pureJsonMsg(c, http.StatusForbidden, false, "forbidden: your role is not allowed for this action")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// requireSuperAdmin is a convenience wrapper for the most common gate.
+func requireSuperAdmin() gin.HandlerFunc {
+	return requireRole("super_admin")
+}
+
+// requireWriteAccess blocks readonly users from any mutating action.
+func requireWriteAccess() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !session.IsLogin(c) {
+			pureJsonMsg(c, http.StatusUnauthorized, false, I18nWeb(c, "pages.login.loginAgain"))
+			c.Abort()
+			return
+		}
+		if !session.CanWrite(c) {
+			pureJsonMsg(c, http.StatusForbidden, false, "forbidden: read-only account")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// guardWriteMethods is the same as requireWriteAccess but only fires for
+// mutating HTTP methods (POST/PUT/DELETE/PATCH). Read-only users can still
+// hit GETs. Useful as a single g.Use(...) on a router group that mixes
+// reads and writes (the existing inbound controller does that heavily).
+func guardWriteMethods() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		switch c.Request.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			c.Next()
+			return
+		}
+		if !session.CanWrite(c) {
+			pureJsonMsg(c, http.StatusForbidden, false, "forbidden: read-only account")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 // I18nWeb retrieves an internationalized message for the web interface based on the current locale.
 func I18nWeb(c *gin.Context, name string, params ...string) string {
 	anyfunc, funcExists := c.Get("I18n")

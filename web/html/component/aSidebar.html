@@ -53,6 +53,7 @@
                         icon: 'user',
                         title: '{{ i18n "menu.inbounds"}}'
                     },
+                    {{ if eq .current_user_role "super_admin" }}
                     {
                         key: '{{ .base_path }}panel/settings',
                         icon: 'setting',
@@ -63,6 +64,12 @@
                         icon: 'tool',
                         title: '{{ i18n "menu.xray"}}'
                     },
+                    {
+                        key: '{{ .base_path }}panel/admins',
+                        icon: 'team',
+                        title: '{{ i18n "menu.admins"}}'
+                    },
+                    {{ end }}
                     {
                         key: '{{ .base_path }}logout/',
                         icon: 'logout',

@@ -59,29 +59,68 @@ func (a *InboundController) broadcastInboundsUpdate(userId int) {
 func (a *InboundController) initRouter(g *gin.RouterGroup) {
 
 	g.GET("/list", a.getInbounds)
-	g.GET("/get/:id", a.getInbound)
+	g.GET("/get/:id", a.scopeInboundParam, a.getInbound)
 	g.GET("/getClientTraffics/:email", a.getClientTraffics)
-	g.GET("/getClientTrafficsById/:id", a.getClientTrafficsById)
+	g.GET("/getClientTrafficsById/:id", a.scopeInboundParam, a.getClientTrafficsById)
 
-	g.POST("/add", a.addInbound)
-	g.POST("/del/:id", a.delInbound)
-	g.POST("/update/:id", a.updateInbound)
-	g.POST("/setEnable/:id", a.setInboundEnable)
+	g.POST("/add", a.scopeRejectResellerCreate, a.addInbound)
+	g.POST("/del/:id", a.scopeInboundParam, a.delInbound)
+	g.POST("/update/:id", a.scopeInboundParam, a.updateInbound)
+	g.POST("/setEnable/:id", a.scopeInboundParam, a.setInboundEnable)
 	g.POST("/clientIps/:email", a.getClientIps)
 	g.POST("/clearClientIps/:email", a.clearClientIps)
 	g.POST("/addClient", a.addInboundClient)
-	g.POST("/:id/copyClients", a.copyInboundClients)
-	g.POST("/:id/delClient/:clientId", a.delInboundClient)
+	g.POST("/:id/copyClients", a.scopeInboundParam, a.copyInboundClients)
+	g.POST("/:id/delClient/:clientId", a.scopeInboundParam, a.delInboundClient)
 	g.POST("/updateClient/:clientId", a.updateInboundClient)
-	g.POST("/:id/resetClientTraffic/:email", a.resetClientTraffic)
-	g.POST("/resetAllTraffics", a.resetAllTraffics)
-	g.POST("/resetAllClientTraffics/:id", a.resetAllClientTraffics)
-	g.POST("/delDepletedClients/:id", a.delDepletedClients)
-	g.POST("/import", a.importInbound)
+	g.POST("/:id/resetClientTraffic/:email", a.scopeInboundParam, a.resetClientTraffic)
+	g.POST("/resetAllTraffics", a.scopeRejectReseller, a.resetAllTraffics)
+	g.POST("/resetAllClientTraffics/:id", a.scopeInboundParam, a.resetAllClientTraffics)
+	g.POST("/delDepletedClients/:id", a.scopeInboundParam, a.delDepletedClients)
+	g.POST("/import", a.scopeRejectResellerCreate, a.importInbound)
 	g.POST("/onlines", a.onlines)
 	g.POST("/lastOnline", a.lastOnline)
 	g.POST("/updateClientTraffic/:email", a.updateClientTraffic)
-	g.POST("/:id/delClientByEmail/:email", a.delInboundClientByEmail)
+	g.POST("/:id/delClientByEmail/:email", a.scopeInboundParam, a.delInboundClientByEmail)
+}
+
+// scopeInboundParam ensures the URL :id is in the reseller's allowed set.
+// No-op for super_admin / manager / readonly.
+func (a *InboundController) scopeInboundParam(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		// Not a valid id — let the downstream handler 400; the scope
+		// guard has nothing to enforce.
+		c.Next()
+		return
+	}
+	if !enforceInboundScope(c, id) {
+		return
+	}
+	c.Next()
+}
+
+// scopeRejectResellerCreate blocks resellers from creating brand-new
+// inbounds (`add`, `import`) — those would land outside their scope and
+// cannot be self-granted, so they're disallowed altogether.
+func (a *InboundController) scopeRejectResellerCreate(c *gin.Context) {
+	if u := session.GetLoginUser(c); u != nil && u.Role == model.RoleReseller {
+		jsonMsg(c, "forbidden", fmt.Errorf("resellers cannot create new inbounds"))
+		c.Abort()
+		return
+	}
+	c.Next()
+}
+
+// scopeRejectReseller blocks resellers from panel-wide actions that fan
+// out across every inbound (e.g. resetAllTraffics).
+func (a *InboundController) scopeRejectReseller(c *gin.Context) {
+	if u := session.GetLoginUser(c); u != nil && u.Role == model.RoleReseller {
+		jsonMsg(c, "forbidden", fmt.Errorf("resellers cannot trigger panel-wide actions"))
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 type CopyInboundClientsRequest struct {
@@ -90,14 +129,16 @@ type CopyInboundClientsRequest struct {
 	Flow            string   `form:"flow" json:"flow"`
 }
 
-// getInbounds retrieves the list of inbounds for the logged-in user.
+// getInbounds retrieves the list of inbounds visible to the logged-in
+// admin: super_admin / manager / readonly see everything; reseller sees
+// only the inbounds in their AllowedInbounds scope.
 func (a *InboundController) getInbounds(c *gin.Context) {
-	user := session.GetLoginUser(c)
-	inbounds, err := a.inboundService.GetInbounds(user.Id)
+	inbounds, err := a.inboundService.GetAllInbounds()
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return
 	}
+	inbounds = filterInboundsForRole(c, inbounds)
 	jsonObj(c, inbounds, nil)
 }
 

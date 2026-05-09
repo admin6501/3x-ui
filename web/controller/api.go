@@ -41,6 +41,10 @@ func (a *APIController) initRouter(g *gin.RouterGroup, customGeo *service.Custom
 	api := g.Group("/panel/api")
 	api.Use(a.checkAPIAuth)
 	api.Use(middleware.CSRFMiddleware())
+	// Read-only accounts can hit any GET endpoint but cannot trigger any
+	// mutating one. Applied here (before any sub-controller registers its
+	// handlers) so it covers every nested API route.
+	api.Use(guardWriteMethods())
 
 	// Inbounds API
 	inbounds := api.Group("/inbounds")

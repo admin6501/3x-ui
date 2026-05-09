@@ -96,8 +96,41 @@
 "inbounds" = "ورودی‌ها"
 "settings" = "تنظیمات پنل"
 "xray" = "پیکربندی ایکس‌ری"
+"admins" = "ادمین‌ها"
 "logout" = "خروج"
 "link" = "مدیریت"
+
+[pages.admins]
+"title" = "مدیریت ادمین‌ها"
+"subtitle" = "حساب‌های مدیریتی پنل و سطوح دسترسی آن‌ها را مدیریت کنید"
+"addAdmin" = "افزودن ادمین"
+"editAdmin" = "ویرایش ادمین"
+"resetPassword" = "تغییر گذرواژه"
+"newPassword" = "گذرواژه جدید"
+"confirmDelete" = "این ادمین حذف شود؟"
+"role" = "نقش"
+"allowedInbounds" = "ورودی‌های مجاز"
+"allowedInboundsDesc" = "فقط برای Reseller. خالی = هیچ ورودی‌ای دیده نمی‌شود. ورودی‌هایی که این Reseller می‌تواند مدیریت کند را انتخاب کنید."
+"selectInbounds" = "انتخاب ورودی‌ها…"
+"noInbound" = "ورودی‌ای اختصاص داده نشده"
+"auditLog" = "گزارش تغییرات"
+"actor" = "اقدام‌کننده"
+"action" = "اقدام"
+"target" = "هدف"
+"details" = "جزییات"
+"when" = "زمان"
+
+[pages.admins.roles]
+"super_admin" = "ادمین کل"
+"manager" = "مدیر"
+"reseller" = "نماینده"
+"readonly" = "فقط خواندنی"
+
+[pages.admins.toasts]
+"created" = "ادمین ساخته شد"
+"updated" = "ادمین به‌روز شد"
+"deleted" = "ادمین حذف شد"
+"passwordReset" = "گذرواژه تغییر کرد"
 
 [pages.login]
 "hello" = "سلام"

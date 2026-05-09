@@ -32,6 +32,7 @@ const (
 func initModels() error {
 	models := []any{
 		&model.User{},
+		&model.AdminAuditLog{},
 		&model.Inbound{},
 		&model.OutboundTraffics{},
 		&model.Setting{},
@@ -67,8 +68,19 @@ func initUser() error {
 		user := &model.User{
 			Username: defaultUsername,
 			Password: hashedPassword,
+			Role:     model.RoleSuperAdmin,
 		}
 		return db.Create(user).Error
+	}
+	// Repair-on-startup: if a previous install pre-dates the RBAC migration,
+	// every existing row has Role == "" because GORM AutoMigrate adds the
+	// column with the default but does NOT backfill empty strings. Force
+	// every legacy row to RoleSuperAdmin so the original admin keeps full
+	// access. New rows from CreateAdmin always set Role explicitly.
+	if err := db.Model(&model.User{}).Where("role IS NULL OR role = ''").
+		Update("role", model.RoleSuperAdmin).Error; err != nil {
+		log.Printf("Error backfilling User.Role for legacy rows: %v", err)
+		return err
 	}
 	return nil
 }

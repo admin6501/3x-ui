@@ -96,8 +96,41 @@
 "inbounds" = "Inbounds"
 "settings" = "Panel Settings"
 "xray" = "Xray Configs"
+"admins" = "Admins"
 "logout" = "Log Out"
 "link" = "Manage"
+
+[pages.admins]
+"title" = "Admin Management"
+"subtitle" = "Manage panel administrator accounts and their permissions"
+"addAdmin" = "Add Admin"
+"editAdmin" = "Edit Admin"
+"resetPassword" = "Reset Password"
+"newPassword" = "New password"
+"confirmDelete" = "Delete this admin?"
+"role" = "Role"
+"allowedInbounds" = "Allowed Inbounds"
+"allowedInboundsDesc" = "Reseller-only. Empty = no inbounds visible. Pick the inbounds this reseller can manage."
+"selectInbounds" = "Select inbounds…"
+"noInbound" = "No inbounds assigned"
+"auditLog" = "Audit Log"
+"actor" = "Actor"
+"action" = "Action"
+"target" = "Target"
+"details" = "Details"
+"when" = "When"
+
+[pages.admins.roles]
+"super_admin" = "Super Admin"
+"manager" = "Manager"
+"reseller" = "Reseller"
+"readonly" = "Read-only"
+
+[pages.admins.toasts]
+"created" = "Admin created"
+"updated" = "Admin updated"
+"deleted" = "Admin deleted"
+"passwordReset" = "Password reset"
 
 [pages.login]
 "hello" = "Hello"

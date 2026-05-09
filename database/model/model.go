@@ -36,11 +36,43 @@ func IsHysteria(p Protocol) bool {
 	return p == Hysteria || p == Hysteria2
 }
 
+// Role constants for the role-based access control (RBAC) layer that lives
+// on top of the existing session-based authentication. Stored verbatim in
+// User.Role; new columns default to RoleSuperAdmin so existing single-admin
+// installs keep working without manual migration.
+const (
+	RoleSuperAdmin = "super_admin" // full access — only role that can manage admins / panel settings / xray
+	RoleManager    = "manager"     // can manage all inbounds / clients but not panel settings or admin accounts
+	RoleReseller   = "reseller"    // can only see/manage inbounds explicitly assigned via AllowedInbounds
+	RoleReadonly   = "readonly"    // read-only across the panel — cannot mutate anything
+)
+
 // User represents a user account in the 3x-ui panel.
 type User struct {
 	Id       int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	// Role is one of RoleSuperAdmin / RoleManager / RoleReseller / RoleReadonly.
+	// Defaults to RoleSuperAdmin so a freshly-upgraded install with the
+	// pre-existing single admin user keeps full access.
+	Role string `json:"role" gorm:"type:varchar(32);default:super_admin;not null"`
+	// AllowedInbounds is a CSV list of inbound IDs (e.g. "3,7,12") used only
+	// by RoleReseller. Empty = no inbounds visible (intentionally restrictive
+	// — admins must explicitly grant access). Other roles ignore this field.
+	AllowedInbounds string `json:"allowedInbounds" gorm:"type:varchar(1024);default:''"`
+}
+
+// AdminAuditLog records mutations performed by admin users — admin CRUD,
+// role changes, password resets — so a super admin can review history.
+type AdminAuditLog struct {
+	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	ActorId   int    `json:"actorId" gorm:"index"`           // who performed the action
+	Actor     string `json:"actor"`                          // actor username at the time of action (denormalised so it survives delete)
+	Action    string `json:"action" gorm:"type:varchar(64)"` // create_admin / delete_admin / reset_password / update_role / etc.
+	TargetId  int    `json:"targetId" gorm:"index"`          // affected user id (0 if N/A)
+	Target    string `json:"target"`                         // affected username (denormalised)
+	Details   string `json:"details" gorm:"type:varchar(1024)"`
+	CreatedAt int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
 }
 
 // Inbound represents an Xray inbound configuration with traffic statistics and settings.

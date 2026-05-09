@@ -12,6 +12,7 @@ type XUIController struct {
 
 	settingController     *SettingController
 	xraySettingController *XraySettingController
+	adminController       *AdminController
 }
 
 // NewXUIController creates a new XUIController and initializes its routes.
@@ -26,14 +27,30 @@ func (a *XUIController) initRouter(g *gin.RouterGroup) {
 	g = g.Group("/panel")
 	g.Use(a.checkLogin)
 	g.Use(middleware.CSRFMiddleware())
+	// Read-only accounts can browse all GETs but cannot trigger any
+	// mutating endpoint under /panel. Applied here (before sub-controllers
+	// register their handlers) so it catches every nested route.
+	g.Use(guardWriteMethods())
 
 	g.GET("/", a.index)
 	g.GET("/inbounds", a.inbounds)
-	g.GET("/settings", a.settings)
-	g.GET("/xray", a.xraySettings)
+	g.GET("/settings", requireSuperAdmin(), a.settings)
+	g.GET("/xray", requireSuperAdmin(), a.xraySettings)
+	g.GET("/admins", requireSuperAdmin(), a.admins)
 
-	a.settingController = NewSettingController(g)
-	a.xraySettingController = NewXraySettingController(g)
+	// Setting / Xray-setting endpoints are super_admin only — no other
+	// role should be able to read or write panel-wide configuration. We
+	// scope them under their own sub-groups so we can apply
+	// requireSuperAdmin without leaking it into the rest of /panel.
+	settingGroup := g.Group("")
+	settingGroup.Use(requireSuperAdmin())
+	a.settingController = NewSettingController(settingGroup)
+	a.xraySettingController = NewXraySettingController(settingGroup)
+
+	// Admin RBAC endpoints — gated to super_admin only.
+	adminGroup := g.Group("/admin")
+	adminGroup.Use(requireSuperAdmin())
+	a.adminController = NewAdminController(adminGroup)
 }
 
 // index renders the main panel index page.
@@ -54,4 +71,9 @@ func (a *XUIController) settings(c *gin.Context) {
 // xraySettings renders the Xray settings page.
 func (a *XUIController) xraySettings(c *gin.Context) {
 	html(c, "xray.html", "pages.xray.title", nil)
+}
+
+// admins renders the Admin Management page (super_admin only).
+func (a *XUIController) admins(c *gin.Context) {
+	html(c, "admins.html", "pages.admins.title", nil)
 }

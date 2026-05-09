@@ -59,6 +59,49 @@ func IsLogin(c *gin.Context) bool {
 	return GetLoginUser(c) != nil
 }
 
+// HasRole reports whether the currently logged-in user has any of the given
+// roles. If no user is logged in, returns false. Pre-RBAC sessions (legacy
+// cookies issued before the RBAC migration where Role is empty) are treated
+// as RoleSuperAdmin so existing single-admin deployments don't lose access
+// after upgrade — the panel-level repair-on-startup migration ensures the
+// underlying DB row already says super_admin.
+func HasRole(c *gin.Context, roles ...string) bool {
+	u := GetLoginUser(c)
+	if u == nil {
+		return false
+	}
+	role := u.Role
+	if role == "" {
+		role = model.RoleSuperAdmin
+	}
+	for _, r := range roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+// IsSuperAdmin is shorthand for HasRole(c, RoleSuperAdmin).
+func IsSuperAdmin(c *gin.Context) bool {
+	return HasRole(c, model.RoleSuperAdmin)
+}
+
+// CanWrite reports whether the logged-in user is allowed to perform write
+// actions. RoleReadonly cannot; everyone else can (per-resource scoping for
+// reseller is enforced separately at query time).
+func CanWrite(c *gin.Context) bool {
+	u := GetLoginUser(c)
+	if u == nil {
+		return false
+	}
+	role := u.Role
+	if role == "" {
+		role = model.RoleSuperAdmin
+	}
+	return role != model.RoleReadonly
+}
+
 // ClearSession invalidates the session and tells the browser to drop the cookie.
 // The cookie attributes (Path/HttpOnly/SameSite) must mirror those used when
 // the cookie was created or browsers will keep it.

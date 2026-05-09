@@ -142,6 +142,20 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 	data["host"] = host
 	data["request_uri"] = c.Request.RequestURI
 	data["base_path"] = c.GetString("base_path")
+	// Expose the logged-in user's role to templates so role-aware UI
+	// chrome (sidebar items, action buttons) can hide things the user
+	// has no permission to use. Empty when no session.
+	if u := session.GetLoginUser(c); u != nil {
+		role := u.Role
+		if role == "" {
+			role = "super_admin"
+		}
+		data["current_user_role"] = role
+		data["current_user_name"] = u.Username
+	} else {
+		data["current_user_role"] = ""
+		data["current_user_name"] = ""
+	}
 	c.HTML(http.StatusOK, name, getContext(data))
 }
 
