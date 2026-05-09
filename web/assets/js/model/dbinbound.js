@@ -21,6 +21,9 @@ class DBInbound {
         this.tag = "";
         this.sniffing = "";
         this.clientStats = ""
+        // Volume-unit override for the inbound-level total-flow input.
+        // Empty string means "auto-detect from the stored bytes".
+        this.__volumeUnit = '';
         if (data == null) {
             return;
         }
@@ -35,6 +38,43 @@ class DBInbound {
 
     set totalGB(gb) {
         this.total = Math.round(gb * SizeFormatter.ONE_GB);
+    }
+
+    /**
+     * Unit chosen for the inbound total-flow input in the form. Auto-detected
+     * from the stored bytes so an inbound with a 500 MB cap does not look
+     * like "0 GB" when re-opened for editing.
+     */
+    get _volumeUnit() {
+        if (this.__volumeUnit) return this.__volumeUnit;
+        if (this.total > 0 && this.total < SizeFormatter.ONE_GB) return 'MB';
+        if (this.total >= SizeFormatter.ONE_TB) return 'TB';
+        return 'GB';
+    }
+
+    set _volumeUnit(unit) {
+        this.__volumeUnit = unit;
+    }
+
+    get _volumeFactor() {
+        switch (this._volumeUnit) {
+            case 'MB': return SizeFormatter.ONE_MB;
+            case 'TB': return SizeFormatter.ONE_TB;
+            default:   return SizeFormatter.ONE_GB;
+        }
+    }
+
+    /**
+     * Numeric amount shown in the form, expressed in `_volumeUnit`.
+     */
+    get _volumeAmount() {
+        const factor = this._volumeFactor;
+        return Math.round((this.total / factor) * 100) / 100;
+    }
+
+    set _volumeAmount(amount) {
+        const factor = this._volumeFactor;
+        this.total = Math.round((amount || 0) * factor);
     }
 
     get isVMess() {

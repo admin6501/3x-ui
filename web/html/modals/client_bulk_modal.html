@@ -89,7 +89,16 @@
                     <a-icon type="question-circle"></a-icon>
                 </a-tooltip>
             </template>
-            <a-input-number v-model.number="clientsBulkModal.totalGB" :min="0"></a-input-number>
+            <a-input-group compact>
+                <a-input-number v-model.number="clientsBulkModal.totalAmount" :min="0" :step="0.01"
+                    :style="{ width: 'calc(100% - 80px)' }"></a-input-number>
+                <a-select v-model="clientsBulkModal.volumeUnit" :style="{ width: '80px' }"
+                    :dropdown-class-name="themeSwitcher.currentTheme">
+                    <a-select-option value="MB">MB</a-select-option>
+                    <a-select-option value="GB">GB</a-select-option>
+                    <a-select-option value="TB">TB</a-select-option>
+                </a-select>
+            </a-input-group>
         </a-form-item>
         <a-form-item label='{{ i18n "pages.client.delayedStart" }}'>
             <a-switch v-model="clientsBulkModal.delayedStart" @click="clientsBulkModal.expiryTime=0"></a-switch>
@@ -140,6 +149,8 @@
         inbound: new Inbound(),
         quantity: 1,
         totalGB: 0,
+        totalAmount: 0,
+        volumeUnit: 'GB',
         limitIp: 0,
         expiryTime: '',
         emailMethod: 0,
@@ -153,6 +164,13 @@
         flow: "",
         delayedStart: false,
         reset: 0,
+        get _volumeFactor() {
+            switch (this.volumeUnit) {
+                case 'MB': return SizeFormatter.ONE_MB;
+                case 'TB': return SizeFormatter.ONE_TB;
+                default:   return SizeFormatter.ONE_GB;
+            }
+        },
         ok() {
             clients = [];
             method = clientsBulkModal.emailMethod;
@@ -174,7 +192,10 @@
                 newClient.tgId = clientsBulkModal.tgId;
                 newClient.security = clientsBulkModal.security;
                 newClient.limitIp = clientsBulkModal.limitIp;
-                newClient._totalGB = clientsBulkModal.totalGB;
+                // Convert chosen amount + unit into raw bytes (stored on
+                // newClient.totalGB which actually holds bytes despite the name).
+                newClient.totalGB = Math.round((clientsBulkModal.totalAmount || 0) * clientsBulkModal._volumeFactor);
+                newClient._volumeUnit = clientsBulkModal.volumeUnit;
                 newClient._expiryTime = clientsBulkModal.expiryTime;
                 if (clientsBulkModal.inbound.canEnableTlsFlow()) {
                     newClient.flow = clientsBulkModal.flow;
@@ -196,6 +217,8 @@
             this.confirm = confirm;
             this.quantity = 1;
             this.totalGB = 0;
+            this.totalAmount = 0;
+            this.volumeUnit = 'GB';
             this.expiryTime = 0;
             this.emailMethod = 0;
             this.limitIp = 0;

@@ -2480,6 +2480,10 @@ Inbound.ClientBase = class extends XrayCommonClass {
         this.reset = reset;
         this.created_at = created_at;
         this.updated_at = updated_at;
+        // Volume-unit override for the form UI. Empty string means
+        // "auto-detect from the stored bytes". Initialised in the
+        // constructor so Vue 2 can track it reactively.
+        this.__volumeUnit = '';
     }
 
     static commonArgsFromJson(json = {}) {
@@ -2540,6 +2544,44 @@ Inbound.ClientBase = class extends XrayCommonClass {
 
     set _totalGB(gb) {
         this.totalGB = Math.round(gb * SizeFormatter.ONE_GB);
+    }
+
+    /**
+     * Unit chosen for the volume input in the form. Defaults to a sensible
+     * unit auto-detected from the stored bytes so a client with 500 MB
+     * quota does not look like "0 GB" when re-opened for editing.
+     */
+    get _volumeUnit() {
+        if (this.__volumeUnit) return this.__volumeUnit;
+        if (this.totalGB > 0 && this.totalGB < SizeFormatter.ONE_GB) return 'MB';
+        if (this.totalGB >= SizeFormatter.ONE_TB) return 'TB';
+        return 'GB';
+    }
+
+    set _volumeUnit(unit) {
+        this.__volumeUnit = unit;
+    }
+
+    get _volumeFactor() {
+        switch (this._volumeUnit) {
+            case 'MB': return SizeFormatter.ONE_MB;
+            case 'TB': return SizeFormatter.ONE_TB;
+            default:   return SizeFormatter.ONE_GB;
+        }
+    }
+
+    /**
+     * Numeric amount shown in the form, expressed in `_volumeUnit`.
+     * Example: 524288000 bytes with unit=MB → 500.
+     */
+    get _volumeAmount() {
+        const factor = this._volumeFactor;
+        return Math.round((this.totalGB / factor) * 100) / 100;
+    }
+
+    set _volumeAmount(amount) {
+        const factor = this._volumeFactor;
+        this.totalGB = Math.round((amount || 0) * factor);
     }
 };
 
