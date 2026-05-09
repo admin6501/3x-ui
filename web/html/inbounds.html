@@ -1947,14 +1947,26 @@
       },
       exportSubs(dbInboundId) {
         const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
-        const clients = this.getInboundClients(dbInbound);
         let subLinks = []
-        if (clients != null) {
-          clients.forEach(c => {
-            if (c.subId && c.subId.length > 0) {
-              subLinks.push(this.subSettings.subURI + c.subId)
+        if (dbInbound.protocol === Protocols.WIREGUARD) {
+          // WireGuard inbounds keep their entities under settings.peers
+          // instead of settings.clients.
+          const inbound = dbInbound.toInbound();
+          const peers = inbound.settings && Array.isArray(inbound.settings.peers) ? inbound.settings.peers : [];
+          peers.forEach(p => {
+            if (p.subId && p.subId.length > 0) {
+              subLinks.push(this.subSettings.subURI + p.subId)
             }
           })
+        } else {
+          const clients = this.getInboundClients(dbInbound);
+          if (clients != null) {
+            clients.forEach(c => {
+              if (c.subId && c.subId.length > 0) {
+                subLinks.push(this.subSettings.subURI + c.subId)
+              }
+            })
+          }
         }
         txtModal.show(
           '{{ i18n "pages.inbounds.export"}} - {{ i18n "pages.settings.subSettings" }}',
@@ -1977,6 +1989,16 @@
       exportAllSubs() {
         let subLinks = []
         for (const dbInbound of this.dbInbounds) {
+          if (dbInbound.protocol === Protocols.WIREGUARD) {
+            const inbound = dbInbound.toInbound();
+            const peers = inbound.settings && Array.isArray(inbound.settings.peers) ? inbound.settings.peers : [];
+            peers.forEach(p => {
+              if (p.subId && p.subId.length > 0) {
+                subLinks.push(this.subSettings.subURI + p.subId)
+              }
+            })
+            continue
+          }
           const clients = this.getInboundClients(dbInbound);
           if (clients != null) {
             clients.forEach(c => {

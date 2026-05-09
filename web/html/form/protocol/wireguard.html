@@ -77,6 +77,24 @@
     <a-form-item label='Keep Alive'>
       <a-input-number v-model.number="peer.keepAlive" :min="0"></a-input-number>
     </a-form-item>
+    <a-form-item label='Email'>
+      <a-input v-model.trim="peer.email" placeholder="user@example.com"></a-input>
+    </a-form-item>
+    <a-form-item>
+      <template slot="label">
+        <a-tooltip>
+          <template slot="title">
+            <span>{{ i18n "reset" }}</span>
+          </template>
+          Sub ID
+          <a-icon type="sync" @click="peer.subId = RandomUtil.randomLowerAndNum(16)"></a-icon>
+        </a-tooltip>
+      </template>
+      <a-input v-model.trim="peer.subId"></a-input>
+    </a-form-item>
+    <a-form-item label='{{ i18n "pages.client.comment" }}'>
+      <a-input v-model.trim="peer.comment" type="textarea" :auto-size="{ minRows: 1, maxRows: 3 }"></a-input>
+    </a-form-item>
   </a-form>
 </a-form>
 {{end}}

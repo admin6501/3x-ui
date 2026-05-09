@@ -62,6 +62,46 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 		s.datepicker = "gregorian"
 	}
 	for _, inbound := range inbounds {
+		if inbound.Protocol == model.WireGuard {
+			// WireGuard does not have per-user "clients" — it has peers under
+			// settings.peers. Per-peer traffic tracking is not supported by
+			// Xray today, so we surface the inbound-level totals on the sub
+			// header instead. The link itself is generated from the peer's
+			// own keypair so each user gets a unique config.
+			peers, err := s.getWireguardPeers(inbound)
+			if err != nil {
+				logger.Error("SubService - getWireguardPeers: ", err)
+				continue
+			}
+			matched := false
+			for peerIdx, peer := range peers {
+				peerSubId, _ := peer["subId"].(string)
+				if peerSubId != subId {
+					continue
+				}
+				matched = true
+				hasEnabledClient = true // peers do not have an enable flag yet
+				link := s.genWireguardLink(inbound, peerIdx)
+				if link != "" {
+					result = append(result, link)
+				}
+			}
+			if matched {
+				// Use the inbound-level traffic as the user's traffic header.
+				// Multiple peers on the same inbound therefore share the same
+				// counters — a known limitation we accept until Xray gains
+				// per-peer accounting.
+				clientTraffics = append(clientTraffics, xray.ClientTraffic{
+					Up:         inbound.Up,
+					Down:       inbound.Down,
+					Total:      inbound.Total,
+					ExpiryTime: inbound.ExpiryTime,
+					Enable:     inbound.Enable,
+				})
+			}
+			continue
+		}
+
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
 			logger.Error("SubService - GetClients: Unable to get clients from inbound")
@@ -123,7 +163,9 @@ func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) 
 	db := database.GetDB()
 	var inbounds []*model.Inbound
 	// allow "hysteria2" so imports stored with the literal v2 protocol
-	// string still surface here (#4081)
+	// string still surface here (#4081). WireGuard inbounds keep their
+	// per-user entities under settings.peers (not settings.clients), so
+	// match them with a separate UNION.
 	err := db.Model(model.Inbound{}).Preload("ClientStats").Where(`id in (
 		SELECT DISTINCT inbounds.id
 		FROM inbounds,
@@ -131,7 +173,14 @@ func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) 
 		WHERE
 			protocol in ('vmess','vless','trojan','shadowsocks','hysteria','hysteria2')
 			AND JSON_EXTRACT(client.value, '$.subId') = ? AND enable = ?
-	)`, subId, true).Find(&inbounds).Error
+		UNION
+		SELECT DISTINCT inbounds.id
+		FROM inbounds,
+			JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.peers')) AS peer
+		WHERE
+			protocol = 'wireguard'
+			AND JSON_EXTRACT(peer.value, '$.subId') = ? AND enable = ?
+	)`, subId, true, subId, true).Find(&inbounds).Error
 	if err != nil {
 		return nil, err
 	}
@@ -182,8 +231,103 @@ func (s *SubService) getLink(inbound *model.Inbound, email string) string {
 		return s.genShadowsocksLink(inbound, email)
 	case "hysteria", "hysteria2":
 		return s.genHysteriaLink(inbound, email)
+	case "wireguard":
+		// WireGuard peers are matched by index inside GetSubs; this branch
+		// is only reached if a caller drives getLink directly with an email,
+		// in which case we look up the peer by its `email` extension field.
+		peers, err := s.getWireguardPeers(inbound)
+		if err != nil {
+			return ""
+		}
+		for idx, peer := range peers {
+			peerEmail, _ := peer["email"].(string)
+			if peerEmail == email {
+				return s.genWireguardLink(inbound, idx)
+			}
+		}
 	}
 	return ""
+}
+
+// getWireguardPeers parses the inbound's settings JSON and returns the raw
+// peer objects. Returns nil if the inbound is not a wireguard inbound or
+// has no peers.
+func (s *SubService) getWireguardPeers(inbound *model.Inbound) ([]map[string]any, error) {
+	if inbound.Protocol != model.WireGuard {
+		return nil, nil
+	}
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		return nil, err
+	}
+	rawPeers, _ := settings["peers"].([]any)
+	peers := make([]map[string]any, 0, len(rawPeers))
+	for _, raw := range rawPeers {
+		if peer, ok := raw.(map[string]any); ok {
+			peers = append(peers, peer)
+		}
+	}
+	return peers, nil
+}
+
+// genWireguardLink builds a wireguard:// URI for the peer at peerIndex on the
+// given inbound. The format mirrors the one produced by the panel UI's
+// `getWireguardLink` JS helper so that any client supporting the panel's
+// per-inbound link will also accept the subscription output.
+func (s *SubService) genWireguardLink(inbound *model.Inbound, peerIndex int) string {
+	if inbound.Protocol != model.WireGuard {
+		return ""
+	}
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		return ""
+	}
+	rawPeers, _ := settings["peers"].([]any)
+	if peerIndex < 0 || peerIndex >= len(rawPeers) {
+		return ""
+	}
+	peer, _ := rawPeers[peerIndex].(map[string]any)
+	if peer == nil {
+		return ""
+	}
+
+	address := s.resolveInboundAddress(inbound)
+	privateKey, _ := peer["privateKey"].(string)
+	if privateKey == "" {
+		return ""
+	}
+	pubKey, _ := settings["pubKey"].(string)
+
+	params := url.Values{}
+	if pubKey != "" {
+		params.Set("publickey", pubKey)
+	}
+	if allowedIPs, ok := peer["allowedIPs"].([]any); ok && len(allowedIPs) > 0 {
+		// Use the first allowed IP as the peer's tunnel address so that
+		// graphical WireGuard clients (Wireguard for iOS/Android, etc.)
+		// can populate the [Interface] Address field.
+		if first, ok := allowedIPs[0].(string); ok && first != "" {
+			params.Set("address", first)
+		}
+	}
+	if mtu, ok := settings["mtu"].(float64); ok && mtu > 0 {
+		params.Set("mtu", fmt.Sprintf("%d", int(mtu)))
+	}
+	if psk, ok := peer["preSharedKey"].(string); ok && psk != "" {
+		params.Set("presharedkey", psk)
+	}
+	if keepAlive, ok := peer["keepAlive"].(float64); ok && keepAlive > 0 {
+		params.Set("keepalive", fmt.Sprintf("%d", int(keepAlive)))
+	}
+
+	link := fmt.Sprintf("wireguard://%s@%s:%d", url.QueryEscape(privateKey), address, inbound.Port)
+	if len(params) > 0 {
+		link += "?" + params.Encode()
+	}
+
+	email, _ := peer["email"].(string)
+	link += "#" + url.QueryEscape(s.genRemark(inbound, email, ""))
+	return link
 }
 
 // Protocol link generators are intentionally ordered as:

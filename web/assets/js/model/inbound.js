@@ -3178,7 +3178,8 @@ Inbound.WireguardSettings = class extends XrayCommonClass {
 };
 
 Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
-    constructor(privateKey, publicKey, psk = '', allowedIPs = ['10.0.0.2/32'], keepAlive = 0) {
+    constructor(privateKey, publicKey, psk = '', allowedIPs = ['10.0.0.2/32'], keepAlive = 0,
+                email = '', subId = RandomUtil.randomLowerAndNum(16), comment = '') {
         super();
         this.privateKey = privateKey
         this.publicKey = publicKey;
@@ -3191,6 +3192,11 @@ Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
         })
         this.allowedIPs = allowedIPs;
         this.keepAlive = keepAlive;
+        // x-ui-specific extension fields used to identify a peer for the
+        // subscription system. Xray ignores them in the inbound settings JSON.
+        this.email = email;
+        this.subId = subId;
+        this.comment = comment;
     }
 
     static fromJson(json = {}) {
@@ -3199,7 +3205,12 @@ Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
             json.publicKey,
             json.preSharedKey,
             json.allowedIPs,
-            json.keepAlive
+            json.keepAlive,
+            json.email,
+            // Preserve existing subId; only generate a new one if missing
+            // (legacy peers created before this feature had no subId).
+            json.subId && json.subId.length > 0 ? json.subId : RandomUtil.randomLowerAndNum(16),
+            json.comment
         );
     }
 
@@ -3213,6 +3224,11 @@ Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
             preSharedKey: this.psk.length > 0 ? this.psk : undefined,
             allowedIPs: this.allowedIPs,
             keepAlive: this.keepAlive ?? undefined,
+            // x-ui-specific extension fields (ignored by Xray) used to wire
+            // the peer up to the subscription system.
+            email: this.email && this.email.length > 0 ? this.email : undefined,
+            subId: this.subId && this.subId.length > 0 ? this.subId : undefined,
+            comment: this.comment && this.comment.length > 0 ? this.comment : undefined,
         };
     }
 };
