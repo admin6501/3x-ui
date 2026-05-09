@@ -106,28 +106,28 @@
     :confirm-loading="formModal.saving"
     @ok="saveAdmin"
     data-testid="admin-form-modal">
-    <a-form-model layout="vertical">
-      <a-form-model-item label='{{ i18n "username" }}'>
+    <a-form layout="vertical">
+      <a-form-item label='{{ i18n "username" }}'>
         <a-input v-model="formModal.username" :disabled="formModal.isEdit" data-testid="admin-form-username" />
-      </a-form-model-item>
-      <a-form-model-item v-if="!formModal.isEdit" label='{{ i18n "password" }}'>
+      </a-form-item>
+      <a-form-item v-if="!formModal.isEdit" label='{{ i18n "password" }}'>
         <a-input-password v-model="formModal.password" data-testid="admin-form-password" />
-      </a-form-model-item>
-      <a-form-model-item label='{{ i18n "pages.admins.role" }}'>
+      </a-form-item>
+      <a-form-item label='{{ i18n "pages.admins.role" }}'>
         <a-select v-model="formModal.role" data-testid="admin-form-role">
           <a-select-option value="super_admin">[[ roleLabel('super_admin') ]]</a-select-option>
           <a-select-option value="manager">[[ roleLabel('manager') ]]</a-select-option>
           <a-select-option value="reseller">[[ roleLabel('reseller') ]]</a-select-option>
           <a-select-option value="readonly">[[ roleLabel('readonly') ]]</a-select-option>
         </a-select>
-      </a-form-model-item>
-      <a-form-model-item v-if="formModal.role === 'reseller'" label='{{ i18n "pages.admins.allowedInbounds" }}'>
+      </a-form-item>
+      <a-form-item v-if="formModal.role === 'reseller'" label='{{ i18n "pages.admins.allowedInbounds" }}'>
         <a-select mode="multiple" v-model="formModal.allowedInboundIds" placeholder='{{ i18n "pages.admins.selectInbounds" }}' data-testid="admin-form-inbounds">
           <a-select-option v-for="ib in inboundOptions" :key="ib.id" :value="ib.id">[[ ib.label ]]</a-select-option>
         </a-select>
         <div :style="{ color: '#888', fontSize: '12px', marginTop: '4px' }">{{ i18n "pages.admins.allowedInboundsDesc" }}</div>
-      </a-form-model-item>
-    </a-form-model>
+      </a-form-item>
+    </a-form>
   </a-modal>
 
   <!-- Reset password modal -->
@@ -144,16 +144,16 @@
   </a-modal>
 </a-layout>
 
-{{ template "js" .}}
-<script src="{{ .base_path }}assets/js/model/dbinbound.js?{{ .cur_ver }}"></script>
+{{template "page/body_scripts" .}}
+{{template "component/aSidebar" .}}
+{{template "component/aThemeSwitch" .}}
 <script>
   const app = new Vue({
     delimiters: ['[[', ']]'],
     el: '#app',
+    mixins: [MediaQueryMixin],
     data: {
-      siderDrawer,
       themeSwitcher,
-      isMobile: window.innerWidth <= 769,
       loading: false,
       admins: [],
       inboundOptions: [],
