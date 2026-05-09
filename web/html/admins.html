@@ -114,7 +114,7 @@
         <a-input-password v-model="formModal.password" data-testid="admin-form-password" />
       </a-form-item>
       <a-form-item label='{{ i18n "pages.admins.role" }}'>
-        <a-select v-model="formModal.role" data-testid="admin-form-role">
+        <a-select v-model="formModal.role" data-testid="admin-form-role" @change="onRoleChanged">
           <a-select-option value="super_admin">[[ roleLabel('super_admin') ]]</a-select-option>
           <a-select-option value="manager">[[ roleLabel('manager') ]]</a-select-option>
           <a-select-option value="reseller">[[ roleLabel('reseller') ]]</a-select-option>
@@ -122,10 +122,26 @@
         </a-select>
       </a-form-item>
       <a-form-item v-if="formModal.role === 'reseller'" label='{{ i18n "pages.admins.allowedInbounds" }}'>
-        <a-select mode="multiple" v-model="formModal.allowedInboundIds" placeholder='{{ i18n "pages.admins.selectInbounds" }}' data-testid="admin-form-inbounds">
-          <a-select-option v-for="ib in inboundOptions" :key="ib.id" :value="ib.id">[[ ib.label ]]</a-select-option>
-        </a-select>
-        <div :style="{ color: '#888', fontSize: '12px', marginTop: '4px' }">{{ i18n "pages.admins.allowedInboundsDesc" }}</div>
+        <div :style="{ display: 'flex', gap: '8px' }">
+          <a-select
+            mode="multiple"
+            :style="{ flex: 1 }"
+            v-model="formModal.allowedInboundIds"
+            :loading="formModal.inboundsLoading"
+            placeholder='{{ i18n "pages.admins.selectInbounds" }}'
+            data-testid="admin-form-inbounds">
+            <a-select-option v-for="ib in inboundOptions" :key="ib.id" :value="ib.id">[[ ib.label ]]</a-select-option>
+          </a-select>
+          <a-button @click="loadInbounds" :loading="formModal.inboundsLoading" data-testid="reload-inbounds-btn">
+            <a-icon type="reload"></a-icon>
+          </a-button>
+        </div>
+        <div :style="{ color: '#888', fontSize: '12px', marginTop: '4px' }">
+          {{ i18n "pages.admins.allowedInboundsDesc" }}
+          <span v-if="!formModal.inboundsLoading && inboundOptions.length === 0" :style="{ color: '#d9534f' }">
+            — [[ inboundsLoadError || '{{ i18n "pages.admins.noInbound" }}' ]]
+          </span>
+        </div>
       </a-form-item>
     </a-form>
   </a-modal>
@@ -162,12 +178,14 @@
         visible: false,
         isEdit: false,
         saving: false,
+        inboundsLoading: false,
         id: 0,
         username: '',
         password: '',
         role: 'manager',
         allowedInboundIds: [],
       },
+      inboundsLoadError: '',
       resetPwdModal: {
         visible: false,
         saving: false,
@@ -212,9 +230,43 @@
         if (r.success) this.admins = r.obj || [];
       },
       async loadInbounds() {
-        const r = await HttpUtil.get(`{{ .base_path }}panel/api/inbounds/list`);
-        if (r.success) {
-          this.inboundOptions = (r.obj || []).map(ib => ({ id: ib.id, label: `#${ib.id} ${ib.remark || ib.tag || ''}` }));
+        this.formModal.inboundsLoading = true;
+        this.inboundsLoadError = '';
+        try {
+          const r = await HttpUtil.get(`{{ .base_path }}panel/api/inbounds/list`);
+          if (!r || !r.success) {
+            this.inboundsLoadError = (r && r.msg) || 'request failed';
+            this.inboundOptions = [];
+            console.warn('[admins] inbounds/list failed:', r);
+            return;
+          }
+          const obj = r.obj || [];
+          if (!Array.isArray(obj)) {
+            this.inboundsLoadError = 'unexpected response (not an array)';
+            this.inboundOptions = [];
+            console.warn('[admins] unexpected obj:', obj);
+            return;
+          }
+          this.inboundOptions = obj.map(ib => ({
+            id: ib.id,
+            label: `#${ib.id} ${ib.remark || ib.tag || ''}`.trim(),
+          }));
+          console.log('[admins] loaded inbounds:', this.inboundOptions.length);
+        } catch (e) {
+          this.inboundsLoadError = String(e && e.message || e);
+          this.inboundOptions = [];
+          console.error('[admins] loadInbounds error:', e);
+        } finally {
+          this.formModal.inboundsLoading = false;
+        }
+      },
+      onRoleChanged() {
+        // When the admin switches to the reseller role we re-fetch the
+        // inbound list. The first mount fetch can race with the page
+        // becoming visible (or fail silently before the user opens the
+        // modal); a refresh on role-change makes the dropdown reliable.
+        if (this.formModal.role === 'reseller' && (this.inboundOptions.length === 0 || this.inboundsLoadError)) {
+          this.loadInbounds();
         }
       },
       async loadAudit() {
@@ -223,6 +275,9 @@
       },
       openCreate() {
         Object.assign(this.formModal, { visible: true, isEdit: false, id: 0, username: '', password: '', role: 'manager', allowedInboundIds: [] });
+        // Always re-fetch on open so a stale empty list from the initial
+        // mount doesn't leave the reseller picker empty.
+        this.loadInbounds();
       },
       openEdit(rec) {
         Object.assign(this.formModal, {
@@ -231,6 +286,7 @@
           role: rec.role || 'manager',
           allowedInboundIds: (rec.allowedInbounds || '').split(',').filter(Boolean).map(Number),
         });
+        this.loadInbounds();
       },
       openResetPwd(rec) {
         Object.assign(this.resetPwdModal, { visible: true, saving: false, id: rec.id, username: rec.username, password: '' });
