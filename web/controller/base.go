@@ -87,6 +87,18 @@ func guardWriteMethods() gin.HandlerFunc {
 		"/clientIps/:email",
 		"/getClientTraffics/:email",
 		"/getClientTrafficsById/:id",
+		// Settings reads-via-POST (legacy convention in this panel):
+		"/setting/defaultSettings", // public-ish bundle (subURI etc.)
+		// Server status & config readers (panel index, info modals):
+		"/api/server/status",
+		"/api/server/getXrayVersion",
+		"/api/server/getConfigJson",
+		"/api/server/getNewX25519Cert",
+		"/api/server/getNewVlessEnc",
+		"/api/server/getNewEchCert",
+		"/api/server/getNewmldsa65",
+		"/api/server/getPanelUpdateInfo",
+		"/api/custom-geo/list",
 	}
 	return func(c *gin.Context) {
 		switch c.Request.Method {

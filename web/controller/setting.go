@@ -35,14 +35,37 @@ func NewSettingController(g *gin.RouterGroup) *SettingController {
 }
 
 // initRouter sets up the routes for settings management.
+//
+// RBAC matrix:
+//
+//   POST /panel/setting/defaultSettings — public-ish bundle of settings
+//     consumed by every panel page (sub URI, default cert/key paths,
+//     telegram-bot flag, page size, datepicker, …). It carries no
+//     secrets, so all logged-in roles need it; otherwise the inbounds
+//     page and the per-client info modal can't render the subscription
+//     link and a manager / reseller / readonly admin sees a broken UI.
+//
+//   POST /panel/setting/updateUser — change YOUR own username/password.
+//     Available to every role (they can change their own credentials,
+//     not anyone else's — that goes through /panel/admin/resetPassword).
+//
+//   GET  /panel/setting/getDefaultJsonConfig — default xray config used
+//     when adding new inbounds. Managers need it to add inbounds.
+//
+//   POST /panel/setting/all          — leaks the panel `secret`, panel
+//                                     credentials, etc. -> super_admin.
+//   POST /panel/setting/update       — mutates panel-wide config
+//                                     -> super_admin.
+//   POST /panel/setting/restartPanel — disruptive
+//                                     -> super_admin.
 func (a *SettingController) initRouter(g *gin.RouterGroup) {
 	g = g.Group("/setting")
 
-	g.POST("/all", a.getAllSetting)
+	g.POST("/all", requireSuperAdmin(), a.getAllSetting)
 	g.POST("/defaultSettings", a.getDefaultSettings)
-	g.POST("/update", a.updateSetting)
+	g.POST("/update", requireSuperAdmin(), a.updateSetting)
 	g.POST("/updateUser", a.updateUser)
-	g.POST("/restartPanel", a.restartPanel)
+	g.POST("/restartPanel", requireSuperAdmin(), a.restartPanel)
 	g.GET("/getDefaultJsonConfig", a.getDefaultXrayConfig)
 }
 

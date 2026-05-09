@@ -38,14 +38,17 @@ func (a *XUIController) initRouter(g *gin.RouterGroup) {
 	g.GET("/xray", requireSuperAdmin(), a.xraySettings)
 	g.GET("/admins", requireSuperAdmin(), a.admins)
 
-	// Setting / Xray-setting endpoints are super_admin only — no other
-	// role should be able to read or write panel-wide configuration. We
-	// scope them under their own sub-groups so we can apply
-	// requireSuperAdmin without leaking it into the rest of /panel.
-	settingGroup := g.Group("")
-	settingGroup.Use(requireSuperAdmin())
-	a.settingController = NewSettingController(settingGroup)
-	a.xraySettingController = NewXraySettingController(settingGroup)
+	// SettingController exposes a mix of read-only (defaultSettings,
+	// updateUser-self) and super_admin-only endpoints. Per-route gating
+	// is applied inside SettingController.initRouter so every role can
+	// load the panel index without 403'ing on the public-ish settings
+	// bundle (which carries the subscription URI etc.).
+	a.settingController = NewSettingController(g)
+
+	// XraySettingController is fully panel-wide config — gated as a unit.
+	xraySettingGroup := g.Group("")
+	xraySettingGroup.Use(requireSuperAdmin())
+	a.xraySettingController = NewXraySettingController(xraySettingGroup)
 
 	// Admin RBAC endpoints — gated to super_admin only.
 	adminGroup := g.Group("/admin")
