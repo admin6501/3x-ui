@@ -194,7 +194,14 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	i18nWebFunc := func(key string, params ...string) string {
 		return locale.I18n(locale.Web, key, params...)
 	}
-	engine.SetFuncMap(map[string]any{"i18n": i18nWebFunc})
+	engine.SetFuncMap(map[string]any{
+		"i18n": i18nWebFunc,
+		// Same helpers exposed on the panel template engine — needed
+		// by web/html/settings/panel/subscription/subpage.html for the
+		// admin-editable branding (custom CSS / welcome / footer HTML).
+		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
+		"safeCSS":  func(s string) template.CSS { return template.CSS(s) },
+	})
 
 	// Templates: prefer embedded; fallback to disk if necessary
 	if err := setEmbeddedTemplates(engine); err != nil {

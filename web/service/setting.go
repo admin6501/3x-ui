@@ -78,6 +78,19 @@ var defaultValueMap = map[string]string{
 	"subJsonNoises":               "",
 	"subJsonMux":                  "",
 	"subJsonRules":                "",
+
+	// Subscription page (HTML view) — graphical branding settings.
+	// Each one defaults to empty/neutral so the rendered page looks
+	// identical to upstream until an admin edits these fields from the
+	// panel settings page. See web/html/settings/panel/subscription/subpage.html.
+	"subPageTitle":                "",
+	"subPageBrand":                "",
+	"subPageLogoUrl":              "",
+	"subPageWelcome":              "",
+	"subPageFooter":                "",
+	"subPagePrimaryColor":         "",
+	"subPageCustomCSS":            "",
+
 	"datepicker":                  "gregorian",
 	"warp":                        "",
 	"nord":                        "",
@@ -503,6 +516,37 @@ func (s *SettingService) GetSubEnableRouting() (bool, error) {
 
 func (s *SettingService) GetSubRoutingRules() (string, error) {
 	return s.getString("subRoutingRules")
+}
+
+// Subscription page (HTML view) branding getters.
+// Empty values mean "use the default look", so callers don't need
+// to special-case errors — they fall back to "".
+func (s *SettingService) GetSubPageTitle() (string, error) {
+	return s.getString("subPageTitle")
+}
+
+func (s *SettingService) GetSubPageBrand() (string, error) {
+	return s.getString("subPageBrand")
+}
+
+func (s *SettingService) GetSubPageLogoUrl() (string, error) {
+	return s.getString("subPageLogoUrl")
+}
+
+func (s *SettingService) GetSubPageWelcome() (string, error) {
+	return s.getString("subPageWelcome")
+}
+
+func (s *SettingService) GetSubPageFooter() (string, error) {
+	return s.getString("subPageFooter")
+}
+
+func (s *SettingService) GetSubPagePrimaryColor() (string, error) {
+	return s.getString("subPagePrimaryColor")
+}
+
+func (s *SettingService) GetSubPageCustomCSS() (string, error) {
+	return s.getString("subPageCustomCSS")
 }
 
 func (s *SettingService) GetSubListen() (string, error) {

@@ -85,6 +85,16 @@ type AllSetting struct {
 	SubJsonMux                  string `json:"subJsonMux" form:"subJsonMux"`                                   // JSON subscription mux configuration
 	SubJsonRules                string `json:"subJsonRules" form:"subJsonRules"`
 
+	// Subscription HTML page branding (admin-editable from the panel
+	// settings page; rendered by web/html/settings/panel/subscription/subpage.html).
+	SubPageTitle        string `json:"subPageTitle" form:"subPageTitle"`               // Heading + browser tab title; empty -> default
+	SubPageBrand        string `json:"subPageBrand" form:"subPageBrand"`               // Brand text shown next to the logo
+	SubPageLogoUrl      string `json:"subPageLogoUrl" form:"subPageLogoUrl"`           // Direct URL of a logo image
+	SubPageWelcome      string `json:"subPageWelcome" form:"subPageWelcome"`           // HTML message above the subscription card
+	SubPageFooter       string `json:"subPageFooter" form:"subPageFooter"`             // HTML footer below the subscription card
+	SubPagePrimaryColor string `json:"subPagePrimaryColor" form:"subPagePrimaryColor"` // Accent colour, e.g. "#1890ff"
+	SubPageCustomCSS    string `json:"subPageCustomCSS" form:"subPageCustomCSS"`       // Raw CSS injected into the subscription page
+
 	// LDAP settings
 	LdapEnable     bool   `json:"ldapEnable" form:"ldapEnable"`
 	LdapHost       string `json:"ldapHost" form:"ldapHost"`

@@ -58,7 +58,61 @@
         background: rgba(0, 0, 0, 0.05);
         border-color: rgba(0, 0, 0, 0.14);
     }
+
+    /* Branding helpers (admin-editable from /panel/settings) */
+    .subscription-page .brand-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 0 4px;
+    }
+    .subscription-page .brand-header img {
+        max-height: 48px;
+        max-width: 200px;
+        object-fit: contain;
+    }
+    .subscription-page .brand-header .brand-name {
+        font-size: 20px;
+        font-weight: 600;
+    }
+    .subscription-page .brand-welcome,
+    .subscription-page .brand-footer {
+        margin: 12px 4px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        line-height: 1.6;
+    }
+    .dark.subscription-page .brand-welcome,
+    .dark.subscription-page .brand-footer {
+        background: rgba(255, 255, 255, 0.04);
+        color: #fff;
+    }
+    .light.subscription-page .brand-welcome,
+    .light.subscription-page .brand-footer {
+        background: rgba(0, 0, 0, 0.03);
+        color: rgba(0, 0, 0, 0.85);
+    }
 </style>
+{{ if .brandPrimaryColor }}
+<style>
+    /* Override the panel primary color when admin set one. Applies to
+       antd buttons, tags, links, and layout accents on this page only. */
+    .subscription-page .ant-btn-primary,
+    .subscription-page .ant-tag-blue,
+    .subscription-page .qr-tag {
+        background-color: {{ .brandPrimaryColor }} !important;
+        border-color: {{ .brandPrimaryColor }} !important;
+    }
+    .subscription-page a,
+    .subscription-page .ant-typography a {
+        color: {{ .brandPrimaryColor }} !important;
+    }
+</style>
+{{ end }}
+{{ if .brandCustomCSS }}
+<style>{{ .brandCustomCSS | safeCSS }}</style>
+{{ end }}
 {{ template "page/head_end" .}}
 
 {{ template "page/body_start" .}}
@@ -66,10 +120,19 @@
     <a-layout-content class="p-2">
         <a-row type="flex" justify="center" class="mt-2">
             <a-col :xs="24" :sm="22" :md="18" :lg="14" :xl="12">
+                {{ if or .brandLogoUrl .brandName }}
+                <div class="brand-header">
+                    {{ if .brandLogoUrl }}<img src="{{ .brandLogoUrl }}" alt="logo" />{{ end }}
+                    {{ if .brandName }}<div class="brand-name">{{ .brandName }}</div>{{ end }}
+                </div>
+                {{ end }}
+                {{ if .brandWelcome }}
+                <div class="brand-welcome">{{ .brandWelcome | safeHTML }}</div>
+                {{ end }}
                 <a-card hoverable class="subscription-card">
                     <template #title>
                         <a-space>
-                            <span>{{ i18n "subscription.title" }}</span>
+                            <span>{{ if .brandTitle }}{{ .brandTitle }}{{ else }}{{ i18n "subscription.title" }}{{ end }}</span>
                             <a-tag>{{ .sId }}</a-tag>
                         </a-space>
                     </template>
@@ -268,6 +331,9 @@
                         </a-form-item>
                     </a-form>
                 </a-card>
+                {{ if .brandFooter }}
+                <div class="brand-footer">{{ .brandFooter | safeHTML }}</div>
+                {{ end }}
             </a-col>
         </a-row>
     </a-layout-content>

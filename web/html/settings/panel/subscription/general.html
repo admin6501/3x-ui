@@ -169,5 +169,60 @@
             </template>
         </a-setting-list-item>
     </a-collapse-panel>
+    <a-collapse-panel key="5" header='{{ i18n "pages.settings.subPageBranding"}}'>
+        <a-alert type="info" show-icon :message='`{{ i18n "pages.settings.subPageBrandingDesc"}}`' :style="{ marginBottom: '12px' }"></a-alert>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subPageTitle"}}</template>
+            <template #description>{{ i18n "pages.settings.subPageTitleDesc"}}</template>
+            <template #control>
+                <a-input type="text" v-model="allSetting.subPageTitle" placeholder="Subscription"></a-input>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subPageBrand"}}</template>
+            <template #description>{{ i18n "pages.settings.subPageBrandDesc"}}</template>
+            <template #control>
+                <a-input type="text" v-model="allSetting.subPageBrand" placeholder="My VPN"></a-input>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subPageLogoUrl"}}</template>
+            <template #description>{{ i18n "pages.settings.subPageLogoUrlDesc"}}</template>
+            <template #control>
+                <a-input type="text" v-model="allSetting.subPageLogoUrl" placeholder="https://example.com/logo.png"></a-input>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subPageWelcome"}}</template>
+            <template #description>{{ i18n "pages.settings.subPageWelcomeDesc"}}</template>
+            <template #control>
+                <a-textarea v-model="allSetting.subPageWelcome" :auto-size="{ minRows: 2, maxRows: 6 }" placeholder='Welcome! Need help? Contact <a href="https://t.me/support">@support</a>'></a-textarea>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subPageFooter"}}</template>
+            <template #description>{{ i18n "pages.settings.subPageFooterDesc"}}</template>
+            <template #control>
+                <a-textarea v-model="allSetting.subPageFooter" :auto-size="{ minRows: 2, maxRows: 6 }" placeholder='&copy; 2026 My VPN — Powered by 3x-ui'></a-textarea>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subPagePrimaryColor"}}</template>
+            <template #description>{{ i18n "pages.settings.subPagePrimaryColorDesc"}}</template>
+            <template #control>
+                <div :style="{ display: 'flex', gap: '8px' }">
+                    <input type="color" v-model="allSetting.subPagePrimaryColor" :style="{ width: '40px', height: '32px', border: 'none', padding: 0, background: 'transparent', cursor: 'pointer' }" />
+                    <a-input type="text" v-model="allSetting.subPagePrimaryColor" placeholder="#1890ff" :style="{ flex: 1 }"></a-input>
+                </div>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subPageCustomCSS"}}</template>
+            <template #description>{{ i18n "pages.settings.subPageCustomCSSDesc"}}</template>
+            <template #control>
+                <a-textarea v-model="allSetting.subPageCustomCSS" :auto-size="{ minRows: 3, maxRows: 12 }" placeholder=".subscription-page { background: #fafafa; }"></a-textarea>
+            </template>
+        </a-setting-list-item>
+    </a-collapse-panel>
 </a-collapse>
 {{end}}

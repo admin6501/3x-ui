@@ -252,6 +252,12 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	// Register template functions before loading templates
 	funcMap := template.FuncMap{
 		"i18n": i18nWebFunc,
+		// safeHTML / safeCSS opt-out of html/template auto-escaping for
+		// admin-supplied subscription-page branding (welcome message,
+		// footer, custom CSS). The values come from the panel settings
+		// which only super_admin can write, so trusting them is fine.
+		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
+		"safeCSS":  func(s string) template.CSS { return template.CSS(s) },
 	}
 	engine.SetFuncMap(funcMap)
 	engine.Use(locale.LocalizerMiddleware())

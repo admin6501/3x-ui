@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mhsanaei/3x-ui/v2/config"
+	"github.com/mhsanaei/3x-ui/v2/web/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,6 +31,43 @@ type SUBController struct {
 	subService      *SubService
 	subJsonService  *SubJsonService
 	subClashService *SubClashService
+
+	// settingService is read at template-render time so admins can edit
+	// the subscription page branding (title / brand / logo / colours /
+	// custom CSS) from the panel without restarting x-ui.
+	settingService service.SettingService
+}
+
+// pageBranding bundles the user-editable branding fields for the
+// subscription HTML page. All fields default to "" — empty values cause
+// the template to render the same look it had before this feature.
+type pageBranding struct {
+	Title        string
+	Brand        string
+	LogoURL      string
+	Welcome      string
+	Footer       string
+	PrimaryColor string
+	CustomCSS    string
+}
+
+func (a *SUBController) loadBranding() pageBranding {
+	g := func(get func() (string, error)) string {
+		v, err := get()
+		if err != nil {
+			return ""
+		}
+		return v
+	}
+	return pageBranding{
+		Title:        g(a.settingService.GetSubPageTitle),
+		Brand:        g(a.settingService.GetSubPageBrand),
+		LogoURL:      g(a.settingService.GetSubPageLogoUrl),
+		Welcome:      g(a.settingService.GetSubPageWelcome),
+		Footer:       g(a.settingService.GetSubPageFooter),
+		PrimaryColor: g(a.settingService.GetSubPagePrimaryColor),
+		CustomCSS:    g(a.settingService.GetSubPageCustomCSS),
+	}
 }
 
 // NewSUBController creates a new subscription controller with the given configuration.
@@ -132,6 +170,7 @@ func (a *SUBController) subs(c *gin.Context) {
 				basePathStr = strings.TrimRight(basePathStr, "/") + "/" + subId + "/"
 			}
 			page := a.subService.BuildPageData(subId, hostHeader, traffic, lastOnline, subs, subURL, subJsonURL, subClashURL, basePathStr)
+			b := a.loadBranding()
 			c.HTML(200, "subpage.html", gin.H{
 				"title":        "subscription.title",
 				"cur_ver":      config.GetVersion(),
@@ -154,6 +193,14 @@ func (a *SUBController) subs(c *gin.Context) {
 				"subJsonUrl":   page.SubJsonUrl,
 				"subClashUrl":  page.SubClashUrl,
 				"result":       page.Result,
+				// Branding (admin-editable from the panel settings page).
+				"brandTitle":        b.Title,
+				"brandName":         b.Brand,
+				"brandLogoUrl":      b.LogoURL,
+				"brandWelcome":      b.Welcome,
+				"brandFooter":       b.Footer,
+				"brandPrimaryColor": b.PrimaryColor,
+				"brandCustomCSS":    b.CustomCSS,
 			})
 			return
 		}
