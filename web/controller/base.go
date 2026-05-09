@@ -4,6 +4,7 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/mhsanaei/3x-ui/v2/logger"
 	"github.com/mhsanaei/3x-ui/v2/web/locale"
@@ -74,12 +75,33 @@ func requireWriteAccess() gin.HandlerFunc {
 // mutating HTTP methods (POST/PUT/DELETE/PATCH). Read-only users can still
 // hit GETs. Useful as a single g.Use(...) on a router group that mixes
 // reads and writes (the existing inbound controller does that heavily).
+//
+// Note: a few endpoints (e.g. /onlines, /lastOnline, /clientIps) are POSTs
+// but only return data — they're explicitly whitelisted so read-only
+// admins can still browse the panel index. Whitelist matches by suffix
+// of c.FullPath() so path parameters don't break the comparison.
 func guardWriteMethods() gin.HandlerFunc {
+	readLikePostSuffixes := []string{
+		"/onlines",
+		"/lastOnline",
+		"/clientIps/:email",
+		"/getClientTraffics/:email",
+		"/getClientTrafficsById/:id",
+	}
 	return func(c *gin.Context) {
 		switch c.Request.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
 			c.Next()
 			return
+		}
+		// Whitelist: POSTs that only fetch data must remain readable
+		// for the readonly role; otherwise the panel index breaks.
+		fp := c.FullPath()
+		for _, sfx := range readLikePostSuffixes {
+			if strings.HasSuffix(fp, sfx) {
+				c.Next()
+				return
+			}
 		}
 		if !session.CanWrite(c) {
 			pureJsonMsg(c, http.StatusForbidden, false, "forbidden: read-only account")

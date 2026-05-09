@@ -242,6 +242,10 @@ func (a *InboundController) updateInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
 		return
 	}
+	// Always trust the URL :id, never the body. Otherwise a reseller
+	// with scope on inbound A could PUT body{id: B} and update inbound B
+	// via the A-scoped URL.
+	inbound.Id = id
 	inbound, needRestart, err := a.inboundService.UpdateInbound(inbound)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -355,6 +359,12 @@ func (a *InboundController) addInboundClient(c *gin.Context) {
 		return
 	}
 
+	// Reseller scope guard: prevent adding clients into inbounds the
+	// reseller does not own.
+	if !enforceInboundScope(c, data.Id) {
+		return
+	}
+
 	needRestart, err := a.inboundService.AddInboundClient(data)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -382,6 +392,14 @@ func (a *InboundController) copyInboundClients(c *gin.Context) {
 	}
 	if req.SourceInboundID <= 0 {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), fmt.Errorf("invalid source inbound id"))
+		return
+	}
+
+	// Reseller scope guard: copying clients implies read access on the
+	// source AND write access on the target. The target is already
+	// enforced via scopeInboundParam middleware on the URL :id; here we
+	// additionally require the source to be inside the reseller's scope.
+	if !enforceInboundScope(c, req.SourceInboundID) {
 		return
 	}
 
@@ -424,6 +442,11 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 	err := c.ShouldBind(inbound)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
+		return
+	}
+
+	// Reseller scope guard.
+	if !enforceInboundScope(c, inbound.Id) {
 		return
 	}
 
