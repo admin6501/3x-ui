@@ -22,6 +22,19 @@
   <a-form-item label='No Kernel Tun'>
     <a-switch v-model="inbound.settings.noKernelTun"></a-switch>
   </a-form-item>
+  <a-form-item>
+    <template slot="label">
+      <a-tooltip>
+        <template slot="title">
+          <span>Public address advertised in subscription links and the QR code (e.g. <code>1.2.3.4</code> or <code>vpn.example.com</code>). Leave empty to fall back to the panel/sub host.</span>
+        </template>
+        Endpoint
+        <a-icon type="question-circle"></a-icon>
+      </a-tooltip>
+    </template>
+    <a-input v-model.trim="inbound.settings.endpoint"
+      placeholder="auto (panel host)"></a-input>
+  </a-form-item>
   <a-form-item label="Peers">
     <a-button icon="plus" type="primary" size="small" @click="inbound.settings.addPeer()"></a-button>
   </a-form-item>

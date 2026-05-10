@@ -256,6 +256,15 @@
                               <a-icon type="info-circle"></a-icon>
                               {{ i18n "info"}}
                             </a-menu-item>
+                            <a-menu-item key="export" v-if="dbInbound.isWireguard">
+                              <a-icon type="export"></a-icon>
+                              {{ i18n "pages.inbounds.export"}}
+                            </a-menu-item>
+                            <a-menu-item key="subs" v-if="dbInbound.isWireguard && subSettings.enable">
+                              <a-icon type="export"></a-icon>
+                              {{ i18n "pages.inbounds.export"}} - {{ i18n
+                              "pages.settings.subSettings" }}
+                            </a-menu-item>
                           </template>
                           <a-menu-item key="clipboard">
                             <a-icon type="copy"></a-icon>

@@ -2294,7 +2294,14 @@ class Inbound extends XrayCommonClass {
     }
 
     genWireguardLinks(remark = '', remarkModel = '-ieo') {
-        const addr = !ObjectUtil.isEmpty(this.listen) && this.listen !== "0.0.0.0" ? this.listen : location.hostname;
+        // Prefer the explicit panel-only endpoint override, then the inbound's
+        // bound listen address, falling back to whatever hostname was used to
+        // load the panel. This keeps WG links functional even when the panel
+        // is reached via a different domain than the actual VPN server.
+        const explicit = this.settings && this.settings.endpoint;
+        const addr = explicit && explicit.length > 0
+            ? explicit
+            : (!ObjectUtil.isEmpty(this.listen) && this.listen !== "0.0.0.0" ? this.listen : location.hostname);
         const separationChar = remarkModel.charAt(0);
         let links = [];
         this.settings.peers.forEach((p, index) => {
@@ -3139,7 +3146,8 @@ Inbound.WireguardSettings = class extends XrayCommonClass {
         mtu = 1420,
         secretKey = Wireguard.generateKeypair().privateKey,
         peers = [new Inbound.WireguardSettings.Peer()],
-        noKernelTun = false
+        noKernelTun = false,
+        endpoint = ''
     ) {
         super(protocol);
         this.mtu = mtu;
@@ -3147,6 +3155,10 @@ Inbound.WireguardSettings = class extends XrayCommonClass {
         this.pubKey = secretKey.length > 0 ? Wireguard.generateKeypair(secretKey).publicKey : '';
         this.peers = peers;
         this.noKernelTun = noKernelTun;
+        // Public address advertised in subscription links and the panel's
+        // QR code modal. When empty, falls back to the panel/sub host.
+        // Stored under x-ui's settings JSON; ignored by Xray.
+        this.endpoint = endpoint;
     }
 
     addPeer() {
@@ -3164,6 +3176,7 @@ Inbound.WireguardSettings = class extends XrayCommonClass {
             json.secretKey,
             json.peers.map(peer => Inbound.WireguardSettings.Peer.fromJson(peer)),
             json.noKernelTun,
+            json.endpoint,
         );
     }
 
@@ -3173,6 +3186,9 @@ Inbound.WireguardSettings = class extends XrayCommonClass {
             secretKey: this.secretKey,
             peers: Inbound.WireguardSettings.Peer.toJsonArray(this.peers),
             noKernelTun: this.noKernelTun,
+            // Panel-only field (Xray ignores it). Persist only when set
+            // so legacy inbounds round-trip cleanly.
+            endpoint: this.endpoint && this.endpoint.length > 0 ? this.endpoint : undefined,
         };
     }
 };

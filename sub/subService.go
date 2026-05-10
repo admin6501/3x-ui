@@ -291,7 +291,20 @@ func (s *SubService) genWireguardLink(inbound *model.Inbound, peerIndex int) str
 		return ""
 	}
 
-	address := s.resolveInboundAddress(inbound)
+	// Address resolution — order of preference:
+	//   1. explicit `endpoint` field on the WG settings (panel-only override)
+	//   2. inbound's listen address when it is a concrete bind (not wildcard)
+	//   3. the host from which the subscription was fetched (s.address)
+	// WireGuard is UDP, so a CDN-fronted sub host typically cannot proxy
+	// the traffic; the explicit endpoint field exists precisely to let the
+	// admin pin the link to the actual server's public IP/domain.
+	var address string
+	if ep, ok := settings["endpoint"].(string); ok && ep != "" {
+		address = ep
+	} else {
+		address = s.resolveInboundAddress(inbound)
+	}
+
 	privateKey, _ := peer["privateKey"].(string)
 	if privateKey == "" {
 		return ""
