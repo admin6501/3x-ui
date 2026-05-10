@@ -127,3 +127,13 @@ notification when a client is auto-disabled by quota or expiry? It's a tiny
 add-on (uses the existing `tgbot` plumbing) and gives admins instant
 visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
+
+## Changelog
+- 2026-02 — Proxy Chain UX surfaced. The underlying mechanism
+  (`streamSettings.sockopt.dialerProxy`) was already wired through the
+  Sockopts panel; added a dedicated top-level "Proxy Chain" dropdown in
+  `web/html/form/outbound.html` (right under sendThrough) plus a
+  `proxyChainTag` getter/setter on the `Outbound` model that auto-enables
+  the sockopt block when a tag is selected and excludes self-chaining.
+  Version bumped to 2.9.9 to bust browser cache; AMD64 tarball rebuilt at
+  `/app/offline/x-ui-linux-amd64.tar.gz`.

@@ -1229,6 +1229,29 @@ class Outbound extends CommonClass {
         this.stream = new StreamSettings();
     }
 
+    // Proxy Chain: returns the tag of another outbound used as dialer proxy.
+    // Reads/writes streamSettings.sockopt.dialerProxy (Xray's native chaining
+    // mechanism). Setter auto-enables the sockopt block when a tag is set so
+    // the value actually serializes into the Xray config.
+    get proxyChainTag() {
+        return (this.stream && this.stream.sockopt && this.stream.sockopt.dialerProxy) || '';
+    }
+
+    set proxyChainTag(value) {
+        const tag = (value || '').toString();
+        if (!this.stream) {
+            this.stream = new StreamSettings();
+        }
+        if (tag.length > 0) {
+            if (!this.stream.sockopt) {
+                this.stream.sockopt = new SockoptStreamSettings();
+            }
+            this.stream.sockopt.dialerProxy = tag;
+        } else if (this.stream.sockopt) {
+            this.stream.sockopt.dialerProxy = '';
+        }
+    }
+
     canEnableTls() {
         if (this.protocol === Protocols.Hysteria) return true;
         if (![Protocols.VMess, Protocols.VLESS, Protocols.Trojan, Protocols.Shadowsocks].includes(this.protocol)) return false;
