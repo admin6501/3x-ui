@@ -135,5 +135,14 @@ and happier (paying) customers.
   `web/html/form/outbound.html` (right under sendThrough) plus a
   `proxyChainTag` getter/setter on the `Outbound` model that auto-enables
   the sockopt block when a tag is selected and excludes self-chaining.
-  Version bumped to 2.9.9 to bust browser cache; AMD64 tarball rebuilt at
+- 2026-02 — Proxy Chain bug fix. After enabling a chain, the outbound
+  stopped routing and any inbound bound to it via a routing rule got
+  disconnected. Root cause: `SockoptStreamSettings.toJson()` always emitted
+  every field including defaults like `addressPortStrategy: "none"`,
+  `tcpKeepAliveInterval: 0`, `tcpFastOpen: false`, etc. Older Xray-core
+  builds reject the outbound when they see `addressPortStrategy: "none"`,
+  which silently kills traffic. Fix: rewrote sockopt `toJson` to emit only
+  non-default fields, and updated `StreamSettings.toJson` /
+  `Outbound.toJson` to drop the sockopt block entirely when empty.
+  Version bumped to 2.9.10; AMD64 tarball rebuilt at
   `/app/offline/x-ui-linux-amd64.tar.gz`.

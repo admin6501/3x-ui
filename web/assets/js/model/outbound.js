@@ -770,14 +770,23 @@ class SockoptStreamSettings extends CommonClass {
     }
 
     toJson() {
-        const result = {
-            dialerProxy: this.dialerProxy,
-            tcpFastOpen: this.tcpFastOpen,
-            tcpKeepAliveInterval: this.tcpKeepAliveInterval,
-            tcpMptcp: this.tcpMptcp,
-            penetrate: this.penetrate,
-            addressPortStrategy: this.addressPortStrategy
-        };
+        // Emit only non-default fields so older Xray-core builds don't reject
+        // the outbound (e.g. unknown `addressPortStrategy: "none"`). When the
+        // resulting object is empty the StreamSettings serializer drops the
+        // whole sockopt block.
+        const result = {};
+        if (this.dialerProxy && this.dialerProxy.length > 0) {
+            result.dialerProxy = this.dialerProxy;
+        }
+        if (this.tcpFastOpen) result.tcpFastOpen = true;
+        if (this.tcpKeepAliveInterval && this.tcpKeepAliveInterval !== 0) {
+            result.tcpKeepAliveInterval = this.tcpKeepAliveInterval;
+        }
+        if (this.tcpMptcp) result.tcpMptcp = true;
+        if (this.penetrate) result.penetrate = true;
+        if (this.addressPortStrategy && this.addressPortStrategy !== Address_Port_Strategy.NONE) {
+            result.addressPortStrategy = this.addressPortStrategy;
+        }
         if (this.trustedXForwardedFor && this.trustedXForwardedFor.length > 0) {
             result.trustedXForwardedFor = this.trustedXForwardedFor;
         }
@@ -1154,6 +1163,8 @@ class StreamSettings extends CommonClass {
 
     toJson() {
         const network = this.network;
+        const sockoptJson = this.sockopt != undefined ? this.sockopt.toJson() : undefined;
+        const sockoptHasContent = sockoptJson && Object.keys(sockoptJson).length > 0;
         return {
             network: network,
             security: this.security,
@@ -1167,7 +1178,7 @@ class StreamSettings extends CommonClass {
             xhttpSettings: network === 'xhttp' ? this.xhttp.toJson() : undefined,
             hysteriaSettings: network === 'hysteria' ? this.hysteria.toJson() : undefined,
             finalmask: this.hasFinalMask ? this.finalmask.toJson() : undefined,
-            sockopt: this.sockopt != undefined ? this.sockopt.toJson() : undefined,
+            sockopt: sockoptHasContent ? sockoptJson : undefined,
         };
     }
 }
@@ -1343,8 +1354,12 @@ class Outbound extends CommonClass {
         if (this.canEnableStream()) {
             stream = this.stream.toJson();
         } else {
-            if (this.stream?.sockopt)
-                stream = { sockopt: this.stream.sockopt.toJson() };
+            if (this.stream?.sockopt) {
+                const sockoptJson = this.stream.sockopt.toJson();
+                if (sockoptJson && Object.keys(sockoptJson).length > 0) {
+                    stream = { sockopt: sockoptJson };
+                }
+            }
         }
         let settingsOut = this.settings instanceof CommonClass ? this.settings.toJson() : this.settings;
         return {
