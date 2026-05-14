@@ -37,11 +37,12 @@ type AllSetting struct {
 	Datepicker  string `json:"datepicker" form:"datepicker"`   // Date picker format
 
 	// Telegram bot settings
-	TgBotEnable      bool   `json:"tgBotEnable" form:"tgBotEnable"`           // Enable Telegram bot notifications
-	TgBotToken       string `json:"tgBotToken" form:"tgBotToken"`             // Telegram bot token
-	TgBotProxy       string `json:"tgBotProxy" form:"tgBotProxy"`             // Proxy URL for Telegram bot
-	TgBotAPIServer   string `json:"tgBotAPIServer" form:"tgBotAPIServer"`     // Custom API server for Telegram bot
-	TgBotChatId      string `json:"tgBotChatId" form:"tgBotChatId"`           // Telegram chat ID for notifications
+	TgBotEnable       bool   `json:"tgBotEnable" form:"tgBotEnable"`             // Enable Telegram bot notifications
+	TgBotToken        string `json:"tgBotToken" form:"tgBotToken"`               // Telegram bot token
+	TgBotProxy        string `json:"tgBotProxy" form:"tgBotProxy"`               // Proxy URL for Telegram bot (legacy SOCKS5)
+	TgBotXrayOutbound string `json:"tgBotXrayOutbound" form:"tgBotXrayOutbound"` // Tag of an Xray outbound to route the bot through (preferred over TgBotProxy when non-empty)
+	TgBotAPIServer    string `json:"tgBotAPIServer" form:"tgBotAPIServer"`       // Custom API server for Telegram bot
+	TgBotChatId       string `json:"tgBotChatId" form:"tgBotChatId"`             // Telegram chat ID for notifications
 	TgRunTime        string `json:"tgRunTime" form:"tgRunTime"`               // Cron schedule for Telegram notifications
 	TgBotBackup      bool   `json:"tgBotBackup" form:"tgBotBackup"`           // Enable database backup via Telegram
 	TgBotLoginNotify bool   `json:"tgBotLoginNotify" form:"tgBotLoginNotify"` // Send login notifications

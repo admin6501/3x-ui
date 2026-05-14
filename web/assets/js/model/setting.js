@@ -16,6 +16,7 @@ class AllSetting {
         this.tgBotEnable = false;
         this.tgBotToken = "";
         this.tgBotProxy = "";
+        this.tgBotXrayOutbound = "";
         this.tgBotAPIServer = "";
         this.tgBotChatId = "";
         this.tgRunTime = "@daily";

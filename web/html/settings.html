@@ -125,6 +125,7 @@
       user: {},
       lang: LanguageManager.getLanguage(),
       inboundOptions: [],
+      tgBotXrayOutbounds: [],
       remarkModels: {
         i: 'Inbound',
         e: 'Email',
@@ -323,6 +324,17 @@
           }));
         } else {
           this.inboundOptions = [];
+        }
+      },
+      async loadTgBotXrayOutbounds() {
+        // Powers the Telegram bot routing dropdown. Endpoint reads
+        // outbounds from the saved Xray template (skipping blackhole),
+        // so the list always matches what the Xray Settings page shows.
+        const msg = await HttpUtil.get("/panel/setting/getXrayOutbounds");
+        if (msg && msg.success && Array.isArray(msg.obj)) {
+          this.tgBotXrayOutbounds = msg.obj;
+        } else {
+          this.tgBotXrayOutbounds = [];
         }
       },
       async updateAllSetting() {
@@ -711,6 +723,7 @@
       this.entryIsIP = this._isIp(this.entryHost);
       await this.getAllSetting();
       await this.loadInboundTags();
+      await this.loadTgBotXrayOutbounds();
       while (true) {
         await PromiseUtil.sleep(1000);
         this.saveBtnDisable = this.oldAllSetting.equals(this.allSetting);

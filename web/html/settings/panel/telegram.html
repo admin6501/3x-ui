@@ -67,10 +67,26 @@
     </a-collapse-panel>
     <a-collapse-panel key="3" header='{{ i18n "pages.settings.proxyAndServer" }}'>
         <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.telegramXrayOutbound"}}</template>
+            <template #description>{{ i18n "pages.settings.telegramXrayOutboundDesc"}}</template>
+            <template #control>
+                <a-select v-model="allSetting.tgBotXrayOutbound"
+                    :dropdown-class-name="themeSwitcher.currentTheme"
+                    :style="{ width: '100%' }"
+                    allow-clear
+                    placeholder='{{ i18n "pages.settings.telegramXrayOutboundPlaceholder" }}'>
+                    <a-select-option v-for="o in tgBotXrayOutbounds" :key="o.tag" :value="o.tag">
+                        [[ o.tag ]] <span style="opacity: 0.6">([[ o.protocol ]])</span>
+                    </a-select-option>
+                </a-select>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
             <template #title>{{ i18n "pages.settings.telegramProxy"}}</template>
             <template #description>{{ i18n "pages.settings.telegramProxyDesc"}}</template>
             <template #control>
                 <a-input type="text" placeholder="socks5://user:pass@host:port"
+                    :disabled="!!allSetting.tgBotXrayOutbound"
                     v-model="allSetting.tgBotProxy"></a-input>
             </template>
         </a-setting-list-item>
