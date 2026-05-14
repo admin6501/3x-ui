@@ -108,11 +108,11 @@
               <a-card hoverable>
                 <template #title>
                   <a-space direction="horizontal">
-                    <a-button type="primary" icon="plus" @click="openAddInbound">
+                    <a-button v-if="!isReseller" type="primary" icon="plus" @click="openAddInbound">
                       <template v-if="!isMobile">{{ i18n
                         "pages.inbounds.addInbound" }}</template>
                     </a-button>
-                    <a-dropdown :trigger="['click']">
+                    <a-dropdown v-if="!isReseller" :trigger="['click']">
                       <a-button type="primary" icon="menu">
                         <template v-if="!isMobile">{{ i18n
                           "pages.inbounds.generalActions" }}</template>
@@ -210,7 +210,7 @@
                           :style="{ fontSize: '20px', textDecoration: 'solid' }"></a-icon>
                         <a-menu slot="overlay" @click="a => clickAction(a, dbInbound)"
                           :theme="themeSwitcher.currentTheme">
-                          <a-menu-item key="edit">
+                          <a-menu-item v-if="!isReseller" key="edit">
                             <a-icon type="edit"></a-icon>
                             {{ i18n "edit" }}
                           </a-menu-item>
@@ -270,20 +270,20 @@
                             <a-icon type="copy"></a-icon>
                             {{ i18n "pages.inbounds.exportInbound" }}
                           </a-menu-item>
-                          <a-menu-item key="resetTraffic">
+                          <a-menu-item v-if="!isReseller" key="resetTraffic">
                             <a-icon type="retweet"></a-icon> {{ i18n
                             "pages.inbounds.resetTraffic" }}
                           </a-menu-item>
-                          <a-menu-item key="clone">
+                          <a-menu-item v-if="!isReseller" key="clone">
                             <a-icon type="block"></a-icon> {{ i18n
                             "pages.inbounds.clone"}}
                           </a-menu-item>
-                          <a-menu-item key="delete">
+                          <a-menu-item v-if="!isReseller" key="delete">
                             <span :style="{ color: '#FF4D4F' }">
                               <a-icon type="delete"></a-icon> {{ i18n "delete"}}
                             </span>
                           </a-menu-item>
-                          <a-menu-item v-if="isMobile">
+                          <a-menu-item v-if="isMobile && !isReseller">
                             <a-switch size="small" v-model="dbInbound.enable"
                               @change="switchEnable(dbInbound.id,dbInbound.enable)"></a-switch>
                             {{ i18n "pages.inbounds.enable" }}
@@ -428,7 +428,7 @@
                         ]]</a-tag>
                     </template>
                     <template slot="enable" slot-scope="text, dbInbound">
-                      <a-switch v-model="dbInbound.enable"
+                      <a-switch v-model="dbInbound.enable" :disabled="isReseller"
                         @change="switchEnable(dbInbound.id,dbInbound.enable)"></a-switch>
                     </template>
                     <template slot="expiryTime" slot-scope="text, dbInbound">
@@ -1041,6 +1041,12 @@
     data: {
       themeSwitcher,
       persianDatepicker,
+      // currentUserRole is injected by the Go template (see controller/util.go).
+      // We use it to hide inbound-level mutation UI from resellers — they
+      // can only manage clients of their assigned inbounds, not the
+      // inbound configuration itself. Backend enforces this regardless;
+      // this just keeps the UI honest.
+      currentUserRole: '{{ .current_user_role }}',
       loadingStates: {
         fetched: false,
         spinning: false
@@ -2228,6 +2234,13 @@
       });
     },
     computed: {
+      // isReseller is true when the logged-in user has the reseller
+      // role. Used throughout the template to hide inbound-level
+      // mutation buttons (edit, delete, clone, enable-switch, ...).
+      // Reseller can only manage clients of inbounds in their scope.
+      isReseller() {
+        return this.currentUserRole === 'reseller';
+      },
       total() {
         let down = 0,
           up = 0,
