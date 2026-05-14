@@ -252,6 +252,29 @@ func (t *Tgbot) Start(i18nFS embed.FS) error {
 		logger.Warning("Failed to get Telegram bot API server URL:", err)
 	}
 
+	// If the admin chose an Xray outbound for the bot, prefer that over
+	// the legacy SOCKS5 proxy URL. The XrayService allocates a local
+	// loopback SOCKS5 inbound (see web/service/tgbot_outbound.go) and
+	// publishes its port via GetTgBotSocksPort. Wait briefly for Xray
+	// to start listening so the very first Telegram API call doesn't
+	// race the proxy port; if Xray never comes up, fall back to direct
+	// (proxyUrl="") rather than blocking the panel forever.
+	tgBotXrayOutbound, err := t.settingService.GetTgBotXrayOutbound()
+	if err != nil {
+		logger.Warning("Failed to get Telegram bot Xray outbound:", err)
+	}
+	if tgBotXrayOutbound != "" {
+		port := waitForTgBotSocksPort(5 * time.Second)
+		if port > 0 {
+			tgBotProxy = fmt.Sprintf("socks5://127.0.0.1:%d", port)
+			logger.Infof("Telegram bot will route through Xray outbound %q via local SOCKS5 :%d",
+				tgBotXrayOutbound, port)
+		} else {
+			logger.Warningf("Xray outbound %q selected for Telegram bot but local SOCKS5 not ready; "+
+				"continuing without it", tgBotXrayOutbound)
+		}
+	}
+
 	// Create new Telegram bot instance
 	bot, err = t.NewBot(tgBotToken, tgBotProxy, tgBotAPIServer)
 	if err != nil {

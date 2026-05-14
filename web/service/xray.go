@@ -195,6 +195,30 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 		inboundConfig := inbound.GenXrayInboundConfig()
 		xrayConfig.InboundConfigs = append(xrayConfig.InboundConfigs, *inboundConfig)
 	}
+
+	// If the admin has selected an Xray outbound for the Telegram bot,
+	// expose it as a local SOCKS5 inbound so the bot's fasthttp client
+	// can dial it via fasthttpproxy.FasthttpSocksDialer. The port is
+	// allocated lazily on each config build and stored globally for the
+	// bot to pick up; if Xray restarts on a fresh port the bot will be
+	// (re)started by the panel and pick up the new value.
+	tgOutbound, _ := s.settingService.GetTgBotXrayOutbound()
+	tgEnabled, _ := s.settingService.GetTgbotEnabled()
+	if tgEnabled && tgOutbound != "" {
+		port, err := findAvailablePort()
+		if err == nil {
+			if injectTgBotOutboundRouting(xrayConfig, tgOutbound, port) {
+				setTgBotSocksPort(port)
+			} else {
+				setTgBotSocksPort(0)
+			}
+		} else {
+			setTgBotSocksPort(0)
+		}
+	} else {
+		setTgBotSocksPort(0)
+	}
+
 	return xrayConfig, nil
 }
 

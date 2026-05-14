@@ -42,6 +42,7 @@ var defaultValueMap = map[string]string{
 	"tgBotEnable":                 "false",
 	"tgBotToken":                  "",
 	"tgBotProxy":                  "",
+	"tgBotXrayOutbound":           "",
 	"tgBotAPIServer":              "",
 	"tgBotChatId":                 "",
 	"tgRunTime":                   "@daily",
@@ -326,6 +327,19 @@ func (s *SettingService) GetTgBotProxy() (string, error) {
 
 func (s *SettingService) SetTgBotProxy(token string) error {
 	return s.setString("tgBotProxy", token)
+}
+
+// GetTgBotXrayOutbound returns the tag of the Xray outbound through which
+// the Telegram bot's traffic should be routed. An empty value means
+// "no Xray-based routing — fall back to TgBotProxy / direct".
+func (s *SettingService) GetTgBotXrayOutbound() (string, error) {
+	return s.getString("tgBotXrayOutbound")
+}
+
+// SetTgBotXrayOutbound persists the chosen Xray outbound tag for the
+// Telegram bot. Pass an empty string to disable Xray-based routing.
+func (s *SettingService) SetTgBotXrayOutbound(tag string) error {
+	return s.setString("tgBotXrayOutbound", tag)
 }
 
 func (s *SettingService) GetTgBotAPIServer() (string, error) {
@@ -798,6 +812,48 @@ func (s *SettingService) GetDefaultXrayConfig() (any, error) {
 		return nil, err
 	}
 	return jsonData, nil
+}
+
+// XrayOutboundOption is the lightweight projection of an Xray outbound
+// served to the panel UI when populating selects (e.g. the Telegram
+// bot routing dropdown). Only fields the user can read at a glance are
+// included; secrets stay out.
+type XrayOutboundOption struct {
+	Tag      string `json:"tag"`
+	Protocol string `json:"protocol"`
+}
+
+// GetXrayOutbounds returns the outbound tags currently configured in
+// the saved Xray template, skipping internal blackhole entries the
+// admin can't usefully select (Telegram traffic should never be
+// routed to "blocked").
+func (s *SettingService) GetXrayOutbounds() ([]XrayOutboundOption, error) {
+	tmpl, err := s.GetXrayConfigTemplate()
+	if err != nil {
+		return nil, err
+	}
+	var cfg struct {
+		Outbounds []map[string]any `json:"outbounds"`
+	}
+	if err := json.Unmarshal([]byte(tmpl), &cfg); err != nil {
+		return nil, err
+	}
+	out := make([]XrayOutboundOption, 0, len(cfg.Outbounds))
+	for _, ob := range cfg.Outbounds {
+		tag, _ := ob["tag"].(string)
+		if tag == "" {
+			continue
+		}
+		protocol, _ := ob["protocol"].(string)
+		if protocol == "blackhole" {
+			// Sending Telegram traffic to a blackhole would silently
+			// disable the bot — surface only outbounds that can carry
+			// traffic.
+			continue
+		}
+		out = append(out, XrayOutboundOption{Tag: tag, Protocol: protocol})
+	}
+	return out, nil
 }
 
 func extractHostname(host string) string {

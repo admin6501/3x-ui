@@ -67,6 +67,12 @@ func (a *SettingController) initRouter(g *gin.RouterGroup) {
 	g.POST("/updateUser", a.updateUser)
 	g.POST("/restartPanel", requireSuperAdmin(), a.restartPanel)
 	g.GET("/getDefaultJsonConfig", a.getDefaultXrayConfig)
+	// Telegram bot Xray outbound picker — non-secret list of outbound
+	// tags + protocols. Available to every logged-in role for the same
+	// reason /defaultSettings is: a manager / reseller may render the
+	// settings page even if they can't save it, and rendering needs
+	// the option list. Saving is still gated by /update -> super_admin.
+	g.GET("/getXrayOutbounds", a.getXrayOutbounds)
 }
 
 // getAllSetting retrieves all current settings.
@@ -143,4 +149,16 @@ func (a *SettingController) getDefaultXrayConfig(c *gin.Context) {
 		return
 	}
 	jsonObj(c, defaultJsonConfig, nil)
+}
+
+// getXrayOutbounds returns the list of outbound tags + protocols
+// configured in the saved Xray template, used by the Telegram bot
+// settings page to populate the routing dropdown.
+func (a *SettingController) getXrayOutbounds(c *gin.Context) {
+	outbounds, err := a.settingService.GetXrayOutbounds()
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.settings.toasts.getSettings"), err)
+		return
+	}
+	jsonObj(c, outbounds, nil)
 }
