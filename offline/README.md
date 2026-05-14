@@ -106,3 +106,16 @@ x-ui/
 - PLUS commit `1cd06dd` — **fix(traffic-job): drop active sessions of
   auto-disabled clients** (the quota-exhaust bug fix this fork was created
   for).
+- PLUS the **outbound form simplification** (PR #1, merged) — Proxy Chain UI
+  removed; `streamSettings.sockopt.dialerProxy` is still reachable via the
+  Sockopts panel for advanced users.
+- PLUS **PR #2 — Telegram bot routing through an Xray outbound**: the panel
+  injects a loopback SOCKS5 inbound + routing rule into Xray and points the
+  bot's HTTP client at it. Configurable from Settings → Telegram. Falls back
+  to the legacy `tgBotProxy` SOCKS5 URL when no outbound is selected.
+- PLUS **PR #3 — Reseller can no longer mutate the inbound itself**:
+  resellers keep full client management on their assigned inbounds (add /
+  edit / delete / reset / copy clients) but the inbound's own configuration
+  (edit, delete, clone, enable/disable, reset traffic) is gated to
+  super_admin / manager. Enforced both server-side (middleware) and
+  client-side (hidden / disabled UI controls).
