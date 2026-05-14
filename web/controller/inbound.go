@@ -64,9 +64,9 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.GET("/getClientTrafficsById/:id", a.scopeInboundParam, a.getClientTrafficsById)
 
 	g.POST("/add", a.scopeRejectResellerCreate, a.addInbound)
-	g.POST("/del/:id", a.scopeInboundParam, a.delInbound)
-	g.POST("/update/:id", a.scopeInboundParam, a.updateInbound)
-	g.POST("/setEnable/:id", a.scopeInboundParam, a.setInboundEnable)
+	g.POST("/del/:id", a.scopeInboundParam, a.scopeRejectResellerInboundMutate, a.delInbound)
+	g.POST("/update/:id", a.scopeInboundParam, a.scopeRejectResellerInboundMutate, a.updateInbound)
+	g.POST("/setEnable/:id", a.scopeInboundParam, a.scopeRejectResellerInboundMutate, a.setInboundEnable)
 	g.POST("/clientIps/:email", a.getClientIps)
 	g.POST("/clearClientIps/:email", a.clearClientIps)
 	g.POST("/addClient", a.addInboundClient)
@@ -117,6 +117,21 @@ func (a *InboundController) scopeRejectResellerCreate(c *gin.Context) {
 func (a *InboundController) scopeRejectReseller(c *gin.Context) {
 	if u := session.GetLoginUser(c); u != nil && u.Role == model.RoleReseller {
 		jsonMsg(c, "forbidden", fmt.Errorf("resellers cannot trigger panel-wide actions"))
+		c.Abort()
+		return
+	}
+	c.Next()
+}
+
+// scopeRejectResellerInboundMutate blocks resellers from mutating the
+// inbound entity itself (edit / delete / enable-disable / reset-inbound-
+// traffic which is performed via the update endpoint with up=down=0).
+// Resellers retain full access to client-level operations on inbounds
+// inside their scope (add/edit/delete clients, reset client traffic,
+// etc.) — they just can't touch the inbound's own configuration.
+func (a *InboundController) scopeRejectResellerInboundMutate(c *gin.Context) {
+	if u := session.GetLoginUser(c); u != nil && u.Role == model.RoleReseller {
+		jsonMsg(c, "forbidden", fmt.Errorf("resellers cannot modify the inbound itself; only its clients"))
 		c.Abort()
 		return
 	}
