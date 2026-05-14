@@ -129,20 +129,22 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
-- 2026-02 — Proxy Chain UX surfaced. The underlying mechanism
-  (`streamSettings.sockopt.dialerProxy`) was already wired through the
-  Sockopts panel; added a dedicated top-level "Proxy Chain" dropdown in
-  `web/html/form/outbound.html` (right under sendThrough) plus a
-  `proxyChainTag` getter/setter on the `Outbound` model that auto-enables
-  the sockopt block when a tag is selected and excludes self-chaining.
-- 2026-02 — Proxy Chain bug fix. After enabling a chain, the outbound
-  stopped routing and any inbound bound to it via a routing rule got
-  disconnected. Root cause: `SockoptStreamSettings.toJson()` always emitted
-  every field including defaults like `addressPortStrategy: "none"`,
-  `tcpKeepAliveInterval: 0`, `tcpFastOpen: false`, etc. Older Xray-core
-  builds reject the outbound when they see `addressPortStrategy: "none"`,
-  which silently kills traffic. Fix: rewrote sockopt `toJson` to emit only
-  non-default fields, and updated `StreamSettings.toJson` /
-  `Outbound.toJson` to drop the sockopt block entirely when empty.
-  Version bumped to 2.9.10; AMD64 tarball rebuilt at
-  `/app/offline/x-ui-linux-amd64.tar.gz`.
+- 2026-02 — Proxy Chain UX surfaced (later removed). Added a dedicated
+  top-level "Proxy Chain" dropdown in `web/html/form/outbound.html` plus a
+  `proxyChainTag` getter/setter on the `Outbound` model that wrote to
+  `streamSettings.sockopt.dialerProxy`.
+- 2026-02 — Proxy Chain bug fix (later removed). Fixed silent breakage of
+  outbound routing when a chain was enabled. Root cause:
+  `SockoptStreamSettings.toJson()` always emitted defaults like
+  `addressPortStrategy: "none"`, which older Xray-core builds rejected.
+  Rewrote sockopt `toJson` to emit only non-default fields, and updated
+  `StreamSettings.toJson` / `Outbound.toJson` to drop the sockopt block
+  entirely when empty. Version bumped to 2.9.10.
+- 2026-05 — Proxy Chain UX removed per user request. Dropped the
+  top-level "Proxy Chain" dropdown from `web/html/form/outbound.html`
+  and the `proxyChainTag` getter/setter from
+  `web/assets/js/model/outbound.js`. The native Xray field
+  `streamSettings.sockopt.dialerProxy` is still available through the
+  Sockopts panel (`form/stream/stream_sockopt.html`) for advanced users
+  who edit JSON directly. The earlier sockopt `toJson` cleanup is kept
+  because it's a general improvement unrelated to the Proxy Chain UI.

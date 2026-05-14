@@ -17,21 +17,6 @@
       <a-form-item label='{{ i18n "pages.xray.outbound.sendThrough" }}'>
         <a-input v-model="outbound.sendThrough"></a-input>
       </a-form-item>
-      <a-form-item>
-        <template slot="label">
-          <a-tooltip>
-            <template slot="title">
-              Route this outbound through another existing outbound (Proxy Chain). Traffic from this outbound will exit via the selected outbound's connection. Internally sets streamSettings.sockopt.dialerProxy.
-            </template>
-            Proxy Chain <a-icon type="question-circle"></a-icon>
-          </a-tooltip>
-        </template>
-        <a-select v-model="outbound.proxyChainTag" :dropdown-class-name="themeSwitcher.currentTheme"
-          allow-clear placeholder="None (direct)">
-          <a-select-option v-for="tag in outModal.tags.filter(t => t && t !== outbound.tag)"
-            :key="tag" :value="tag">[[ tag ]]</a-select-option>
-        </a-select>
-      </a-form-item>
 
       <!-- freedom settings-->
       <template v-if="outbound.protocol === Protocols.Freedom">
