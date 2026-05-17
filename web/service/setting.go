@@ -810,22 +810,15 @@ func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting) error {
 		return err
 	}
 
-	// Telegram bot proxy may reference an Xray outbound via the
-	// "outbound:<tag>" pseudo-URL. Whenever the admin switches that selection
-	// (or clears it), we have to rewrite the Xray template so the
-	// auto-managed SOCKS5 inbound + routing rule line up with what the bot
-	// expects to dial — otherwise the bot will try to reach a socks5 port
-	// nothing is listening on, or keep using the previously selected
-	// outbound. Done here (and not only on bot start) so the change takes
-	// effect even when the bot is disabled.
+	// Capture the previous tgBotProxy *before* we persist the new one so we
+	// can detect whether the admin switched/cleared the Xray outbound
+	// binding. We apply the matching xray-template change AFTER the new
+	// tgBotProxy is persisted — otherwise SaveXraySetting (which re-applies
+	// the auto-inbound based on the saved tgBotProxy) would read the stale
+	// value and re-inject what we just removed.
 	prevProxy, _ := s.GetTgBotProxy()
 	newTag := ParseTgBotOutboundTag(allSetting.TgBotProxy)
 	prevTag := ParseTgBotOutboundTag(prevProxy)
-	if newTag != prevTag {
-		if err := s.applyTgBotOutbound(newTag); err != nil {
-			return err
-		}
-	}
 
 	v := reflect.ValueOf(allSetting).Elem()
 	t := reflect.TypeFor[entity.AllSetting]()
@@ -840,6 +833,13 @@ func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting) error {
 			errs = append(errs, err)
 		}
 	}
+
+	if newTag != prevTag {
+		if err := s.applyTgBotOutbound(newTag); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return common.Combine(errs...)
 }
 
