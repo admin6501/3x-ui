@@ -257,20 +257,9 @@
               </a-col>
               <a-col :sm="24" :lg="12">
                 <a-card title='3X-UI' hoverable>
-                  <template v-if="panelUpdateModal.info.updateAvailable" #extra>
-                    <a-tooltip :overlay-class-name="themeSwitcher.currentTheme"
-                      :title='`{{ i18n "pages.index.updatePanel" }}: ${panelUpdateModal.info.latestVersion}`'>
-                      <a-tag color="orange" style="cursor:pointer;margin:0" @click="openPanelUpdate">
-                        <a-icon type="cloud-download"></a-icon>[[ panelUpdateModal.info.latestVersion ]]
-                        <span v-if="!isMobile">{{ i18n "pages.index.updatePanel" }}</span>
-                      </a-tag>
-                    </a-tooltip>
-                  </template>
-                  <a rel="noopener" href="https://github.com/MHSanaei/3x-ui/releases" target="_blank">
-                    <a-tag color="green">
-                      <span>v{{ .cur_ver }}</span>
-                    </a-tag>
-                  </a>
+                  <a-tag color="green">
+                    <span>v{{ .cur_ver }}</span>
+                  </a-tag>
                   <a rel="noopener" href="https://t.me/XrayUI" target="_blank">
                     <a-tag color="green">
                       <span>@XrayUI</span>
@@ -1744,12 +1733,10 @@
       // Initial status fetch
       await this.getStatus();
 
-      // Silently check for panel updates so the indicator shows on load
-      HttpUtil.get('/panel/api/server/getPanelUpdateInfo').then(msg => {
-        if (msg && msg.success && msg.obj) {
-          panelUpdateModal.info = msg.obj;
-        }
-      });
+      // Panel update check is intentionally disabled — we no longer surface
+      // an "update available" indicator (the orange tag was removed), and
+      // calling the endpoint on every page load just produced a noisy
+      // "Panel update check failed" toast on hosts without GitHub access.
 
       // Setup WebSocket for real-time updates
       if (window.wsClient) {
