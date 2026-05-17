@@ -18,11 +18,13 @@
 #   # or, explicit tarball path:
 #   sudo ./install_offline.sh /path/to/x-ui-linux-amd64.tar.gz
 #
-# This script performs ZERO network calls. Dependencies (curl, tar, cron,
-# socat, openssl, ca-certificates, tzdata) are NOT installed — the server
-# is assumed to already have them, which is the normal case on any VPS.
-# If any are missing, the script will tell you which ones to install from
-# your own offline package mirror.
+# This script performs ZERO network calls for the x-ui bundle itself
+# (binary + xray + geo dat files come from the tarball you ship with it).
+# Base OS dependencies (curl, tar, cron, socat, openssl, ca-certificates,
+# tzdata) ARE installed automatically via apt/dnf/pacman/zypper/apk —
+# this matches install.sh's behaviour so the offline installer doesn't
+# leave a half-working panel on a fresh server. If your target host has
+# no package-manager network, set OFFLINE_SKIP_DEPS=1 to skip this step.
 #
 
 set -u
@@ -52,6 +54,58 @@ else
     exit 1
 fi
 echo -e "${blue}[offline]${plain} OS release: ${release}"
+
+# -------- Install base prerequisites (mirrors install.sh::install_base) -------- #
+# These are the same packages the online installer (install.sh) pulls in:
+# cron/cronie/dcron, curl, tar, tzdata/timezone, socat, ca-certificates,
+# openssl. Without them, acme.sh / time-zone handling / certificate
+# verification all fail silently on a fresh minimal image. Skip with
+# OFFLINE_SKIP_DEPS=1 if the target host genuinely has no package mirror.
+install_base() {
+    if [[ "${OFFLINE_SKIP_DEPS:-0}" == "1" ]]; then
+        echo -e "${yellow}[offline]${plain} OFFLINE_SKIP_DEPS=1 set; skipping base package install."
+        return 0
+    fi
+    echo -e "${blue}[offline]${plain} Installing base prerequisites via the system package manager..."
+    case "${release}" in
+        ubuntu | debian | armbian)
+            apt-get update -y && apt-get install -y -q cron curl tar tzdata socat ca-certificates openssl
+            ;;
+        fedora | amzn | virtuozzo | rhel | almalinux | rocky | ol)
+            dnf -y update && dnf install -y -q cronie curl tar tzdata socat ca-certificates openssl
+            ;;
+        centos)
+            if [[ "${VERSION_ID:-}" =~ ^7 ]]; then
+                yum -y update && yum install -y cronie curl tar tzdata socat ca-certificates openssl
+            else
+                dnf -y update && dnf install -y -q cronie curl tar tzdata socat ca-certificates openssl
+            fi
+            ;;
+        arch | manjaro | parch)
+            pacman -Syu --noconfirm cronie curl tar tzdata socat ca-certificates openssl
+            ;;
+        opensuse-tumbleweed | opensuse-leap)
+            zypper refresh && zypper -q install -y cron curl tar timezone socat ca-certificates openssl
+            ;;
+        alpine)
+            apk update && apk add dcron curl tar tzdata socat ca-certificates openssl
+            ;;
+        *)
+            # Unknown distros default to apt; if that fails, the missing-tool
+            # check below will surface a clear actionable error.
+            apt-get update -y && apt-get install -y -q cron curl tar tzdata socat ca-certificates openssl
+            ;;
+    esac
+    local rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo -e "${yellow}[offline]${plain} Base package install reported errors (rc=$rc)."
+        echo -e "${yellow}[offline]${plain} If your host has no package-manager network, rerun with OFFLINE_SKIP_DEPS=1"
+        echo -e "${yellow}[offline]${plain} after installing the prerequisites from your offline mirror."
+    fi
+    return 0
+}
+
+install_base
 
 arch() {
     case "$(uname -m)" in

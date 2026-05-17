@@ -129,6 +129,13 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — Offline installer now auto-installs base prerequisites.
+  `install_offline.sh` previously assumed `cron`/`curl`/`tar`/`tzdata`/
+  `socat`/`ca-certificates`/`openssl` were already present and bailed if
+  any tool was missing. It now mirrors `install.sh::install_base` (same
+  package names per-distro: cron/cronie/dcron, etc.) so a fresh minimal
+  VPS gets the same baseline as the online installer. Power users on
+  air-gapped hosts can set `OFFLINE_SKIP_DEPS=1` to opt out.
 - 2026-02 — Proxy Chain feature reverted at user request. Removed the
   dedicated "Proxy Chain" form item from outbound editor and the
   `proxyChainTag` getter/setter on the Outbound model. Kept the JSON cleanup
