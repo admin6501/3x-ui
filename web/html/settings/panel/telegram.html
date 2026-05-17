@@ -67,11 +67,23 @@
     </a-collapse-panel>
     <a-collapse-panel key="3" header='{{ i18n "pages.settings.proxyAndServer" }}'>
         <a-setting-list-item paddings="small">
+            <template #title>Xray Outbound (Recommended)</template>
+            <template #description>Route the Telegram bot through one of your saved Xray outbounds. The panel auto-creates a local SOCKS5 inbound and a routing rule so the bot's traffic exits via the selected outbound. Leave empty to fall back to the manual SOCKS5 URL below.</template>
+            <template #control>
+                <a-select v-model="tgBotXrayOutboundTag" :dropdown-class-name="themeSwitcher.currentTheme"
+                    allow-clear placeholder="None (use manual SOCKS5 or direct)" :style="{ width: '100%' }"
+                    data-testid="tgbot-xray-outbound-select">
+                    <a-select-option v-for="tag in tgBotOutboundTags" :key="tag" :value="tag">[[ tag ]]</a-select-option>
+                </a-select>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
             <template #title>{{ i18n "pages.settings.telegramProxy"}}</template>
             <template #description>{{ i18n "pages.settings.telegramProxyDesc"}}</template>
             <template #control>
                 <a-input type="text" placeholder="socks5://user:pass@host:port"
-                    v-model="allSetting.tgBotProxy"></a-input>
+                    v-model="allSetting.tgBotProxy" :disabled="tgBotXrayOutboundTag !== ''"
+                    data-testid="tgbot-proxy-input"></a-input>
             </template>
         </a-setting-list-item>
         <a-setting-list-item paddings="small">

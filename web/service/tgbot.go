@@ -325,6 +325,15 @@ func (t *Tgbot) createRobustFastHTTPClient(proxyUrl string) *fasthttp.Client {
 
 // NewBot creates a new Telegram bot instance with optional proxy and API server settings.
 func (t *Tgbot) NewBot(token string, proxyUrl string, apiServerUrl string) (*telego.Bot, error) {
+	// If the admin selected an Xray outbound (UpdateAllSetting has already
+	// injected the matching auto-managed SOCKS5 inbound + routing rule),
+	// translate the pseudo-URL into the loopback SOCKS5 endpoint that
+	// inbound listens on. After this rewrite the rest of NewBot validates
+	// the URL exactly as it would for any admin-supplied SOCKS5 proxy.
+	if tag := ParseTgBotOutboundTag(proxyUrl); tag != "" {
+		proxyUrl = TgBotSocksDialerURL
+	}
+
 	// Validate proxy URL if provided
 	if proxyUrl != "" {
 		if !strings.HasPrefix(proxyUrl, "socks5://") {

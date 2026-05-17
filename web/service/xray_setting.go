@@ -27,6 +27,17 @@ func (s *XraySettingService) SaveXraySetting(newXraySettings string) error {
 	if hoisted, err := EnsureStatsRouting(newXraySettings); err == nil {
 		newXraySettings = hoisted
 	}
+	// If the admin has bound the Telegram bot to an Xray outbound, the
+	// matching auto-SOCKS5 inbound + routing rule must always be present in
+	// the saved template — otherwise the bot can lose its dialer next time
+	// an admin saves the xray page (the editor exposes the inbounds array,
+	// so a stray paste/edit could wipe our injection). Re-apply it here so
+	// the invariant holds regardless of which save path was taken.
+	if proxy, _ := s.GetTgBotProxy(); ParseTgBotOutboundTag(proxy) != "" {
+		if rewritten, _, err := EnsureTgBotSocksInbound(newXraySettings, ParseTgBotOutboundTag(proxy)); err == nil {
+			newXraySettings = rewritten
+		}
+	}
 	return s.SettingService.saveSetting("xrayTemplateConfig", newXraySettings)
 }
 

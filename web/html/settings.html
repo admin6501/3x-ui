@@ -117,6 +117,11 @@
       },
       oldAllSetting: new AllSetting(),
       allSetting: new AllSetting(),
+      // Outbound tags fetched from the saved Xray template, used to populate
+      // the Telegram-bot proxy dropdown. The dropdown value itself
+      // (tgBotXrayOutboundTag) is a computed view onto allSetting.tgBotProxy
+      // so saving the form persists the choice through the existing flow.
+      tgBotOutboundTags: [],
       saveBtnDisable: true,
       entryHost: null,
       entryPort: null,
@@ -325,6 +330,33 @@
           this.inboundOptions = [];
         }
       },
+      // Fetches the list of outbound tags from the saved Xray template so the
+      // Telegram bot proxy dropdown can offer them. Built-in/blackhole tags
+      // are filtered server-side so the admin can't pick one that would
+      // null-route the bot.
+      async loadTgBotOutboundTags() {
+        try {
+          const msg = await HttpUtil.get("/panel/setting/getXrayOutboundTags");
+          if (msg && msg.success && Array.isArray(msg.obj)) {
+            this.tgBotOutboundTags = msg.obj;
+          } else {
+            this.tgBotOutboundTags = [];
+          }
+        } catch (e) {
+          this.tgBotOutboundTags = [];
+        }
+      },
+      onTgBotOutboundChange(tag) {
+        // When the admin switches to an Xray outbound, the manual SOCKS5
+        // field is disabled in the template; explicitly clear it so the
+        // saved value doesn't end up being a stale URL the bot would
+        // otherwise prefer.
+        if (tag) {
+          this.allSetting.tgBotProxy = 'outbound:' + tag;
+        } else if ((this.allSetting.tgBotProxy || '').startsWith('outbound:')) {
+          this.allSetting.tgBotProxy = '';
+        }
+      },
       async updateAllSetting() {
         this.loading(true);
         const msg = await HttpUtil.post("/panel/setting/update", this.allSetting);
@@ -501,6 +533,29 @@
       },
     },
     computed: {
+      // Telegram-bot proxy → Xray outbound binding. The settings table only
+      // stores tgBotProxy as a single string; we use a "outbound:<tag>"
+      // pseudo-URL when an Xray outbound is selected, and a plain "socks5://"
+      // URL otherwise. The dropdown reads/writes this computed value so the
+      // existing save flow (allSetting.tgBotProxy → /panel/setting/update)
+      // keeps working without any new request shape.
+      tgBotXrayOutboundTag: {
+        get() {
+          const v = this.allSetting && this.allSetting.tgBotProxy;
+          if (typeof v !== 'string' || !v.startsWith('outbound:')) return '';
+          return v.slice('outbound:'.length).replace(/^\/+/, '').trim();
+        },
+        set(tag) {
+          if (!this.allSetting) return;
+          if (tag) {
+            this.allSetting.tgBotProxy = 'outbound:' + tag;
+          } else if ((this.allSetting.tgBotProxy || '').startsWith('outbound:')) {
+            // Only clear the field when switching away from an outbound
+            // selection; leave manually-typed socks5 URLs untouched.
+            this.allSetting.tgBotProxy = '';
+          }
+        }
+      },
       ldapInboundTagList: {
         get: function() {
           const csv = this.allSetting.ldapInboundTags || "";
@@ -711,6 +766,7 @@
       this.entryIsIP = this._isIp(this.entryHost);
       await this.getAllSetting();
       await this.loadInboundTags();
+      await this.loadTgBotOutboundTags();
       while (true) {
         await PromiseUtil.sleep(1000);
         this.saveBtnDisable = this.oldAllSetting.equals(this.allSetting);

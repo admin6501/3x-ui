@@ -67,6 +67,20 @@ func (a *SettingController) initRouter(g *gin.RouterGroup) {
 	g.POST("/updateUser", a.updateUser)
 	g.POST("/restartPanel", requireSuperAdmin(), a.restartPanel)
 	g.GET("/getDefaultJsonConfig", a.getDefaultXrayConfig)
+	g.GET("/getXrayOutboundTags", requireSuperAdmin(), a.getXrayOutboundTags)
+}
+
+// getXrayOutboundTags returns the list of outbound tags from the current Xray
+// template so the Telegram-bot settings page can offer them as proxy options.
+// Restricted to super_admin because the same role gates /update — there is no
+// case where a lower role can edit tgBotProxy without seeing the dropdown.
+func (a *SettingController) getXrayOutboundTags(c *gin.Context) {
+	tags, err := a.settingService.GetXrayOutboundTags()
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.settings.toasts.getSettings"), err)
+		return
+	}
+	jsonObj(c, tags, nil)
 }
 
 // getAllSetting retrieves all current settings.
