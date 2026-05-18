@@ -1643,6 +1643,17 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 	}
 
 	switch callbackQuery.Data {
+	case "back_to_main_admin":
+		// Edit the current message back to the admin main menu so the user
+		// keeps a single, scrolling-friendly conversation thread instead of
+		// the bot piling up new messages on every tap.
+		t.sendCallbackAnswerTgBot(callbackQuery.ID, "")
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), t.getAdminMainKB())
+	case "back_to_main_client":
+		t.sendCallbackAnswerTgBot(callbackQuery.ID, "")
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), t.getClientMainKB())
 	case "get_usage":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.serverUsage"))
 		t.getServerUsage(chatId)
@@ -1667,7 +1678,11 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 		t.getClientUsage(chatId, tgUserID)
 	case "client_commands":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.commands"))
-		t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.commands.helpClientCommands"))
+		// Edit the existing message instead of posting a new one, and add a
+		// Back button so the user can return to the main menu in-place.
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.helpClientCommands"),
+			tu.InlineKeyboard(t.backButtonRow("back_to_main_client")))
 	case "client_sub_links":
 		// show user's own clients to choose one for sub links
 		tgUserID := callbackQuery.From.ID
@@ -1678,7 +1693,9 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 			return
 		}
 		if len(traffics) == 0 {
-			t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.askToAddUserId", "TgUserID=="+strconv.FormatInt(tgUserID, 10)))
+			t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+				t.I18nBot("tgbot.answers.askToAddUserId", "TgUserID=="+strconv.FormatInt(tgUserID, 10)),
+				tu.InlineKeyboard(t.backButtonRow("back_to_main_client")))
 			return
 		}
 		var buttons []telego.InlineKeyboardButton
@@ -1689,8 +1706,10 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 		if len(buttons) >= 6 {
 			cols = 2
 		}
-		keyboard := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols, buttons...))
-		t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.commands.pleaseChoose"), keyboard)
+		rows := tu.InlineKeyboardCols(cols, buttons...)
+		rows = append(rows, t.backButtonRow("back_to_main_client"))
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), tu.InlineKeyboardGrid(rows))
 	case "client_individual_links":
 		// show user's clients to choose for individual links
 		tgUserID := callbackQuery.From.ID
@@ -1700,7 +1719,9 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 			return
 		}
 		if len(traffics) == 0 {
-			t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.askToAddUserId", "TgUserID=="+strconv.FormatInt(tgUserID, 10)))
+			t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+				t.I18nBot("tgbot.answers.askToAddUserId", "TgUserID=="+strconv.FormatInt(tgUserID, 10)),
+				tu.InlineKeyboard(t.backButtonRow("back_to_main_client")))
 			return
 		}
 		var buttons2 []telego.InlineKeyboardButton
@@ -1711,8 +1732,10 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 		if len(buttons2) >= 6 {
 			cols2 = 2
 		}
-		keyboard2 := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols2, buttons2...))
-		t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.commands.pleaseChoose"), keyboard2)
+		rows2 := tu.InlineKeyboardCols(cols2, buttons2...)
+		rows2 = append(rows2, t.backButtonRow("back_to_main_client"))
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), tu.InlineKeyboardGrid(rows2))
 	case "client_qr_links":
 		// show user's clients to choose for QR codes
 		tgUserID := callbackQuery.From.ID
@@ -1722,7 +1745,9 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 			return
 		}
 		if len(traffics) == 0 {
-			t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.askToAddUserId", "TgUserID=="+strconv.FormatInt(tgUserID, 10)))
+			t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+				t.I18nBot("tgbot.answers.askToAddUserId", "TgUserID=="+strconv.FormatInt(tgUserID, 10)),
+				tu.InlineKeyboard(t.backButtonRow("back_to_main_client")))
 			return
 		}
 		var buttons3 []telego.InlineKeyboardButton
@@ -1733,8 +1758,10 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 		if len(buttons3) >= 6 {
 			cols3 = 2
 		}
-		keyboard3 := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols3, buttons3...))
-		t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.commands.pleaseChoose"), keyboard3)
+		rows3 := tu.InlineKeyboardCols(cols3, buttons3...)
+		rows3 = append(rows3, t.backButtonRow("back_to_main_client"))
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), tu.InlineKeyboardGrid(rows3))
 	case "onlines":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.onlines"))
 		t.onlineClients(chatId)
@@ -1743,7 +1770,9 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 		t.onlineClients(chatId, callbackQuery.Message.GetMessageID())
 	case "commands":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.commands"))
-		t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.commands.helpAdminCommands"))
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.helpAdminCommands"),
+			tu.InlineKeyboard(t.backButtonRow("back_to_main_admin")))
 	case "add_client":
 		// assign default values to clients variables
 		client_Id = uuid.New().String()
@@ -2221,7 +2250,21 @@ func checkAdmin(tgId int64) bool {
 
 // SendAnswer sends a response message with an inline keyboard to the specified chat.
 func (t *Tgbot) SendAnswer(chatId int64, msg string, isAdmin bool) {
-	numericKeyboard := tu.InlineKeyboard(
+	var ReplyMarkup telego.ReplyMarkup
+	if isAdmin {
+		ReplyMarkup = t.getAdminMainKB()
+	} else {
+		ReplyMarkup = t.getClientMainKB()
+	}
+	t.SendMsgToTgbot(chatId, msg, ReplyMarkup)
+}
+
+// getAdminMainKB returns the admin-side main menu inline keyboard. Extracted
+// so submenu handlers can call editMessageTgBot with the same layout when the
+// user hits the Back button — keeping the conversation on a single message
+// instead of accumulating new ones every tap.
+func (t *Tgbot) getAdminMainKB() *telego.InlineKeyboardMarkup {
+	return tu.InlineKeyboard(
 		tu.InlineKeyboardRow(
 			tu.InlineKeyboardButton(t.I18nBot("tgbot.buttons.SortedTrafficUsageReport")).WithCallbackData(t.encodeQuery("get_sorted_traffic_usage_report")),
 		),
@@ -2250,9 +2293,12 @@ func (t *Tgbot) SendAnswer(chatId int64, msg string, isAdmin bool) {
 			tu.InlineKeyboardButton(t.I18nBot("subscription.individualLinks")).WithCallbackData(t.encodeQuery("admin_client_individual_links")),
 			tu.InlineKeyboardButton(t.I18nBot("qrCode")).WithCallbackData(t.encodeQuery("admin_client_qr_links")),
 		),
-		// TODOOOOOOOOOOOOOO: Add restart button here.
 	)
-	numericKeyboardClient := tu.InlineKeyboard(
+}
+
+// getClientMainKB returns the client-side main menu inline keyboard.
+func (t *Tgbot) getClientMainKB() *telego.InlineKeyboardMarkup {
+	return tu.InlineKeyboard(
 		tu.InlineKeyboardRow(
 			tu.InlineKeyboardButton(t.I18nBot("tgbot.buttons.clientUsage")).WithCallbackData(t.encodeQuery("client_traffic")),
 			tu.InlineKeyboardButton(t.I18nBot("tgbot.buttons.commands")).WithCallbackData(t.encodeQuery("client_commands")),
@@ -2265,14 +2311,15 @@ func (t *Tgbot) SendAnswer(chatId int64, msg string, isAdmin bool) {
 			tu.InlineKeyboardButton(t.I18nBot("qrCode")).WithCallbackData(t.encodeQuery("client_qr_links")),
 		),
 	)
+}
 
-	var ReplyMarkup telego.ReplyMarkup
-	if isAdmin {
-		ReplyMarkup = numericKeyboard
-	} else {
-		ReplyMarkup = numericKeyboardClient
-	}
-	t.SendMsgToTgbot(chatId, msg, ReplyMarkup)
+// backButtonRow returns a single-row keyboard row containing a "back" button
+// that routes to `target`. Used by submenu handlers so the user can return to
+// the main menu without firing /start again (which would post a new message).
+func (t *Tgbot) backButtonRow(target string) []telego.InlineKeyboardButton {
+	return tu.InlineKeyboardRow(
+		tu.InlineKeyboardButton(t.I18nBot("tgbot.buttons.back")).WithCallbackData(t.encodeQuery(target)),
+	)
 }
 
 // SendMsgToTgbot sends a message to the Telegram bot with optional reply markup.

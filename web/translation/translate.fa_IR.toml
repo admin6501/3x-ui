@@ -903,6 +903,7 @@
 "change_comment" = "⚙️💬 نظر"
 "ResetAllTraffics" = "بازنشانی همه ترافیک‌ها"
 "SortedTrafficUsageReport" = "گزارش استفاده از ترافیک مرتب‌شده"
+"back" = "⬅️ بازگشت"
 
 [tgbot.answers]
 "successfulOperation" = "✅ انجام شد!"

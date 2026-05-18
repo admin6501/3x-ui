@@ -903,6 +903,7 @@
 "change_comment" = "⚙️💬 Comment"
 "ResetAllTraffics" = "Reset All Traffics"
 "SortedTrafficUsageReport" = "Sorted Traffic Usage Report"
+"back" = "⬅️ Back"
 
 [tgbot.answers]
 "successfulOperation" = "✅ Operation successful!"
