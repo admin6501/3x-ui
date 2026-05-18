@@ -64,9 +64,9 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.GET("/getClientTrafficsById/:id", a.scopeInboundParam, a.getClientTrafficsById)
 
 	g.POST("/add", a.scopeRejectResellerCreate, a.addInbound)
-	g.POST("/del/:id", a.scopeInboundParam, a.delInbound)
-	g.POST("/update/:id", a.scopeInboundParam, a.updateInbound)
-	g.POST("/setEnable/:id", a.scopeInboundParam, a.setInboundEnable)
+	g.POST("/del/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.delInbound)
+	g.POST("/update/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.updateInbound)
+	g.POST("/setEnable/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.setInboundEnable)
 	g.POST("/clientIps/:email", a.getClientIps)
 	g.POST("/clearClientIps/:email", a.clearClientIps)
 	g.POST("/addClient", a.addInboundClient)
@@ -117,6 +117,23 @@ func (a *InboundController) scopeRejectResellerCreate(c *gin.Context) {
 func (a *InboundController) scopeRejectReseller(c *gin.Context) {
 	if u := session.GetLoginUser(c); u != nil && u.Role == model.RoleReseller {
 		jsonMsg(c, "forbidden", fmt.Errorf("resellers cannot trigger panel-wide actions"))
+		c.Abort()
+		return
+	}
+	c.Next()
+}
+
+// scopeRejectResellerInboundEdit blocks resellers from delete / update /
+// enable-disable operations on the inbound *itself*. Resellers may only
+// manage clients inside an inbound that was assigned to them — flipping the
+// inbound off, editing its protocol/port, or deleting it is a panel-level
+// action reserved for super_admin / manager. Without this guard the scope
+// check would happily let a reseller toggle "their" inbound off, which would
+// silently kill traffic for every other reseller sharing that inbound (or
+// for clients owned by the super admin).
+func (a *InboundController) scopeRejectResellerInboundEdit(c *gin.Context) {
+	if u := session.GetLoginUser(c); u != nil && u.Role == model.RoleReseller {
+		jsonMsg(c, "forbidden", fmt.Errorf("resellers can only manage clients, not the inbound itself"))
 		c.Abort()
 		return
 	}

@@ -210,7 +210,7 @@
                           :style="{ fontSize: '20px', textDecoration: 'solid' }"></a-icon>
                         <a-menu slot="overlay" @click="a => clickAction(a, dbInbound)"
                           :theme="themeSwitcher.currentTheme">
-                          <a-menu-item key="edit">
+                          <a-menu-item key="edit" v-if="!isReseller">
                             <a-icon type="edit"></a-icon>
                             {{ i18n "edit" }}
                           </a-menu-item>
@@ -274,16 +274,16 @@
                             <a-icon type="retweet"></a-icon> {{ i18n
                             "pages.inbounds.resetTraffic" }}
                           </a-menu-item>
-                          <a-menu-item key="clone">
+                          <a-menu-item key="clone" v-if="!isReseller">
                             <a-icon type="block"></a-icon> {{ i18n
                             "pages.inbounds.clone"}}
                           </a-menu-item>
-                          <a-menu-item key="delete">
+                          <a-menu-item key="delete" v-if="!isReseller">
                             <span :style="{ color: '#FF4D4F' }">
                               <a-icon type="delete"></a-icon> {{ i18n "delete"}}
                             </span>
                           </a-menu-item>
-                          <a-menu-item v-if="isMobile">
+                          <a-menu-item v-if="isMobile && !isReseller">
                             <a-switch size="small" v-model="dbInbound.enable"
                               @change="switchEnable(dbInbound.id,dbInbound.enable)"></a-switch>
                             {{ i18n "pages.inbounds.enable" }}
@@ -428,7 +428,7 @@
                         ]]</a-tag>
                     </template>
                     <template slot="enable" slot-scope="text, dbInbound">
-                      <a-switch v-model="dbInbound.enable"
+                      <a-switch v-model="dbInbound.enable" :disabled="isReseller"
                         @change="switchEnable(dbInbound.id,dbInbound.enable)"></a-switch>
                     </template>
                     <template slot="expiryTime" slot-scope="text, dbInbound">
@@ -2228,6 +2228,15 @@
       });
     },
     computed: {
+      // Reseller admins can manage clients inside their assigned inbounds
+      // but must not edit / delete / toggle the inbound itself — the backend
+      // enforces this with the scopeRejectResellerInboundEdit middleware;
+      // here we just hide the corresponding menu items / disable the
+      // enable-switch so the UI doesn't tempt the user with actions that
+      // would only come back as a 403.
+      isReseller() {
+        return '{{ .current_user_role }}' === 'reseller';
+      },
       total() {
         let down = 0,
           up = 0,
