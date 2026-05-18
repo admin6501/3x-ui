@@ -799,7 +799,7 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 					return
 				}
 				inbound, _ := t.inboundService.GetInbound(inboundIdInt)
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clientsKB)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clientsKB)
 			case "get_clients_for_individual":
 				inboundId := dataArray[1]
 				inboundIdInt, err := strconv.Atoi(inboundId)
@@ -813,7 +813,7 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 					return
 				}
 				inbound, _ := t.inboundService.GetInbound(inboundIdInt)
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clientsKB)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clientsKB)
 			case "get_clients_for_qr":
 				inboundId := dataArray[1]
 				inboundIdInt, err := strconv.Atoi(inboundId)
@@ -827,7 +827,7 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 					return
 				}
 				inbound, _ := t.inboundService.GetInbound(inboundIdInt)
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clientsKB)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clientsKB)
 			case "client_sub_links":
 				t.sendClientSubLinks(chatId, email)
 				return
@@ -1564,7 +1564,7 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 					t.sendCallbackAnswerTgBot(callbackQuery.ID, err.Error())
 					return
 				}
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clients)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseClient", "Inbound=="+inbound.Remark), clients)
 			case "add_client_to":
 				// assign default values to clients variables
 				client_Id = uuid.New().String()
@@ -1615,28 +1615,28 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 
 				}
 				t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.allClients"))
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
 			case "admin_client_sub_links":
 				inbounds, err := t.getInboundsFor("get_clients_for_sub")
 				if err != nil {
 					t.sendCallbackAnswerTgBot(callbackQuery.ID, err.Error())
 					return
 				}
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
 			case "admin_client_individual_links":
 				inbounds, err := t.getInboundsFor("get_clients_for_individual")
 				if err != nil {
 					t.sendCallbackAnswerTgBot(callbackQuery.ID, err.Error())
 					return
 				}
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
 			case "admin_client_qr_links":
 				inbounds, err := t.getInboundsFor("get_clients_for_qr")
 				if err != nil {
 					t.sendCallbackAnswerTgBot(callbackQuery.ID, err.Error())
 					return
 				}
-				t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
+				t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(), t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
 			}
 
 		}
@@ -1662,16 +1662,29 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 		t.getServerUsage(chatId, callbackQuery.Message.GetMessageID())
 	case "inbounds":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.getInbounds"))
-		t.SendMsgToTgbot(chatId, t.getInboundUsages())
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.getInboundUsages(),
+			tu.InlineKeyboard(t.backButtonRow("back_to_main_admin")))
 	case "deplete_soon":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.depleteSoon"))
+		// getExhausted ends up sending its own message via SendMsgToTgbot;
+		// after that, post a tiny "back to main" prompt so the user has a
+		// way home without typing /start again.
 		t.getExhausted(chatId)
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), t.getAdminMainKB())
 	case "get_backup":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.dbBackup"))
+		// sendBackup uploads a file; we can't edit-in-place so we just reset
+		// the trigger message back to the main menu after dispatching it.
 		t.sendBackup(chatId)
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), t.getAdminMainKB())
 	case "get_banlogs":
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.getBanLogs"))
 		t.sendBanLogs(chatId, true)
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.commands.pleaseChoose"), t.getAdminMainKB())
 	case "client_traffic":
 		tgUserID := callbackQuery.From.ID
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.clientUsage"))
@@ -1797,7 +1810,8 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 			return
 		}
 		t.sendCallbackAnswerTgBot(callbackQuery.ID, t.I18nBot("tgbot.buttons.addClient"))
-		t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
+		t.editMessageTgBot(chatId, callbackQuery.Message.GetMessageID(),
+			t.I18nBot("tgbot.answers.chooseInbound"), inbounds)
 	case "add_client_ch_default_email":
 		t.deleteMessageTgBot(chatId, callbackQuery.Message.GetMessageID())
 		userStates[chatId] = "awaiting_email"
@@ -2923,7 +2937,9 @@ func (t *Tgbot) getInbounds() (*telego.InlineKeyboardMarkup, error) {
 		cols = 2
 	}
 
-	keyboard := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols, buttons...))
+	rows := tu.InlineKeyboardCols(cols, buttons...)
+	rows = append(rows, t.backButtonRow("back_to_main_admin"))
+	keyboard := tu.InlineKeyboardGrid(rows)
 	return keyboard, nil
 }
 
@@ -2955,7 +2971,9 @@ func (t *Tgbot) getInboundsFor(nextAction string) (*telego.InlineKeyboardMarkup,
 		cols = 2
 	}
 
-	keyboard := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols, buttons...))
+	rows := tu.InlineKeyboardCols(cols, buttons...)
+	rows = append(rows, t.backButtonRow("back_to_main_admin"))
+	keyboard := tu.InlineKeyboardGrid(rows)
 	return keyboard, nil
 }
 
@@ -2989,7 +3007,9 @@ func (t *Tgbot) getInboundClientsFor(inboundID int, action string) (*telego.Inli
 	} else {
 		cols = 2
 	}
-	keyboard := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols, buttons...))
+	rows := tu.InlineKeyboardCols(cols, buttons...)
+	rows = append(rows, t.backButtonRow("back_to_main_admin"))
+	keyboard := tu.InlineKeyboardGrid(rows)
 
 	return keyboard, nil
 }
@@ -3033,7 +3053,9 @@ func (t *Tgbot) getInboundsAddClient() (*telego.InlineKeyboardMarkup, error) {
 		cols = 2
 	}
 
-	keyboard := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols, buttons...))
+	rows := tu.InlineKeyboardCols(cols, buttons...)
+	rows = append(rows, t.backButtonRow("back_to_main_admin"))
+	keyboard := tu.InlineKeyboardGrid(rows)
 	return keyboard, nil
 }
 
@@ -3067,7 +3089,9 @@ func (t *Tgbot) getInboundClients(id int) (*telego.InlineKeyboardMarkup, error) 
 	} else {
 		cols = 2
 	}
-	keyboard := tu.InlineKeyboardGrid(tu.InlineKeyboardCols(cols, buttons...))
+	rows := tu.InlineKeyboardCols(cols, buttons...)
+	rows = append(rows, t.backButtonRow("back_to_main_admin"))
+	keyboard := tu.InlineKeyboardGrid(rows)
 
 	return keyboard, nil
 }
