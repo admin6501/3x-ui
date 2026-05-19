@@ -301,6 +301,50 @@ func filterEmailsByOwner(inboundService service.InboundService, emails []string,
 	return out
 }
 
+// bulkAssignOwnerInSettings rewrites the inbound's settings JSON, stamping
+// ownerUsername=username on every client (or only clients without an owner
+// when onlyLegacy=true). Returns the number of clients whose owner was
+// changed. Caller is responsible for persisting via UpdateInbound.
+func bulkAssignOwnerInSettings(ib *model.Inbound, username string, onlyLegacy bool) (int, error) {
+	if ib == nil || ib.Settings == "" {
+		return 0, nil
+	}
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(ib.Settings), &raw); err != nil {
+		return 0, fmt.Errorf("parse inbound settings: %w", err)
+	}
+	clients, ok := raw["clients"].([]any)
+	if !ok || len(clients) == 0 {
+		return 0, nil
+	}
+	changed := 0
+	for _, c := range clients {
+		cm, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		existing, _ := cm["ownerUsername"].(string)
+		if onlyLegacy && existing != "" {
+			continue
+		}
+		if existing == username {
+			continue
+		}
+		cm["ownerUsername"] = username
+		changed++
+	}
+	if changed == 0 {
+		return 0, nil
+	}
+	raw["clients"] = clients
+	buf, err := json.Marshal(raw)
+	if err != nil {
+		return 0, fmt.Errorf("marshal inbound settings: %w", err)
+	}
+	ib.Settings = string(buf)
+	return changed, nil
+}
+
 // stampClientOwnerOnInbound parses the inbound payload sent by addClient /
 // addInboundClient and forces ownerUsername=owner on every client entry
 // that doesn't already have one. Returns the modified settings JSON. A
