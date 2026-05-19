@@ -75,8 +75,8 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/updateClient/:clientId", a.updateInboundClient)
 	g.POST("/:id/resetClientTraffic/:email", a.scopeInboundParam, a.resetClientTraffic)
 	g.POST("/resetAllTraffics", a.scopeRejectReseller, a.resetAllTraffics)
-	g.POST("/resetAllClientTraffics/:id", a.scopeInboundParam, a.resetAllClientTraffics)
-	g.POST("/delDepletedClients/:id", a.scopeInboundParam, a.delDepletedClients)
+	g.POST("/resetAllClientTraffics/:id", a.scopeRejectReseller, a.scopeInboundParam, a.resetAllClientTraffics)
+	g.POST("/delDepletedClients/:id", a.scopeRejectReseller, a.scopeInboundParam, a.delDepletedClients)
 	g.POST("/import", a.scopeRejectResellerCreate, a.importInbound)
 	g.POST("/onlines", a.onlines)
 	g.POST("/lastOnline", a.lastOnline)
@@ -148,7 +148,10 @@ type CopyInboundClientsRequest struct {
 
 // getInbounds retrieves the list of inbounds visible to the logged-in
 // admin: super_admin / manager / readonly see everything; reseller sees
-// only the inbounds in their AllowedInbounds scope.
+// only the inbounds in their AllowedInbounds scope. Super-admin / manager
+// may additionally pass `?ownerFilter=<username>` to narrow the embedded
+// client lists down to one reseller — useful for auditing a specific
+// reseller's clients from the main inbounds page.
 func (a *InboundController) getInbounds(c *gin.Context) {
 	inbounds, err := a.inboundService.GetAllInbounds()
 	if err != nil {
@@ -156,6 +159,17 @@ func (a *InboundController) getInbounds(c *gin.Context) {
 		return
 	}
 	inbounds = filterInboundsForRole(c, inbounds)
+	if u := session.GetLoginUser(c); u != nil && u.Role != model.RoleReseller {
+		if ownerFilter := c.Query("ownerFilter"); ownerFilter != "" {
+			cloned := make([]*model.Inbound, 0, len(inbounds))
+			for _, ib := range inbounds {
+				clone := *ib
+				filterInboundClientsToOwner(&clone, ownerFilter)
+				cloned = append(cloned, &clone)
+			}
+			inbounds = cloned
+		}
+	}
 	jsonObj(c, inbounds, nil)
 }
 
@@ -166,10 +180,20 @@ func (a *InboundController) getInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "get"), err)
 		return
 	}
+	if !enforceInboundScope(c, id) {
+		return
+	}
 	inbound, err := a.inboundService.GetInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return
+	}
+	// Strip clients the reseller doesn't own so /api/inbounds/get/:id
+	// matches what /api/inbounds/list serves them.
+	if owner := currentResellerUsername(c); owner != "" {
+		clone := *inbound
+		filterInboundClientsToOwner(&clone, owner)
+		inbound = &clone
 	}
 	jsonObj(c, inbound, nil)
 }
@@ -177,6 +201,9 @@ func (a *InboundController) getInbound(c *gin.Context) {
 // getClientTraffics retrieves client traffic information by email.
 func (a *InboundController) getClientTraffics(c *gin.Context) {
 	email := c.Param("email")
+	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
+		return
+	}
 	clientTraffics, err := a.inboundService.GetClientTrafficByEmail(email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.trafficGetError"), err)
@@ -263,6 +290,14 @@ func (a *InboundController) updateInbound(c *gin.Context) {
 	// with scope on inbound A could PUT body{id: B} and update inbound B
 	// via the A-scoped URL.
 	inbound.Id = id
+	// Preserve ownerUsername of every client the DB knows about, even if
+	// the JS payload doesn't round-trip it. Without this, a super-admin
+	// editing an inbound (which serialises every embedded client) would
+	// wipe the owner stamps and break the reseller per-client scoping.
+	if err := preserveExistingOwners(a.inboundService, inbound); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
 	inbound, needRestart, err := a.inboundService.UpdateInbound(inbound)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -315,6 +350,10 @@ func (a *InboundController) setInboundEnable(c *gin.Context) {
 func (a *InboundController) getClientIps(c *gin.Context) {
 	email := c.Param("email")
 
+	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
+		return
+	}
+
 	ips, err := a.inboundService.GetInboundClientIps(email)
 	if err != nil || ips == "" {
 		jsonObj(c, "No IP Record", nil)
@@ -359,6 +398,10 @@ func (a *InboundController) getClientIps(c *gin.Context) {
 func (a *InboundController) clearClientIps(c *gin.Context) {
 	email := c.Param("email")
 
+	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
+		return
+	}
+
 	err := a.inboundService.ClearClientIps(email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.updateSuccess"), err)
@@ -380,6 +423,15 @@ func (a *InboundController) addInboundClient(c *gin.Context) {
 	// reseller does not own.
 	if !enforceInboundScope(c, data.Id) {
 		return
+	}
+
+	// Stamp ownership on every new client in the payload so it shows up
+	// only under this reseller's panel view. No-op for non-reseller roles.
+	if owner := currentResellerUsername(c); owner != "" {
+		if err := stampClientOwnerOnInbound(data, owner); err != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+			return
+		}
 	}
 
 	needRestart, err := a.inboundService.AddInboundClient(data)
@@ -440,6 +492,10 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 	}
 	clientId := c.Param("clientId")
 
+	if !enforceClientOwnershipByUUID(c, a.inboundService, id, clientId) {
+		return
+	}
+
 	needRestart, err := a.inboundService.DelInboundClient(id, clientId)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -466,6 +522,28 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 	if !enforceInboundScope(c, inbound.Id) {
 		return
 	}
+	// Ownership check: the client we're updating must belong to this
+	// reseller. Also reject payloads that try to overwrite someone else's
+	// client by including their ownerUsername.
+	if !enforceClientOwnershipByUUID(c, a.inboundService, inbound.Id, clientId) {
+		return
+	}
+	if !enforceAllClientsOwnedInPayload(c, inbound) {
+		return
+	}
+	if owner := currentResellerUsername(c); owner != "" {
+		if err := stampClientOwnerOnInbound(inbound, owner); err != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+			return
+		}
+	}
+	// Always merge in existing owners from the DB so the JS model (which
+	// doesn't round-trip ownerUsername) can't accidentally erase them
+	// when a non-reseller admin edits a reseller-owned client.
+	if err := preserveExistingOwners(a.inboundService, inbound); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
 
 	needRestart, err := a.inboundService.UpdateInboundClient(inbound, clientId)
 	if err != nil {
@@ -486,6 +564,10 @@ func (a *InboundController) resetClientTraffic(c *gin.Context) {
 		return
 	}
 	email := c.Param("email")
+
+	if !enforceClientOwnership(c, a.inboundService, id, email) {
+		return
+	}
 
 	needRestart, err := a.inboundService.ResetClientTraffic(id, email)
 	if err != nil {
@@ -575,12 +657,35 @@ func (a *InboundController) delDepletedClients(c *gin.Context) {
 
 // onlines retrieves the list of currently online clients.
 func (a *InboundController) onlines(c *gin.Context) {
-	jsonObj(c, a.inboundService.GetOnlineClients(), nil)
+	emails := a.inboundService.GetOnlineClients()
+	if owner := currentResellerUsername(c); owner != "" {
+		emails = filterEmailsByOwner(a.inboundService, emails, owner)
+	}
+	jsonObj(c, emails, nil)
 }
 
 // lastOnline retrieves the last online timestamps for clients.
 func (a *InboundController) lastOnline(c *gin.Context) {
 	data, err := a.inboundService.GetClientsLastOnline()
+	if owner := currentResellerUsername(c); owner != "" && data != nil {
+		// data is map[string]int64 keyed by email — keep only owned ones.
+		filtered := make(map[string]int64, len(data))
+		emails := make([]string, 0, len(data))
+		for e := range data {
+			emails = append(emails, e)
+		}
+		owned := filterEmailsByOwner(a.inboundService, emails, owner)
+		ownedSet := make(map[string]struct{}, len(owned))
+		for _, e := range owned {
+			ownedSet[e] = struct{}{}
+		}
+		for k, v := range data {
+			if _, ok := ownedSet[k]; ok {
+				filtered[k] = v
+			}
+		}
+		data = filtered
+	}
 	jsonObj(c, data, err)
 }
 
@@ -598,6 +703,10 @@ func (a *InboundController) updateClientTraffic(c *gin.Context) {
 	err := c.ShouldBindJSON(&request)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
+		return
+	}
+
+	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
 		return
 	}
 
@@ -619,6 +728,9 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 	}
 
 	email := c.Param("email")
+	if !enforceClientOwnership(c, a.inboundService, inboundId, email) {
+		return
+	}
 	needRestart, err := a.inboundService.DelInboundClientByEmail(inboundId, email)
 	if err != nil {
 		jsonMsg(c, "Failed to delete client by email", err)
