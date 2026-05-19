@@ -131,15 +131,15 @@
                           {{ i18n "pages.inbounds.export" }} - {{ i18n
                           "pages.settings.subSettings" }}
                         </a-menu-item>
-                        <a-menu-item key="resetInbounds">
+                        <a-menu-item key="resetInbounds" v-if="!isReseller">
                           <a-icon type="reload"></a-icon>
                           {{ i18n "pages.inbounds.resetAllTraffic" }}
                         </a-menu-item>
-                        <a-menu-item key="resetClients">
+                        <a-menu-item key="resetClients" v-if="!isReseller">
                           <a-icon type="file-done"></a-icon>
                           {{ i18n "pages.inbounds.resetAllClientTraffics" }}
                         </a-menu-item>
-                        <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }">
+                        <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }" v-if="!isReseller">
                           <a-icon type="rest"></a-icon>
                           {{ i18n "pages.inbounds.delDepletedClients" }}
                         </a-menu-item>
@@ -243,7 +243,7 @@
                               <a-icon type="copy"></a-icon>
                               {{ i18n "pages.client.copyFromInbound"}}
                             </a-menu-item>
-                            <a-menu-item key="resetClients">
+                            <a-menu-item key="resetClients" v-if="!isReseller">
                               <a-icon type="file-done"></a-icon>
                               {{ i18n
                               "pages.inbounds.resetInboundClientTraffics"}}
@@ -257,7 +257,7 @@
                               {{ i18n "pages.inbounds.export"}} - {{ i18n
                               "pages.settings.subSettings" }}
                             </a-menu-item>
-                            <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }">
+                            <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }" v-if="!isReseller">
                               <a-icon type="rest"></a-icon>
                               {{ i18n "pages.inbounds.delDepletedClients" }}
                             </a-menu-item>
@@ -281,7 +281,7 @@
                             <a-icon type="copy"></a-icon>
                             {{ i18n "pages.inbounds.exportInbound" }}
                           </a-menu-item>
-                          <a-menu-item key="resetTraffic">
+                          <a-menu-item key="resetTraffic" v-if="!isReseller">
                             <a-icon type="retweet"></a-icon> {{ i18n
                             "pages.inbounds.resetTraffic" }}
                           </a-menu-item>
