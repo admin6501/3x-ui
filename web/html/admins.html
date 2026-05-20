@@ -71,6 +71,23 @@
                       size="small" />
                   </div>
                 </template>
+                <template slot="consumedTraffic" slot-scope="text, record">
+                  <!--
+                    "Real" consumed traffic: the sum of up+down across every
+                    client_traffic row inside this admin's accessible
+                    inbounds. For resellers that's their AllowedInbounds
+                    scope; for everyone else it's the panel-wide total
+                    (they can see all of it anyway). The value is
+                    informational only — it does NOT drive any quota
+                    enforcement; that's `trafficUsed` (the accounting
+                    counter) on the previous column.
+                  -->
+                  <a-tooltip :title='`{{ i18n "pages.admins.consumedTrafficTooltip" }}`'>
+                    <span :style="{ fontFamily: 'monospace' }">
+                      [[ humanBytes(record.consumedTraffic || 0) ]]
+                    </span>
+                  </a-tooltip>
+                </template>
                 <template slot="actions" slot-scope="text, record">
                   <a-button size="small" :data-testid="`edit-admin-${record.id}`" @click="openEdit(record)">
                     <a-icon type="edit"></a-icon>
@@ -283,6 +300,7 @@
         { title: '{{ i18n "pages.admins.role" }}', dataIndex: 'role', scopedSlots: { customRender: 'role' } },
         { title: '{{ i18n "pages.admins.allowedInbounds" }}', dataIndex: 'allowedInbounds', scopedSlots: { customRender: 'allowedInbounds' } },
         { title: '{{ i18n "pages.admins.trafficQuota" }}', dataIndex: 'trafficQuota', scopedSlots: { customRender: 'trafficQuota' }, width: 200 },
+        { title: '{{ i18n "pages.admins.consumedTraffic" }}', dataIndex: 'consumedTraffic', scopedSlots: { customRender: 'consumedTraffic' }, width: 140 },
         { title: '{{ i18n "actions" }}', scopedSlots: { customRender: 'actions' }, width: 320 },
       ],
       auditColumns: [

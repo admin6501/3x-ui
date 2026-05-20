@@ -115,6 +115,8 @@
 "noInbound" = "No inbounds assigned"
 "trafficQuota" = "Traffic Quota"
 "trafficQuotaDesc" = "Reseller-only. Maximum bandwidth this reseller can hand out across all their clients. Deletion does NOT free quota — by design, to prevent bypass. A traffic reset bills the consumed bytes against the quota."
+"consumedTraffic" = "Consumed Traffic"
+"consumedTrafficTooltip" = "Total bytes (up + down) actually used by all clients in this admin's accessible inbounds. For resellers: scoped to their Allowed Inbounds. For others: panel-wide total."
 "unlimited" = "Unlimited"
 "resetTrafficUsage" = "Reset Quota"
 "confirmResetTraffic" = "Reset this reseller's quota usage back to 0?"

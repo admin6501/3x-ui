@@ -98,6 +98,73 @@ func (s *AdminService) ListAdmins() ([]model.User, error) {
 	return users, nil
 }
 
+// AdminWithStats packages a User with computed traffic stats — used by the
+// admin list UI so each row can show "consumed traffic by this admin's
+// clients" without forcing the frontend to N+1 the API.  We embed the User
+// so JSON shape stays backward compatible: every field the old endpoint
+// returned still exists at the same key.
+type AdminWithStats struct {
+	model.User
+	// ConsumedTraffic is the sum of up+down across every client_traffic
+	// row that lives inside an inbound this admin can see.
+	//   • Reseller → restricted to the inbound IDs in AllowedInbounds
+	//   • Other roles → the panel-wide total (they can see everything)
+	// 0 when the admin has no inbound scope (e.g. reseller with empty
+	// AllowedInbounds).
+	ConsumedTraffic int64 `json:"consumedTraffic"`
+}
+
+// ListAdminsWithStats is like ListAdmins but also fills in ConsumedTraffic
+// for each row. We compute the sum in a single GROUP BY query against
+// client_traffics, then join in memory — that's cheaper than running N
+// individual SUMs on a busy panel.
+func (s *AdminService) ListAdminsWithStats() ([]AdminWithStats, error) {
+	users, err := s.ListAdmins()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build inbound_id → consumed map in one shot.
+	db := database.GetDB()
+	var rows []struct {
+		InboundId int
+		Total     int64
+	}
+	if err := db.Table("client_traffics").
+		Select("inbound_id, COALESCE(SUM(up + down), 0) AS total").
+		Group("inbound_id").Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	consumedByInbound := make(map[int]int64, len(rows))
+	var grandTotal int64
+	for _, r := range rows {
+		consumedByInbound[r.InboundId] = r.Total
+		grandTotal += r.Total
+	}
+
+	out := make([]AdminWithStats, 0, len(users))
+	for _, u := range users {
+		row := AdminWithStats{User: u}
+		switch u.Role {
+		case model.RoleReseller:
+			// Only count traffic from inbounds inside the reseller's
+			// AllowedInbounds CSV. Anything else would credit them
+			// for usage on inbounds they can't even see.
+			for _, ibId := range AllowedInboundIDs(&u) {
+				row.ConsumedTraffic += consumedByInbound[ibId]
+			}
+		default:
+			// super_admin / manager / readonly all see the whole panel,
+			// so their "consumed" reading is the panel-wide grand
+			// total. Operators may find this useful for a top-level
+			// dashboard view; the UI is free to hide it.
+			row.ConsumedTraffic = grandTotal
+		}
+		out = append(out, row)
+	}
+	return out, nil
+}
+
 // GetAdmin returns a single admin row (without password).
 func (s *AdminService) GetAdmin(id int) (*model.User, error) {
 	db := database.GetDB()

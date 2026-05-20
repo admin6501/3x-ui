@@ -39,7 +39,7 @@ func (a *AdminController) initRouter(g *gin.RouterGroup) {
 }
 
 func (a *AdminController) list(c *gin.Context) {
-	rows, err := a.adminService.ListAdmins()
+	rows, err := a.adminService.ListAdminsWithStats()
 	if err != nil {
 		jsonMsg(c, "list admins", err)
 		return
