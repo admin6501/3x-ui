@@ -278,8 +278,8 @@
                             <a-icon type="block"></a-icon> {{ i18n
                             "pages.inbounds.clone"}}
                           </a-menu-item>
-                          <a-menu-item key="delete" v-if="!isReseller">
-                            <span :style="{ color: '#FF4D4F' }">
+                          <a-menu-item key="delete" :disabled="isReseller">
+                            <span :style="{ color: isReseller ? '' : '#FF4D4F' }">
                               <a-icon type="delete"></a-icon> {{ i18n "delete"}}
                             </span>
                           </a-menu-item>
@@ -1402,6 +1402,14 @@
             this.openCloneInbound(dbInbound);
             break;
           case "delete":
+            // Resellers cannot delete inbounds — the menu item is rendered
+            // as disabled for them, but guard here too so the action is a
+            // hard no-op even if the click somehow gets through (e.g. via
+            // keyboard or a stale Vue state). The backend also rejects it
+            // with scopeRejectResellerInboundEdit, but we don't want the
+            // confirmation modal (which would later show a misleading
+            // success toast on some Ant-Design versions).
+            if (this.isReseller) return;
             this.delInbound(dbInbound.id);
             break;
           case "delDepletedClients":
