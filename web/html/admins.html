@@ -227,21 +227,29 @@
           @change="onQuotaUnlimitedChanged">
           ∞ {{ i18n "pages.admins.unlimited" }}
         </a-checkbox>
-        <a-input-group v-if="!formModal.quotaUnlimited" compact :style="{ marginTop: '8px' }">
+        <div v-if="!formModal.quotaUnlimited" :style="{ marginTop: '8px' }">
           <a-input-number
             v-model="formModal.quotaAmount"
             :min="0" :step="1" :precision="2"
-            :style="{ width: 'calc(100% - 90px)' }"
+            :style="{ width: '100%', marginBottom: '8px' }"
             data-testid="admin-form-quota-amount" />
-          <a-select
+          <!--
+            Unit picker rendered as a Radio button-group (not a dropdown) so
+            it's visually impossible to miss — every option is on screen at
+            all times. Earlier we tried a-select inside a-input-group
+            compact, but operators reported the dropdown stayed invisible
+            in some themes/viewports. Three button-style radios remove all
+            ambiguity.
+          -->
+          <a-radio-group
             v-model="formModal.quotaUnit"
-            :style="{ width: '90px' }"
+            button-style="solid"
             data-testid="admin-form-quota-unit">
-            <a-select-option value="MB">MB</a-select-option>
-            <a-select-option value="GB">GB</a-select-option>
-            <a-select-option value="TB">TB</a-select-option>
-          </a-select>
-        </a-input-group>
+            <a-radio-button value="MB">MB</a-radio-button>
+            <a-radio-button value="GB">GB</a-radio-button>
+            <a-radio-button value="TB">TB</a-radio-button>
+          </a-radio-group>
+        </div>
         <div :style="{ color: '#888', fontSize: '12px', marginTop: '4px' }">
           {{ i18n "pages.admins.trafficQuotaDesc" }}
         </div>
