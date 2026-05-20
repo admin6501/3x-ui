@@ -2,20 +2,15 @@
 {{ template "page/head_end" .}}
 
 <style>
-  /* Admins page — mobile/responsive polish. The default antd table renders
-     fine on desktop because each column gets enough room from the flex
-     layout. On narrow phones, however, the ant-table-tbody cells were
-     collapsing to ~12px wide and Persian text wrapped one character per
-     line. The fix in two parts:
-       1. Every column now has an explicit `width` in JS (so the table can
-          compute the right total width and honour `:scroll="{ x: 1270 }"`).
-       2. Force cell content to never wrap horizontally — on phones the
-          operator scrolls the table sideways instead of seeing vertical
-          text. The action column is `fixed: 'right'` so the row's controls
-          stay reachable during the scroll.
-     The action buttons themselves stack vertically below 600px so each
-     row is tall enough to expose all four (edit / reset-pwd / reset-quota
-     / delete) without overlapping. */
+  /* Admins page — responsive layout.
+     Desktop (>768px): classic antd <a-table> with horizontal scroll.
+     Mobile  (<=768px): a stacked card-list (rendered by Vue with
+       `v-if="isMobile"`). Horizontally-scrolling antd tables proved
+       unusable on phones — the 7 columns + fixed action column left
+       barely any room for actual data, and the Persian/RTL text inside
+       narrow cells wrapped one character per line. Cards put every
+       field on its own row and the action buttons stretch full-width.
+  */
   .admins-page .ant-table-cell,
   .admins-page .ant-table-tbody > tr > td,
   .admins-page .ant-table-thead > tr > th {
@@ -28,22 +23,102 @@
   .admins-page .ant-tag {
     margin-bottom: 2px;
   }
-  @media (max-width: 600px) {
+
+  /* Mobile card list ---------------------------------------------------- */
+  .admin-card {
+    border: 1px solid rgba(140, 140, 140, 0.18);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--card-background, transparent);
+  }
+  .admin-card + .admin-card { margin-top: 0; }
+  .admin-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .admin-card-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .admin-card-id {
+    font-family: monospace;
+    color: #888;
+    font-size: 12px;
+  }
+  .admin-card-name {
+    font-weight: 600;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .admin-card-field {
+    margin: 6px 0;
+    font-size: 13px;
+  }
+  .admin-card-field-label {
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  .admin-card-field-value {
+    font-family: monospace;
+  }
+  .admin-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .admin-card-actions .ant-btn,
+  .admin-card-actions > .ant-popconfirm,
+  .admin-card-actions > span {
+    width: 100%;
+  }
+  .admin-card-actions .ant-btn { width: 100%; }
+  .admin-card-empty {
+    text-align: center;
+    color: #888;
+    padding: 24px 0;
+  }
+  /* Audit log mobile card -------------------------------------------------*/
+  .audit-card {
+    border: 1px solid rgba(140, 140, 140, 0.18);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .audit-card-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .audit-card-meta { color: #888; font-size: 11px; }
+  .audit-card-details {
+    margin-top: 4px;
+    word-break: break-word;
+    color: #555;
+  }
+
+  @media (max-width: 768px) {
     .admins-page h2 { font-size: 18px; }
     .admins-page .ant-card-body { padding: 12px; }
-    .admins-page .admins-row-actions {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      gap: 4px;
-    }
-    .admins-page .admins-row-actions .ant-btn {
-      margin-left: 0 !important;
-      width: 100%;
-    }
-    /* Make the "Add Admin" header row wrap nicely instead of squishing */
+    /* Header row: title block above the Add button on phones, button block-wide */
     .admins-page .admins-header-row { flex-wrap: wrap; gap: 8px; }
     .admins-page .admins-header-row > .ant-col { width: 100%; }
+    .admins-page .admins-header-row .ant-btn { width: 100%; }
+    /* Tighten gutters between cards on phones */
+    .admins-page .ant-card { border-radius: 8px; }
   }
 </style>
 
@@ -74,6 +149,7 @@
           <a-col :span="24">
             <a-card hoverable>
               <a-table
+                v-if="!isMobile"
                 :columns="columns"
                 :data-source="admins"
                 :pagination="false"
@@ -176,6 +252,88 @@
                   </div>
                 </template>
               </a-table>
+
+              <!-- Mobile: stacked card list. Mirrors every column of the
+                   desktop table (role / allowed inbounds / quota /
+                   consumed / actions) but renders each admin as a
+                   vertically-stacked card. Resellers get the inbound
+                   tags + quota progress bar; other roles skip those
+                   sections so cards stay short. -->
+              <template v-if="isMobile">
+                <div v-if="!admins || admins.length === 0" class="admin-card-empty" data-testid="admin-cards-empty">—</div>
+                <div v-for="record in admins" :key="record.id" class="admin-card" :data-testid="`admin-card-${record.id}`">
+                  <div class="admin-card-header">
+                    <div class="admin-card-identity">
+                      <span class="admin-card-id">#[[ record.id ]]</span>
+                      <span class="admin-card-name">[[ record.username ]]</span>
+                    </div>
+                    <a-tag :color="roleColor(record.role)">[[ roleLabel(record.role) ]]</a-tag>
+                  </div>
+
+                  <div v-if="record.role === 'reseller'" class="admin-card-field">
+                    <div class="admin-card-field-label">{{ i18n "pages.admins.allowedInbounds" }}</div>
+                    <div class="allowed-inbounds-cell">
+                      <span v-if="!record.allowedInbounds">
+                        <a-tag color="red">{{ i18n "pages.admins.noInbound" }}</a-tag>
+                      </span>
+                      <a-tag v-else v-for="id in record.allowedInbounds.split(',')" :key="id">[[ inboundLabel(id) ]]</a-tag>
+                    </div>
+                  </div>
+
+                  <div v-if="record.role === 'reseller'" class="admin-card-field">
+                    <div class="admin-card-field-label">{{ i18n "pages.admins.trafficQuota" }}</div>
+                    <a-tag v-if="!(record.trafficQuota > 0)" color="cyan">∞ {{ i18n "pages.admins.unlimited" }}</a-tag>
+                    <div v-else>
+                      <div class="admin-card-field-value" :style="{ fontSize: '12px' }">
+                        [[ humanBytes(record.trafficUsed || 0) ]] / [[ humanBytes(record.trafficQuota) ]]
+                      </div>
+                      <a-progress
+                        :percent="quotaPercent(record)"
+                        :status="quotaPercent(record) >= 100 ? 'exception' : 'active'"
+                        :stroke-color="quotaPercent(record) >= 80 ? '#fa8c16' : '#1890ff'"
+                        :show-info="false"
+                        size="small" />
+                    </div>
+                  </div>
+
+                  <div class="admin-card-field">
+                    <div class="admin-card-field-label">{{ i18n "pages.admins.consumedTraffic" }}</div>
+                    <div class="admin-card-field-value">[[ humanBytes(record.consumedTraffic || 0) ]]</div>
+                  </div>
+
+                  <div class="admin-card-actions">
+                    <a-button size="small" block :data-testid="`m-edit-admin-${record.id}`" @click="openEdit(record)">
+                      <a-icon type="edit"></a-icon>
+                      {{ i18n "edit" }}
+                    </a-button>
+                    <a-button size="small" block :data-testid="`m-reset-pwd-${record.id}`" @click="openResetPwd(record)">
+                      <a-icon type="lock"></a-icon>
+                      {{ i18n "pages.admins.resetPassword" }}
+                    </a-button>
+                    <a-popconfirm
+                      v-if="record.role === 'reseller' && (record.trafficQuota > 0)"
+                      :title='`{{ i18n "pages.admins.confirmResetTraffic" }}`'
+                      :ok-text='`{{ i18n "yes" }}`'
+                      :cancel-text='`{{ i18n "no" }}`'
+                      @confirm="doResetTrafficUsage(record)">
+                      <a-button size="small" block :data-testid="`m-reset-traffic-${record.id}`">
+                        <a-icon type="reload"></a-icon>
+                        {{ i18n "pages.admins.resetTrafficUsage" }}
+                      </a-button>
+                    </a-popconfirm>
+                    <a-popconfirm
+                      :title='`{{ i18n "pages.admins.confirmDelete" }}`'
+                      :ok-text='`{{ i18n "yes" }}`'
+                      :cancel-text='`{{ i18n "no" }}`'
+                      @confirm="doDelete(record)">
+                      <a-button size="small" block type="danger" :data-testid="`m-delete-admin-${record.id}`">
+                        <a-icon type="delete"></a-icon>
+                        {{ i18n "delete" }}
+                      </a-button>
+                    </a-popconfirm>
+                  </div>
+                </div>
+              </template>
             </a-card>
           </a-col>
 
@@ -186,6 +344,7 @@
                 {{ i18n "pages.admins.auditLog" }}
               </h3>
               <a-table
+                v-if="!isMobile"
                 :columns="auditColumns"
                 :data-source="auditRows"
                 :pagination="{ pageSize: 20 }"
@@ -201,6 +360,24 @@
                   [[ new Date(text).toLocaleString() ]]
                 </template>
               </a-table>
+
+              <!-- Mobile audit log: compact card list (no horizontal
+                   scroll, no antd table). Newest first; limited to the
+                   first 30 entries on phones to keep the page light. -->
+              <template v-if="isMobile">
+                <div v-if="!auditRows || auditRows.length === 0" class="admin-card-empty" data-testid="audit-cards-empty">—</div>
+                <div v-for="row in auditRows.slice(0, 30)" :key="row.id" class="audit-card" :data-testid="`audit-card-${row.id}`">
+                  <div class="audit-card-row">
+                    <a-tag>[[ row.action ]]</a-tag>
+                    <span class="audit-card-meta">#[[ row.id ]]</span>
+                  </div>
+                  <div class="audit-card-row">
+                    <span><strong>[[ row.actor || '—' ]]</strong> → [[ row.target || '—' ]]</span>
+                  </div>
+                  <div v-if="row.details" class="audit-card-details">[[ row.details ]]</div>
+                  <div class="audit-card-meta">[[ new Date(row.createdAt).toLocaleString() ]]</div>
+                </div>
+              </template>
             </a-card>
           </a-col>
         </a-row>
@@ -215,6 +392,8 @@
     :ok-text='`{{ i18n "save" }}`'
     :cancel-text='`{{ i18n "cancel" }}`'
     :confirm-loading="formModal.saving"
+    :width="isMobile ? '95%' : 520"
+    :dialog-style="isMobile ? { top: '12px' } : {}"
     @ok="saveAdmin"
     data-testid="admin-form-modal">
     <a-form layout="vertical">
@@ -317,6 +496,8 @@
     :ok-text='`{{ i18n "save" }}`'
     :cancel-text='`{{ i18n "cancel" }}`'
     :confirm-loading="resetPwdModal.saving"
+    :width="isMobile ? '95%' : 520"
+    :dialog-style="isMobile ? { top: '12px' } : {}"
     @ok="doResetPassword"
     data-testid="reset-pwd-modal">
     <p>[[ resetPwdModal.username ]]</p>

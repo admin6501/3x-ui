@@ -129,6 +129,21 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Admins page mobile UX overhaul**. On desktop the admins
+  page stays unchanged (antd `<a-table>` with horizontal scroll). On
+  viewports ≤ 768px (the same breakpoint `MediaQueryMixin.isMobile`
+  uses everywhere else) both the admins table AND the audit-log table
+  are replaced with stacked card lists rendered by a `v-if="isMobile"`
+  branch in `web/html/admins.html`. Each admin card surfaces every
+  column the desktop row shows (role tag, allowed-inbounds tags,
+  quota progress bar for capped resellers, consumed traffic) plus a
+  2-column grid of full-width action buttons (Edit / Reset Password
+  / Reset Traffic for capped resellers / Delete). The create-edit
+  modal and reset-password modal now use `:width="isMobile ? '95%' : 520"`
+  so phone keyboards don't clip the form. The Add Admin button in
+  the page header becomes block-width on phones via the existing
+  `.admins-header-row` CSS. AMD64 tarball rebuilt at
+  `/app/offline/x-ui-linux-amd64.tar.gz` (v2.9.16).
 - 2026-02 — Offline installer now auto-installs base prerequisites.
   `install_offline.sh` previously assumed `cron`/`curl`/`tar`/`tzdata`/
   `socat`/`ca-certificates`/`openssl` were already present and bailed if
