@@ -61,15 +61,15 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 
 	g.GET("/list", a.getInbounds)
 	g.GET("/get/:id", a.scopeInboundParam, a.getInbound)
-	g.GET("/getClientTraffics/:email", a.getClientTraffics)
-	g.GET("/getClientTrafficsById/:id", a.scopeInboundParam, a.getClientTrafficsById)
+	g.GET("/getClientTraffics/:email", a.scopeClientByEmail, a.getClientTraffics)
+	g.GET("/getClientTrafficsById/:id", a.scopeClientByUUID, a.getClientTrafficsById)
 
 	g.POST("/add", a.scopeRejectResellerCreate, a.addInbound)
 	g.POST("/del/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.delInbound)
 	g.POST("/update/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.updateInbound)
 	g.POST("/setEnable/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.setInboundEnable)
-	g.POST("/clientIps/:email", a.getClientIps)
-	g.POST("/clearClientIps/:email", a.clearClientIps)
+	g.POST("/clientIps/:email", a.scopeClientByEmail, a.getClientIps)
+	g.POST("/clearClientIps/:email", a.scopeClientByEmail, a.clearClientIps)
 	g.POST("/addClient", a.addInboundClient)
 	g.POST("/:id/copyClients", a.scopeInboundParam, a.copyInboundClients)
 	g.POST("/:id/delClient/:clientId", a.scopeInboundParam, a.delInboundClient)
@@ -81,7 +81,7 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/import", a.scopeRejectResellerCreate, a.importInbound)
 	g.POST("/onlines", a.onlines)
 	g.POST("/lastOnline", a.lastOnline)
-	g.POST("/updateClientTraffic/:email", a.updateClientTraffic)
+	g.POST("/updateClientTraffic/:email", a.scopeClientByEmail, a.updateClientTraffic)
 	g.POST("/:id/delClientByEmail/:email", a.scopeInboundParam, a.delInboundClientByEmail)
 }
 
@@ -96,6 +96,28 @@ func (a *InboundController) scopeInboundParam(c *gin.Context) {
 		return
 	}
 	if !enforceInboundScope(c, id) {
+		return
+	}
+	c.Next()
+}
+
+// scopeClientByEmail enforces reseller scope on endpoints whose only URL
+// parameter is a client email. Wrapper around enforceInboundScopeByEmail.
+// No-op for super_admin / manager / readonly.
+func (a *InboundController) scopeClientByEmail(c *gin.Context) {
+	email := c.Param("email")
+	if !enforceInboundScopeByEmail(c, email) {
+		return
+	}
+	c.Next()
+}
+
+// scopeClientByUUID enforces reseller scope on endpoints whose URL
+// parameter is a client UUID/password (not an inbound id). Wrapper around
+// enforceInboundScopeByClientUUID. No-op for non-resellers.
+func (a *InboundController) scopeClientByUUID(c *gin.Context) {
+	uuid := c.Param("id")
+	if !enforceInboundScopeByClientUUID(c, uuid) {
 		return
 	}
 	c.Next()

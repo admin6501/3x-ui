@@ -205,34 +205,43 @@
       <!--
         Traffic quota form field. Only shown for resellers — for other roles
         the cap is meaningless and would just confuse operators. The user
-        types a NUMBER (with one decimal place of precision) and picks the
+        types a NUMBER (with two decimal places of precision) and picks the
         UNIT (MB / GB / TB); we convert to bytes server-side. A value of 0
         means *unlimited* and is allowed explicitly via the "unlimited"
         checkbox to make intent obvious (sliding to 0 by mistake would be
         easy otherwise).
+
+        Layout: the previous version used a single flex row with checkbox +
+        number-input + select all side-by-side. On narrow viewports (and in
+        Persian/RTL where the checkbox label "∞ نامحدود" is wider than its
+        English counterpart) the select would visually disappear off the
+        right edge of the form-item — operators reported they could enter a
+        number but not see the unit picker. The fix is to split the field
+        into two stacked rows AND to v-if-hide the unit picker when
+        unlimited is on (so the cleared/disabled state can never be
+        confused with a missing element). a-input-group compact glues the
+        number + unit visually so they still read as one control.
       -->
       <a-form-item v-if="formModal.role === 'reseller'" label='{{ i18n "pages.admins.trafficQuota" }}'>
-        <div :style="{ display: 'flex', gap: '8px', alignItems: 'center' }">
-          <a-checkbox v-model="formModal.quotaUnlimited" data-testid="admin-form-quota-unlimited"
-            @change="onQuotaUnlimitedChanged">
-            ∞ {{ i18n "pages.admins.unlimited" }}
-          </a-checkbox>
+        <a-checkbox v-model="formModal.quotaUnlimited" data-testid="admin-form-quota-unlimited"
+          @change="onQuotaUnlimitedChanged">
+          ∞ {{ i18n "pages.admins.unlimited" }}
+        </a-checkbox>
+        <a-input-group v-if="!formModal.quotaUnlimited" compact :style="{ marginTop: '8px' }">
           <a-input-number
             v-model="formModal.quotaAmount"
             :min="0" :step="1" :precision="2"
-            :disabled="formModal.quotaUnlimited"
-            :style="{ width: '120px' }"
+            :style="{ width: 'calc(100% - 90px)' }"
             data-testid="admin-form-quota-amount" />
           <a-select
             v-model="formModal.quotaUnit"
-            :disabled="formModal.quotaUnlimited"
             :style="{ width: '90px' }"
             data-testid="admin-form-quota-unit">
             <a-select-option value="MB">MB</a-select-option>
             <a-select-option value="GB">GB</a-select-option>
             <a-select-option value="TB">TB</a-select-option>
           </a-select>
-        </div>
+        </a-input-group>
         <div :style="{ color: '#888', fontSize: '12px', marginTop: '4px' }">
           {{ i18n "pages.admins.trafficQuotaDesc" }}
         </div>
