@@ -196,17 +196,6 @@
                       <a-radio-button value="online">{{ i18n "online"
                         }}</a-radio-button>
                     </a-radio-group>
-                    <a-select v-if="!isReseller && resellers.length > 0"
-                      v-model="ownerFilter"
-                      :dropdown-class-name="themeSwitcher.currentTheme"
-                      allow-clear
-                      placeholder="Filter by reseller"
-                      :style="{ marginLeft: '.5rem', minWidth: '200px' }"
-                      :size="isMobile ? 'small' : ''"
-                      @change="getDBInbounds"
-                      data-testid="reseller-owner-filter">
-                      <a-select-option v-for="u in resellers" :key="u" :value="u">[[ u ]]</a-select-option>
-                    </a-select>
                   </div>
                   <a-table :columns="isMobile ? mobileColumns : columns" :row-key="dbInbound => dbInbound.id"
                     :data-source="searchedInbounds" :scroll="isMobile ? {} : { x: 1000 }"
@@ -1085,13 +1074,6 @@
       showAlert: false,
       ipLimitEnable: false,
       pageSize: 0,
-      // Reseller-ownership audit filter: when a super-admin / manager picks
-      // a reseller from the dropdown, /panel/api/inbounds/list is re-fetched
-      // with ?ownerFilter=<username> so only that reseller's clients show
-      // up across every inbound — handy for billing / support without
-      // having to log in as the reseller.
-      resellers: [],
-      ownerFilter: '',
     },
     methods: {
       loading(spinning = true) {
@@ -1164,8 +1146,7 @@
       },
       async getDBInbounds() {
         this.refreshing = true;
-        const qs = this.ownerFilter ? '?ownerFilter=' + encodeURIComponent(this.ownerFilter) : '';
-        const msg = await HttpUtil.get('/panel/api/inbounds/list' + qs);
+        const msg = await HttpUtil.get('/panel/api/inbounds/list');
         if (!msg.success) {
           this.refreshing = false;
           return;
@@ -1185,21 +1166,6 @@
           return;
         }
         this.onlineClients = msg.obj != null ? msg.obj : [];
-      },
-      // Load the list of reseller admins so the super-admin can pick one
-      // from the toolbar dropdown to filter the client view. Silently fails
-      // for non-super-admin roles (the endpoint 403s) — that's fine, the
-      // dropdown is hidden in that case via isReseller / role checks.
-      async loadResellersList() {
-        if (this.isReseller) return;
-        try {
-          const r = await HttpUtil.get('/panel/admin/list');
-          if (r && r.success && Array.isArray(r.obj)) {
-            this.resellers = r.obj
-              .filter(a => a.role === 'reseller')
-              .map(a => a.username);
-          }
-        } catch (e) { /* not super-admin; dropdown stays empty */ }
       },
       async getLastOnlineMap() {
         const msg = await HttpUtil.post('/panel/api/inbounds/lastOnline');
@@ -2132,7 +2098,6 @@
       }
       this.loading();
       this.getDefaultSettings();
-      this.loadResellersList();
 
       // Bootstrap from REST first, then attach WebSocket subscriptions.
       // Doing this in order eliminates a race where an early `inbounds` push
