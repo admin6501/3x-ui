@@ -232,14 +232,15 @@
             v-model="formModal.quotaAmount"
             :min="0" :step="1" :precision="2"
             :style="{ width: '100%', marginBottom: '8px' }"
-            data-testid="admin-form-quota-amount" />
+            data-testid="admin-form-quota-amount"></a-input-number>
           <!--
             Unit picker rendered as a Radio button-group (not a dropdown) so
             it's visually impossible to miss — every option is on screen at
-            all times. Earlier we tried a-select inside a-input-group
-            compact, but operators reported the dropdown stayed invisible
-            in some themes/viewports. Three button-style radios remove all
-            ambiguity.
+            all times. NOTE: <a-input-number .../> self-closing syntax
+            does NOT work here because templates are compiled at runtime
+            from server-rendered HTML; the browser parses the self-closing
+            slash on a custom element as an unclosed tag and silently
+            swallows the next sibling. Always use </a-input-number>.
           -->
           <a-radio-group
             v-model="formModal.quotaUnit"
