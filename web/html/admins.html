@@ -1,6 +1,52 @@
 {{ template "page/head_start" .}}
 {{ template "page/head_end" .}}
 
+<style>
+  /* Admins page — mobile/responsive polish. The default antd table renders
+     fine on desktop because each column gets enough room from the flex
+     layout. On narrow phones, however, the ant-table-tbody cells were
+     collapsing to ~12px wide and Persian text wrapped one character per
+     line. The fix in two parts:
+       1. Every column now has an explicit `width` in JS (so the table can
+          compute the right total width and honour `:scroll="{ x: 1270 }"`).
+       2. Force cell content to never wrap horizontally — on phones the
+          operator scrolls the table sideways instead of seeing vertical
+          text. The action column is `fixed: 'right'` so the row's controls
+          stay reachable during the scroll.
+     The action buttons themselves stack vertically below 600px so each
+     row is tall enough to expose all four (edit / reset-pwd / reset-quota
+     / delete) without overlapping. */
+  .admins-page .ant-table-cell,
+  .admins-page .ant-table-tbody > tr > td,
+  .admins-page .ant-table-thead > tr > th {
+    white-space: nowrap;
+  }
+  .admins-page .ant-table-tbody > tr > td.ant-table-cell-with-append,
+  .admins-page .ant-table-tbody .allowed-inbounds-cell {
+    white-space: normal;
+  }
+  .admins-page .ant-tag {
+    margin-bottom: 2px;
+  }
+  @media (max-width: 600px) {
+    .admins-page h2 { font-size: 18px; }
+    .admins-page .ant-card-body { padding: 12px; }
+    .admins-page .admins-row-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+    .admins-page .admins-row-actions .ant-btn {
+      margin-left: 0 !important;
+      width: 100%;
+    }
+    /* Make the "Add Admin" header row wrap nicely instead of squishing */
+    .admins-page .admins-header-row { flex-wrap: wrap; gap: 8px; }
+    .admins-page .admins-header-row > .ant-col { width: 100%; }
+  }
+</style>
+
 {{ template "page/body_start" .}}
 <a-layout id="app" v-cloak :class="themeSwitcher.currentTheme + ' admins-page'">
   <a-sidebar></a-sidebar>
@@ -10,7 +56,7 @@
         <a-row :gutter="[isMobile ? 8 : 16, isMobile ? 8 : 12]">
           <a-col :span="24">
             <a-card hoverable>
-              <a-row align="middle" justify="space-between">
+              <a-row align="middle" justify="space-between" class="admins-header-row">
                 <a-col>
                   <h2 :style="{ margin: 0 }">{{ i18n "pages.admins.title" }}</h2>
                   <span :style="{ color: '#888', fontSize: '13px' }">{{ i18n "pages.admins.subtitle" }}</span>
@@ -33,17 +79,20 @@
                 :pagination="false"
                 row-key="id"
                 size="middle"
-                :scroll="{ x: 800 }"
+                :scroll="{ x: 1270 }"
+                class="admins-table"
                 data-testid="admins-table">
                 <template slot="role" slot-scope="text, record">
                   <a-tag :color="roleColor(record.role)">[[ roleLabel(record.role) ]]</a-tag>
                 </template>
                 <template slot="allowedInbounds" slot-scope="text, record">
-                  <span v-if="record.role !== 'reseller'" :style="{ color: '#888' }">—</span>
-                  <span v-else-if="!record.allowedInbounds">
-                    <a-tag color="red">{{ i18n "pages.admins.noInbound" }}</a-tag>
-                  </span>
-                  <a-tag v-else v-for="id in record.allowedInbounds.split(',')" :key="id">[[ inboundLabel(id) ]]</a-tag>
+                  <div class="allowed-inbounds-cell">
+                    <span v-if="record.role !== 'reseller'" :style="{ color: '#888' }">—</span>
+                    <span v-else-if="!record.allowedInbounds">
+                      <a-tag color="red">{{ i18n "pages.admins.noInbound" }}</a-tag>
+                    </span>
+                    <a-tag v-else v-for="id in record.allowedInbounds.split(',')" :key="id">[[ inboundLabel(id) ]]</a-tag>
+                  </div>
                 </template>
                 <template slot="trafficQuota" slot-scope="text, record">
                   <!--
@@ -89,6 +138,7 @@
                   </a-tooltip>
                 </template>
                 <template slot="actions" slot-scope="text, record">
+                  <div class="admins-row-actions">
                   <a-button size="small" :data-testid="`edit-admin-${record.id}`" @click="openEdit(record)">
                     <a-icon type="edit"></a-icon>
                     {{ i18n "edit" }}
@@ -123,6 +173,7 @@
                       {{ i18n "delete" }}
                     </a-button>
                   </a-popconfirm>
+                  </div>
                 </template>
               </a-table>
             </a-card>
@@ -140,7 +191,8 @@
                 :pagination="{ pageSize: 20 }"
                 row-key="id"
                 size="small"
-                :scroll="{ x: 600 }"
+                :scroll="{ x: 930 }"
+                class="admins-audit-table"
                 data-testid="audit-table">
                 <template slot="action" slot-scope="text">
                   <a-tag>[[ text ]]</a-tag>
@@ -313,21 +365,21 @@
         password: '',
       },
       columns: [
-        { title: 'ID', dataIndex: 'id', width: 60 },
-        { title: '{{ i18n "username" }}', dataIndex: 'username' },
-        { title: '{{ i18n "pages.admins.role" }}', dataIndex: 'role', scopedSlots: { customRender: 'role' } },
-        { title: '{{ i18n "pages.admins.allowedInbounds" }}', dataIndex: 'allowedInbounds', scopedSlots: { customRender: 'allowedInbounds' } },
-        { title: '{{ i18n "pages.admins.trafficQuota" }}', dataIndex: 'trafficQuota', scopedSlots: { customRender: 'trafficQuota' }, width: 200 },
-        { title: '{{ i18n "pages.admins.consumedTraffic" }}', dataIndex: 'consumedTraffic', scopedSlots: { customRender: 'consumedTraffic' }, width: 140 },
-        { title: '{{ i18n "actions" }}', scopedSlots: { customRender: 'actions' }, width: 320 },
+        { title: 'ID', dataIndex: 'id', width: 60, align: 'center' },
+        { title: '{{ i18n "username" }}', dataIndex: 'username', width: 140, ellipsis: true },
+        { title: '{{ i18n "pages.admins.role" }}', dataIndex: 'role', scopedSlots: { customRender: 'role' }, width: 110, align: 'center' },
+        { title: '{{ i18n "pages.admins.allowedInbounds" }}', dataIndex: 'allowedInbounds', scopedSlots: { customRender: 'allowedInbounds' }, width: 240 },
+        { title: '{{ i18n "pages.admins.trafficQuota" }}', dataIndex: 'trafficQuota', scopedSlots: { customRender: 'trafficQuota' }, width: 220 },
+        { title: '{{ i18n "pages.admins.consumedTraffic" }}', dataIndex: 'consumedTraffic', scopedSlots: { customRender: 'consumedTraffic' }, width: 140, align: 'center' },
+        { title: '{{ i18n "actions" }}', scopedSlots: { customRender: 'actions' }, width: 360, fixed: 'right' },
       ],
       auditColumns: [
-        { title: 'ID', dataIndex: 'id', width: 60 },
-        { title: '{{ i18n "pages.admins.actor" }}', dataIndex: 'actor' },
-        { title: '{{ i18n "pages.admins.action" }}', dataIndex: 'action', scopedSlots: { customRender: 'action' } },
-        { title: '{{ i18n "pages.admins.target" }}', dataIndex: 'target' },
-        { title: '{{ i18n "pages.admins.details" }}', dataIndex: 'details' },
-        { title: '{{ i18n "pages.admins.when" }}', dataIndex: 'createdAt', scopedSlots: { customRender: 'createdAt' } },
+        { title: 'ID', dataIndex: 'id', width: 60, align: 'center' },
+        { title: '{{ i18n "pages.admins.actor" }}', dataIndex: 'actor', width: 120, ellipsis: true },
+        { title: '{{ i18n "pages.admins.action" }}', dataIndex: 'action', scopedSlots: { customRender: 'action' }, width: 180 },
+        { title: '{{ i18n "pages.admins.target" }}', dataIndex: 'target', width: 140, ellipsis: true },
+        { title: '{{ i18n "pages.admins.details" }}', dataIndex: 'details', width: 260, ellipsis: true },
+        { title: '{{ i18n "pages.admins.when" }}', dataIndex: 'createdAt', scopedSlots: { customRender: 'createdAt' }, width: 170 },
       ],
     },
     methods: {
