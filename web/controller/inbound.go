@@ -82,9 +82,6 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/lastOnline", a.lastOnline)
 	g.POST("/updateClientTraffic/:email", a.updateClientTraffic)
 	g.POST("/:id/delClientByEmail/:email", a.scopeInboundParam, a.delInboundClientByEmail)
-	// Bulk-assign every client in an inbound to a reseller. Super-admin /
-	// manager only; rejects reseller callers.
-	g.POST("/:id/assignClientsToReseller", a.scopeRejectReseller, a.scopeInboundParam, a.assignClientsToReseller)
 }
 
 // scopeInboundParam ensures the URL :id is in the reseller's allowed set.
@@ -744,84 +741,4 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
 	}
-}
-
-// assignClientsToReseller bulk-assigns every client in an inbound to a
-// reseller by stamping ownerUsername on each client entry. Useful when a
-// super-admin wants to hand off an existing inbound (with legacy clients)
-// to a reseller without editing each client by hand.
-//
-// Body:
-//
-//	{ "username": "<reseller>", "onlyLegacy": false }
-//
-// When onlyLegacy=true, only clients without an ownerUsername are stamped
-// — useful for partial migrations where some clients already belong to
-// another reseller and must stay there.
-//
-// The endpoint validates that the target user exists and has role reseller
-// (so a super-admin can't accidentally hand clients to a non-reseller
-// account). Returns the count of clients actually reassigned.
-func (a *InboundController) assignClientsToReseller(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	type bulkReq struct {
-		Username   string `json:"username" form:"username"`
-		OnlyLegacy bool   `json:"onlyLegacy" form:"onlyLegacy"`
-	}
-	var req bulkReq
-	if err := c.ShouldBind(&req); err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	if req.Username == "" {
-		jsonMsg(c, "username is required", fmt.Errorf("missing username"))
-		return
-	}
-	// Verify the target is an actual reseller. Allows the super-admin to
-	// also clear ownership by passing username = "" (handled above as an
-	// error to avoid foot-guns; manual JSON edits remain available).
-	admins, err := (&service.AdminService{}).ListAdmins()
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	var found *model.User
-	for i := range admins {
-		if admins[i].Username == req.Username {
-			found = &admins[i]
-			break
-		}
-	}
-	if found == nil || found.Role != model.RoleReseller {
-		jsonMsg(c, "target user is not a reseller", fmt.Errorf("invalid target: %q", req.Username))
-		return
-	}
-
-	ib, err := a.inboundService.GetInbound(id)
-	if err != nil || ib == nil {
-		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
-		return
-	}
-
-	updated, err := bulkAssignOwnerInSettings(ib, req.Username, req.OnlyLegacy)
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	if updated == 0 {
-		jsonObj(c, map[string]any{"reassigned": 0}, nil)
-		return
-	}
-	if _, _, err := a.inboundService.UpdateInbound(ib); err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	a.xrayService.SetToNeedRestart()
-	user := session.GetLoginUser(c)
-	a.broadcastInboundsUpdate(user.Id)
-	jsonObj(c, map[string]any{"reassigned": updated, "username": req.Username}, nil)
 }

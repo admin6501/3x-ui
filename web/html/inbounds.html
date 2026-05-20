@@ -131,15 +131,15 @@
                           {{ i18n "pages.inbounds.export" }} - {{ i18n
                           "pages.settings.subSettings" }}
                         </a-menu-item>
-                        <a-menu-item key="resetInbounds" v-if="!isReseller">
+                        <a-menu-item key="resetInbounds">
                           <a-icon type="reload"></a-icon>
                           {{ i18n "pages.inbounds.resetAllTraffic" }}
                         </a-menu-item>
-                        <a-menu-item key="resetClients" v-if="!isReseller">
+                        <a-menu-item key="resetClients">
                           <a-icon type="file-done"></a-icon>
                           {{ i18n "pages.inbounds.resetAllClientTraffics" }}
                         </a-menu-item>
-                        <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }" v-if="!isReseller">
+                        <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }">
                           <a-icon type="rest"></a-icon>
                           {{ i18n "pages.inbounds.delDepletedClients" }}
                         </a-menu-item>
@@ -243,7 +243,7 @@
                               <a-icon type="copy"></a-icon>
                               {{ i18n "pages.client.copyFromInbound"}}
                             </a-menu-item>
-                            <a-menu-item key="resetClients" v-if="!isReseller">
+                            <a-menu-item key="resetClients">
                               <a-icon type="file-done"></a-icon>
                               {{ i18n
                               "pages.inbounds.resetInboundClientTraffics"}}
@@ -257,7 +257,7 @@
                               {{ i18n "pages.inbounds.export"}} - {{ i18n
                               "pages.settings.subSettings" }}
                             </a-menu-item>
-                            <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }" v-if="!isReseller">
+                            <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }">
                               <a-icon type="rest"></a-icon>
                               {{ i18n "pages.inbounds.delDepletedClients" }}
                             </a-menu-item>
@@ -281,16 +281,13 @@
                             <a-icon type="copy"></a-icon>
                             {{ i18n "pages.inbounds.exportInbound" }}
                           </a-menu-item>
-                          <a-menu-item key="resetTraffic" v-if="!isReseller">
+                          <a-menu-item key="resetTraffic">
                             <a-icon type="retweet"></a-icon> {{ i18n
                             "pages.inbounds.resetTraffic" }}
                           </a-menu-item>
                           <a-menu-item key="clone" v-if="!isReseller">
                             <a-icon type="block"></a-icon> {{ i18n
                             "pages.inbounds.clone"}}
-                          </a-menu-item>
-                          <a-menu-item key="assign-reseller" v-if="!isReseller && resellers.length > 0">
-                            <a-icon type="user-add"></a-icon> Assign clients to reseller
                           </a-menu-item>
                           <a-menu-item key="delete" v-if="!isReseller">
                             <span :style="{ color: '#FF4D4F' }">
@@ -703,29 +700,6 @@
 {{template "modals/inboundInfoModal" .}}
 {{template "modals/clientsModal" .}}
 {{template "modals/clientsBulkModal" .}}
-<a-modal id="assign-reseller-modal" title="Assign clients to reseller"
-  :visible="assignResellerModal.visible" :confirm-loading="assignResellerModal.loading"
-  :class="themeSwitcher.currentTheme" ok-text="Assign" cancel-text='{{ i18n "close" }}'
-  @ok="() => submitAssignReseller()" @cancel="() => assignResellerModal.visible = false">
-  <p>
-    Inbound: <strong>[[ assignResellerModal.inboundRemark ]]</strong>
-  </p>
-  <a-form-model layout="vertical">
-    <a-form-model-item label="Reseller">
-      <a-select v-model="assignResellerModal.username" :dropdown-class-name="themeSwitcher.currentTheme"
-        placeholder="Choose a reseller" data-testid="assign-reseller-select">
-        <a-select-option v-for="u in resellers" :key="u" :value="u">[[ u ]]</a-select-option>
-      </a-select>
-    </a-form-model-item>
-    <a-form-model-item>
-      <a-checkbox v-model="assignResellerModal.onlyLegacy">
-        Only assign clients without an existing owner (preserve other resellers)
-      </a-checkbox>
-    </a-form-model-item>
-  </a-form-model>
-  <a-alert type="warning" show-icon style="margin-top: 8px;"
-    message="This stamps ownerUsername on every matching client. The Xray service will restart."></a-alert>
-</a-modal>
 <a-modal id="copy-clients-modal" :title="copyClientsModal.title" :visible="copyClientsModal.visible"
   :confirm-loading="copyClientsModal.confirmLoading" ok-text='{{ i18n "pages.client.copySelected" }}'
   cancel-text='{{ i18n "close" }}' :class="themeSwitcher.currentTheme" :closable="true" :mask-closable="false"
@@ -1118,15 +1092,6 @@
       // having to log in as the reseller.
       resellers: [],
       ownerFilter: '',
-      // Bulk-assign modal state. Driven by `openAssignReseller`.
-      assignResellerModal: {
-        visible: false,
-        loading: false,
-        inboundId: 0,
-        inboundRemark: '',
-        username: '',
-        onlyLegacy: false,
-      },
     },
     methods: {
       loading(spinning = true) {
@@ -1213,33 +1178,6 @@
         setTimeout(() => {
           this.refreshing = false;
         }, 500);
-      },
-      // Open the modal to assign every client of an inbound to a reseller.
-      openAssignReseller(dbInbound) {
-        this.assignResellerModal.inboundId = dbInbound.id;
-        this.assignResellerModal.inboundRemark = dbInbound.remark || ('inbound-' + dbInbound.port);
-        this.assignResellerModal.username = '';
-        this.assignResellerModal.onlyLegacy = false;
-        this.assignResellerModal.visible = true;
-      },
-      async submitAssignReseller() {
-        if (!this.assignResellerModal.username) {
-          this.$message.warning('Please choose a reseller');
-          return;
-        }
-        this.assignResellerModal.loading = true;
-        const r = await HttpUtil.postWithModal(
-          '/panel/api/inbounds/' + this.assignResellerModal.inboundId + '/assignClientsToReseller',
-          {
-            username: this.assignResellerModal.username,
-            onlyLegacy: !!this.assignResellerModal.onlyLegacy,
-          }
-        );
-        this.assignResellerModal.loading = false;
-        if (r && r.success) {
-          this.assignResellerModal.visible = false;
-          await this.getDBInbounds();
-        }
       },
       async getOnlineUsers() {
         const msg = await HttpUtil.post('/panel/api/inbounds/onlines');
@@ -1496,9 +1434,6 @@
             break;
           case "clone":
             this.openCloneInbound(dbInbound);
-            break;
-          case "assign-reseller":
-            this.openAssignReseller(dbInbound);
             break;
           case "delete":
             this.delInbound(dbInbound.id);
