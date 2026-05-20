@@ -152,9 +152,17 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 		}
 		data["current_user_role"] = role
 		data["current_user_name"] = u.Username
+		// Expose the reseller's traffic quota / used counters so the
+		// inbounds page can show a progress bar in the same chrome
+		// the operator already sees in the admins list. 0/0 means
+		// "unlimited" — JS reads these as plain ints.
+		data["current_user_traffic_quota"] = u.TrafficQuota
+		data["current_user_traffic_used"] = u.TrafficUsed
 	} else {
 		data["current_user_role"] = ""
 		data["current_user_name"] = ""
+		data["current_user_traffic_quota"] = int64(0)
+		data["current_user_traffic_used"] = int64(0)
 	}
 	c.HTML(http.StatusOK, name, getContext(data))
 }

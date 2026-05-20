@@ -11,6 +11,8 @@ import (
 	"github.com/mhsanaei/3x-ui/v2/database"
 	"github.com/mhsanaei/3x-ui/v2/database/model"
 	"github.com/mhsanaei/3x-ui/v2/util/crypto"
+
+	"gorm.io/gorm"
 )
 
 // AdminService provides CRUD + audit-log helpers for admin user accounts.
@@ -89,7 +91,7 @@ func (s *AdminService) ListAdmins() ([]model.User, error) {
 	db := database.GetDB()
 	var users []model.User
 	if err := db.Model(&model.User{}).
-		Select("id", "username", "role", "allowed_inbounds").
+		Select("id", "username", "role", "allowed_inbounds", "traffic_quota", "traffic_used").
 		Order("id ASC").Find(&users).Error; err != nil {
 		return nil, err
 	}
@@ -101,7 +103,7 @@ func (s *AdminService) GetAdmin(id int) (*model.User, error) {
 	db := database.GetDB()
 	var u model.User
 	if err := db.Model(&model.User{}).
-		Select("id", "username", "role", "allowed_inbounds").
+		Select("id", "username", "role", "allowed_inbounds", "traffic_quota", "traffic_used").
 		Where("id = ?", id).First(&u).Error; err != nil {
 		return nil, err
 	}
@@ -110,7 +112,11 @@ func (s *AdminService) GetAdmin(id int) (*model.User, error) {
 
 // CreateAdmin inserts a new admin row. Caller is expected to have already
 // verified actor is a super admin via middleware.
-func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, allowedInbounds string) (*model.User, error) {
+//
+// trafficQuota is the byte-cap a reseller may allocate across their clients;
+// pass 0 for "unlimited". Ignored (but stored) for non-reseller roles so a
+// later role flip preserves the value.
+func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, allowedInbounds string, trafficQuota int64) (*model.User, error) {
 	if strings.TrimSpace(username) == "" {
 		return nil, errors.New("username is required")
 	}
@@ -119,6 +125,9 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 	}
 	if !IsValidRole(role) {
 		return nil, fmt.Errorf("unknown role %q", role)
+	}
+	if trafficQuota < 0 {
+		trafficQuota = 0
 	}
 
 	db := database.GetDB()
@@ -142,21 +151,30 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 		Password:        hashed,
 		Role:            role,
 		AllowedInbounds: NormalizeAllowedInbounds(allowedInbounds),
+		TrafficQuota:    trafficQuota,
+		TrafficUsed:     0,
 	}
 	if err := db.Create(u).Error; err != nil {
 		return nil, err
 	}
 	s.logAction(actor, "create_admin", u.Id, u.Username,
-		fmt.Sprintf("role=%s, allowedInbounds=[%s]", u.Role, u.AllowedInbounds))
+		fmt.Sprintf("role=%s, allowedInbounds=[%s], trafficQuota=%d", u.Role, u.AllowedInbounds, u.TrafficQuota))
 	return u, nil
 }
 
-// UpdateAdmin updates role / allowedInbounds / username for the given admin.
-// Password changes go through ResetAdminPassword to keep the audit trail
-// honest.
-func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, allowedInbounds string) error {
+// UpdateAdmin updates role / allowedInbounds / username / trafficQuota for
+// the given admin. Password changes go through ResetAdminPassword to keep
+// the audit trail honest.
+//
+// trafficQuota is updated as-is — pass the current value if you don't want
+// to change it. Negative values are clamped to 0 (= unlimited). NOTE: this
+// does NOT touch TrafficUsed; use ResetTrafficUsage for that.
+func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, allowedInbounds string, trafficQuota int64) error {
 	if !IsValidRole(role) {
 		return fmt.Errorf("unknown role %q", role)
+	}
+	if trafficQuota < 0 {
+		trafficQuota = 0
 	}
 	db := database.GetDB()
 	var u model.User
@@ -177,6 +195,7 @@ func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, al
 	updates := map[string]any{
 		"role":             role,
 		"allowed_inbounds": NormalizeAllowedInbounds(allowedInbounds),
+		"traffic_quota":    trafficQuota,
 	}
 	if strings.TrimSpace(username) != "" && username != u.Username {
 		var dup model.User
@@ -189,8 +208,94 @@ func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, al
 		return err
 	}
 	s.logAction(actor, "update_admin", u.Id, u.Username,
-		fmt.Sprintf("role=%s, allowedInbounds=[%s]", role, NormalizeAllowedInbounds(allowedInbounds)))
+		fmt.Sprintf("role=%s, allowedInbounds=[%s], trafficQuota=%d", role, NormalizeAllowedInbounds(allowedInbounds), trafficQuota))
 	return nil
+}
+
+// ResetTrafficUsage zeroes out the TrafficUsed counter for a reseller —
+// effectively giving them a fresh start on their quota. Super-admin-only;
+// audited.
+func (s *AdminService) ResetTrafficUsage(actor *model.User, id int) error {
+	db := database.GetDB()
+	var u model.User
+	if err := db.First(&u, id).Error; err != nil {
+		return err
+	}
+	if err := db.Model(&model.User{}).Where("id = ?", id).
+		Update("traffic_used", 0).Error; err != nil {
+		return err
+	}
+	s.logAction(actor, "reset_traffic_usage", u.Id, u.Username,
+		fmt.Sprintf("previousUsed=%d", u.TrafficUsed))
+	return nil
+}
+
+// CheckResellerQuota verifies the reseller has at least `bytes` of headroom
+// left in their TrafficQuota. Returns nil on OK; an error when the quota
+// would be exceeded.  Non-reseller roles and quota=0 (unlimited) always
+// pass through. Pass the actor directly — callers usually already have it
+// in their gin context to avoid an extra DB hit.
+//
+// Important: this only *reads* — it does NOT bump TrafficUsed. Callers must
+// pair this with AccumulateUsage() after the mutating action succeeds.
+func (s *AdminService) CheckResellerQuota(actor *model.User, bytes int64) error {
+	if actor == nil || actor.Role != model.RoleReseller {
+		return nil
+	}
+	if actor.TrafficQuota <= 0 {
+		return nil // unlimited
+	}
+	// Re-read from DB so a stale session doesn't let an over-cap action sneak
+	// through (e.g. two browser tabs racing on the same reseller account).
+	db := database.GetDB()
+	var fresh model.User
+	if err := db.Select("traffic_quota", "traffic_used").
+		Where("id = ?", actor.Id).First(&fresh).Error; err != nil {
+		return err
+	}
+	if fresh.TrafficQuota > 0 && fresh.TrafficUsed+bytes > fresh.TrafficQuota {
+		remaining := fresh.TrafficQuota - fresh.TrafficUsed
+		if remaining < 0 {
+			remaining = 0
+		}
+		return fmt.Errorf("reseller traffic quota exceeded: requested %d bytes, %d bytes remaining of %d total",
+			bytes, remaining, fresh.TrafficQuota)
+	}
+	return nil
+}
+
+// AccumulateUsage bumps the reseller's TrafficUsed counter by `bytes` (use
+// negative values at your own risk — we clamp to 0 so accidents can't free
+// up quota via a delete path). For non-resellers this is a no-op.
+func (s *AdminService) AccumulateUsage(u *model.User, bytes int64) error {
+	if u == nil || u.Role != model.RoleReseller || bytes <= 0 {
+		return nil
+	}
+	db := database.GetDB()
+	if err := db.Model(&model.User{}).Where("id = ?", u.Id).
+		UpdateColumn("traffic_used", gorm.Expr("traffic_used + ?", bytes)).Error; err != nil {
+		return err
+	}
+	// Keep the in-memory session copy roughly in sync so subsequent reads in
+	// the same request don't undercount; a fresh DB read happens on the
+	// next CheckResellerQuota() call anyway.
+	u.TrafficUsed += bytes
+	return nil
+}
+
+// ResellerRemaining returns how many bytes the reseller can still allocate.
+// For unlimited / non-reseller it returns math.MaxInt64 so callers can use
+// it directly in arithmetic without special-casing.
+func (s *AdminService) ResellerRemaining(u *model.User) int64 {
+	const maxInt64 = int64(1<<63 - 1)
+	if u == nil || u.Role != model.RoleReseller || u.TrafficQuota <= 0 {
+		return maxInt64
+	}
+	remaining := u.TrafficQuota - u.TrafficUsed
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 // ResetAdminPassword overwrites another admin's password without requiring

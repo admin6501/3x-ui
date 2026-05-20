@@ -18,6 +18,7 @@ import (
 type InboundController struct {
 	inboundService service.InboundService
 	xrayService    service.XrayService
+	adminService   service.AdminService
 }
 
 // NewInboundController creates a new InboundController and sets up its routes.
@@ -382,6 +383,56 @@ func (a *InboundController) addInboundClient(c *gin.Context) {
 		return
 	}
 
+	// Reseller quota guard. We parse the new clients out of the payload
+	// (data.Settings is JSON with a "clients" array) and sum their TotalGB
+	// — for a reseller this must fit inside their remaining TrafficQuota.
+	// All-or-nothing per the spec: if the sum overflows the cap, the whole
+	// add call is rejected so a bulk-add never partially succeeds.
+	actor := session.GetLoginUser(c)
+	if actor != nil && actor.Role == model.RoleReseller {
+		newClients, perr := a.inboundService.GetClients(data)
+		if perr != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), perr)
+			return
+		}
+		var sum int64
+		for _, cl := range newClients {
+			// totalGB == 0 means *unlimited* on the client side. Only
+			// allow it when the reseller themselves has an unlimited
+			// quota (TrafficQuota == 0). Otherwise it would let one
+			// client drain the reseller's whole cap silently.
+			if cl.TotalGB <= 0 {
+				if actor.TrafficQuota > 0 {
+					jsonMsg(c, "forbidden",
+						fmt.Errorf("resellers with a traffic quota cannot create unlimited (totalGB=0) clients; assign a non-zero limit"))
+					return
+				}
+				continue // unlimited reseller — unlimited clients are fine
+			}
+			sum += cl.TotalGB
+		}
+		if err := a.adminService.CheckResellerQuota(actor, sum); err != nil {
+			jsonMsg(c, "quota exceeded", err)
+			return
+		}
+
+		needRestart, err := a.inboundService.AddInboundClient(data)
+		if err != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+			return
+		}
+		// Only bump usage AFTER the DB write succeeded. We intentionally
+		// accumulate even if needRestart is true — xray may pick the
+		// client up only after the restart, but the allocation is
+		// committed and the cap should reflect that.
+		_ = a.adminService.AccumulateUsage(actor, sum)
+		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientAddSuccess"), nil)
+		if needRestart {
+			a.xrayService.SetToNeedRestart()
+		}
+		return
+	}
+
 	needRestart, err := a.inboundService.AddInboundClient(data)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -420,10 +471,60 @@ func (a *InboundController) copyInboundClients(c *gin.Context) {
 		return
 	}
 
+	// Reseller quota guard for copy-clients: every cloned client adds its
+	// own totalGB to the reseller's used counter. Pre-flight the entire
+	// batch so we either copy them all or none (no partial billing).
+	actor := session.GetLoginUser(c)
+	var copyQuotaBill int64
+	if actor != nil && actor.Role == model.RoleReseller {
+		srcInbound, serr := a.inboundService.GetInbound(req.SourceInboundID)
+		if serr != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), serr)
+			return
+		}
+		srcClients, serr := a.inboundService.GetClients(srcInbound)
+		if serr != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), serr)
+			return
+		}
+		// Build a set of selected emails for O(1) lookup. Empty selection
+		// means "copy all" — match the service's behaviour.
+		var emailSet map[string]struct{}
+		if len(req.ClientEmails) > 0 {
+			emailSet = make(map[string]struct{}, len(req.ClientEmails))
+			for _, e := range req.ClientEmails {
+				emailSet[e] = struct{}{}
+			}
+		}
+		for _, sc := range srcClients {
+			if emailSet != nil {
+				if _, ok := emailSet[sc.Email]; !ok {
+					continue
+				}
+			}
+			if sc.TotalGB <= 0 {
+				if actor.TrafficQuota > 0 {
+					jsonMsg(c, "forbidden",
+						fmt.Errorf("copy aborted: source contains unlimited client %q which a quota-bound reseller cannot duplicate", sc.Email))
+					return
+				}
+				continue
+			}
+			copyQuotaBill += sc.TotalGB
+		}
+		if err := a.adminService.CheckResellerQuota(actor, copyQuotaBill); err != nil {
+			jsonMsg(c, "quota exceeded", err)
+			return
+		}
+	}
+
 	result, needRestart, err := a.inboundService.CopyInboundClients(targetID, req.SourceInboundID, req.ClientEmails, req.Flow)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
+	}
+	if copyQuotaBill > 0 {
+		_ = a.adminService.AccumulateUsage(actor, copyQuotaBill)
 	}
 	jsonObj(c, result, nil)
 	if needRestart {
@@ -467,6 +568,74 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 		return
 	}
 
+	// Reseller quota guard. An *update* only costs quota when the totalGB
+	// is INCREASED — the delta (new - old) is what gets billed. A reduction
+	// or no-change is free; we never refund (no negative accumulate). The
+	// "old" totalGB comes from the live DB row so resellers can't pre-edit
+	// their copy of the inbound to fake a smaller delta.
+	actor := session.GetLoginUser(c)
+	if actor != nil && actor.Role == model.RoleReseller {
+		newClients, perr := a.inboundService.GetClients(inbound)
+		if perr != nil || len(newClients) == 0 {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"),
+				fmt.Errorf("invalid client payload"))
+			return
+		}
+		newTotal := newClients[0].TotalGB
+
+		// Disallow flipping a client to unlimited unless the reseller is
+		// themselves unlimited — same rule as the create path.
+		if newTotal <= 0 && actor.TrafficQuota > 0 {
+			jsonMsg(c, "forbidden",
+				fmt.Errorf("resellers with a traffic quota cannot set client totalGB to 0 (unlimited)"))
+			return
+		}
+
+		// Look up the OLD totalGB by clientId from the current DB row.
+		oldInbound, oerr := a.inboundService.GetInbound(inbound.Id)
+		if oerr != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), oerr)
+			return
+		}
+		oldClients, oerr := a.inboundService.GetClients(oldInbound)
+		if oerr != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), oerr)
+			return
+		}
+		var oldTotal int64
+		for _, oc := range oldClients {
+			// clientId matches one of: ID (vless/vmess), Password (trojan),
+			// Email (shadowsocks), Auth (hysteria). We compare against all
+			// four — only one will ever match per protocol.
+			if oc.ID == clientId || oc.Password == clientId || oc.Email == clientId || oc.Auth == clientId {
+				oldTotal = oc.TotalGB
+				break
+			}
+		}
+
+		delta := newTotal - oldTotal
+		if delta > 0 {
+			if err := a.adminService.CheckResellerQuota(actor, delta); err != nil {
+				jsonMsg(c, "quota exceeded", err)
+				return
+			}
+		}
+
+		needRestart, err := a.inboundService.UpdateInboundClient(inbound, clientId)
+		if err != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+			return
+		}
+		if delta > 0 {
+			_ = a.adminService.AccumulateUsage(actor, delta)
+		}
+		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientUpdateSuccess"), nil)
+		if needRestart {
+			a.xrayService.SetToNeedRestart()
+		}
+		return
+	}
+
 	needRestart, err := a.inboundService.UpdateInboundClient(inbound, clientId)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -487,10 +656,26 @@ func (a *InboundController) resetClientTraffic(c *gin.Context) {
 	}
 	email := c.Param("email")
 
+	// For reseller accounting: capture the up+down BEFORE the reset, so we
+	// can bill that amount against the reseller's quota. Resetting a client
+	// is effectively re-allocating their previously-consumed bytes — without
+	// this the reset would be a free way to extend a client indefinitely
+	// (the user mentioned this is THE most important guardrail).
+	var consumedBeforeReset int64
+	actor := session.GetLoginUser(c)
+	if actor != nil && actor.Role == model.RoleReseller {
+		if t, terr := a.inboundService.GetClientTrafficByEmail(email); terr == nil && t != nil {
+			consumedBeforeReset = t.Up + t.Down
+		}
+	}
+
 	needRestart, err := a.inboundService.ResetClientTraffic(id, email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
+	}
+	if consumedBeforeReset > 0 {
+		_ = a.adminService.AccumulateUsage(actor, consumedBeforeReset)
 	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.resetInboundClientTrafficSuccess"), nil)
 	if needRestart {
@@ -518,12 +703,24 @@ func (a *InboundController) resetAllClientTraffics(c *gin.Context) {
 		return
 	}
 
+	// Reseller accounting for bulk reset: sum up+down across every client
+	// in this inbound before resetting. Same rationale as the single-client
+	// reset path — re-allocating already-consumed bytes spends quota.
+	var bulkBill int64
+	actor := session.GetLoginUser(c)
+	if actor != nil && actor.Role == model.RoleReseller {
+		bulkBill = a.inboundService.SumInboundClientTraffic(id)
+	}
+
 	err = a.inboundService.ResetAllClientTraffics(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	} else {
 		a.xrayService.SetToNeedRestart()
+	}
+	if bulkBill > 0 {
+		_ = a.adminService.AccumulateUsage(actor, bulkBill)
 	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.resetAllClientTrafficSuccess"), nil)
 }

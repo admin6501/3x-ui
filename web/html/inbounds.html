@@ -104,6 +104,39 @@
                 </a-row>
               </a-card>
             </a-col>
+            <!--
+              Reseller quota indicator. Only rendered for resellers and only
+              when a cap is actually set (quota > 0). Mirrors the layout in
+              the admins list so a reseller seeing both pages has a
+              consistent feel. The bar turns red >= 100% — quota CAN go
+              over the cap via reset-traffic billing (the user's "no
+              bypass" rule), so we surface that state instead of capping
+              the percentage at 100%.
+            -->
+            <a-col v-if="isReseller && resellerQuota > 0">
+              <a-card hoverable>
+                <a-statistic title='{{ i18n "pages.inbounds.resellerQuota" }}'>
+                  <template #formatter>
+                    <div :style="{ minWidth: '180px', fontSize: '16px' }">
+                      [[ SizeFormatter.sizeFormat(resellerUsed) ]] /
+                      <span :style="{ color: resellerUsed >= resellerQuota ? '#ff4d4f' : 'inherit' }">
+                        [[ SizeFormatter.sizeFormat(resellerQuota) ]]
+                      </span>
+                    </div>
+                    <a-progress
+                      :percent="resellerQuotaPct"
+                      :status="resellerQuotaPct >= 100 ? 'exception' : 'active'"
+                      :stroke-color="resellerQuotaPct >= 80 ? '#fa8c16' : '#1890ff'"
+                      :show-info="false"
+                      size="small" />
+                    <div :style="{ fontSize: '12px', color: resellerQuotaPct >= 100 ? '#ff4d4f' : '#888', marginTop: '4px' }">
+                      <template v-if="resellerQuotaPct >= 100">{{ i18n "pages.inbounds.resellerQuotaExhausted" }}</template>
+                      <template v-else>[[ SizeFormatter.sizeFormat(resellerQuota - resellerUsed) ]] {{ i18n "pages.inbounds.resellerQuotaRemaining" }}</template>
+                    </div>
+                  </template>
+                </a-statistic>
+              </a-card>
+            </a-col>
             <a-col>
               <a-card hoverable>
                 <template #title>
@@ -2244,6 +2277,21 @@
       // would only come back as a 403.
       isReseller() {
         return '{{ .current_user_role }}' === 'reseller';
+      },
+      // Reseller quota — both raw and as a percentage.  Numbers come from
+      // the Go template (current_user_traffic_quota / used), so they are
+      // a snapshot at page-load; we don't try to live-update them. The
+      // quota progress card in the header re-reads them on every render.
+      resellerQuota() {
+        return Number('{{ .current_user_traffic_quota }}') || 0;
+      },
+      resellerUsed() {
+        return Number('{{ .current_user_traffic_used }}') || 0;
+      },
+      resellerQuotaPct() {
+        const q = this.resellerQuota;
+        if (q <= 0) return 0;
+        return Math.min(999, Math.round((this.resellerUsed / q) * 100));
       },
       total() {
         let down = 0,

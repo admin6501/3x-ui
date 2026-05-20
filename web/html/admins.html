@@ -45,6 +45,32 @@
                   </span>
                   <a-tag v-else v-for="id in record.allowedInbounds.split(',')" :key="id">[[ inboundLabel(id) ]]</a-tag>
                 </template>
+                <template slot="trafficQuota" slot-scope="text, record">
+                  <!--
+                    Reseller quota column. Layout decisions:
+                      • Non-resellers show "—" (the cap is meaningless for them).
+                      • A 0 quota is "unlimited" and rendered as a single ∞ tag
+                        so the operator notices it at a glance — no progress bar.
+                      • For capped resellers we show "used / total" + a slim
+                        progress bar that turns red >= 100% so an over-cap state
+                        (which can happen via reset-traffic billing) is visible.
+                  -->
+                  <span v-if="record.role !== 'reseller'" :style="{ color: '#888' }">—</span>
+                  <a-tag v-else-if="!(record.trafficQuota > 0)" color="cyan">
+                    <a-icon type="infinity" v-if="false"></a-icon>∞ {{ i18n "pages.admins.unlimited" }}
+                  </a-tag>
+                  <div v-else :style="{ minWidth: '160px' }">
+                    <div :style="{ fontSize: '12px', whiteSpace: 'nowrap' }">
+                      [[ humanBytes(record.trafficUsed || 0) ]] / [[ humanBytes(record.trafficQuota) ]]
+                    </div>
+                    <a-progress
+                      :percent="quotaPercent(record)"
+                      :status="quotaPercent(record) >= 100 ? 'exception' : 'active'"
+                      :stroke-color="quotaPercent(record) >= 80 ? '#fa8c16' : '#1890ff'"
+                      :show-info="false"
+                      size="small" />
+                  </div>
+                </template>
                 <template slot="actions" slot-scope="text, record">
                   <a-button size="small" :data-testid="`edit-admin-${record.id}`" @click="openEdit(record)">
                     <a-icon type="edit"></a-icon>
@@ -54,6 +80,22 @@
                     <a-icon type="lock"></a-icon>
                     {{ i18n "pages.admins.resetPassword" }}
                   </a-button>
+                  <!--
+                    Reset traffic counter button — only meaningful for capped
+                    resellers (others have no counter to reset). We hide it
+                    instead of disable to keep the row uncluttered.
+                  -->
+                  <a-popconfirm
+                    v-if="record.role === 'reseller' && (record.trafficQuota > 0)"
+                    :title='`{{ i18n "pages.admins.confirmResetTraffic" }}`'
+                    :ok-text='`{{ i18n "yes" }}`'
+                    :cancel-text='`{{ i18n "no" }}`'
+                    @confirm="doResetTrafficUsage(record)">
+                    <a-button size="small" :data-testid="`reset-traffic-${record.id}`" :style="{ marginLeft: '4px' }">
+                      <a-icon type="reload"></a-icon>
+                      {{ i18n "pages.admins.resetTrafficUsage" }}
+                    </a-button>
+                  </a-popconfirm>
                   <a-popconfirm
                     :title='`{{ i18n "pages.admins.confirmDelete" }}`'
                     :ok-text='`{{ i18n "yes" }}`'
@@ -143,6 +185,41 @@
           </span>
         </div>
       </a-form-item>
+      <!--
+        Traffic quota form field. Only shown for resellers — for other roles
+        the cap is meaningless and would just confuse operators. The user
+        types a NUMBER (with one decimal place of precision) and picks the
+        UNIT (MB / GB / TB); we convert to bytes server-side. A value of 0
+        means *unlimited* and is allowed explicitly via the "unlimited"
+        checkbox to make intent obvious (sliding to 0 by mistake would be
+        easy otherwise).
+      -->
+      <a-form-item v-if="formModal.role === 'reseller'" label='{{ i18n "pages.admins.trafficQuota" }}'>
+        <div :style="{ display: 'flex', gap: '8px', alignItems: 'center' }">
+          <a-checkbox v-model="formModal.quotaUnlimited" data-testid="admin-form-quota-unlimited"
+            @change="onQuotaUnlimitedChanged">
+            ∞ {{ i18n "pages.admins.unlimited" }}
+          </a-checkbox>
+          <a-input-number
+            v-model="formModal.quotaAmount"
+            :min="0" :step="1" :precision="2"
+            :disabled="formModal.quotaUnlimited"
+            :style="{ width: '120px' }"
+            data-testid="admin-form-quota-amount" />
+          <a-select
+            v-model="formModal.quotaUnit"
+            :disabled="formModal.quotaUnlimited"
+            :style="{ width: '90px' }"
+            data-testid="admin-form-quota-unit">
+            <a-select-option value="MB">MB</a-select-option>
+            <a-select-option value="GB">GB</a-select-option>
+            <a-select-option value="TB">TB</a-select-option>
+          </a-select>
+        </div>
+        <div :style="{ color: '#888', fontSize: '12px', marginTop: '4px' }">
+          {{ i18n "pages.admins.trafficQuotaDesc" }}
+        </div>
+      </a-form-item>
     </a-form>
   </a-modal>
 
@@ -184,6 +261,13 @@
         password: '',
         role: 'manager',
         allowedInboundIds: [],
+        // Quota form state. We store the *user-friendly* split (amount +
+        // unit) and convert to/from bytes when talking to the API. A
+        // separate boolean explicitly captures "unlimited" intent so the
+        // operator can't toggle it on by accidentally typing 0.
+        quotaAmount: 0,
+        quotaUnit: 'GB',
+        quotaUnlimited: true,
       },
       inboundsLoadError: '',
       resetPwdModal: {
@@ -198,7 +282,8 @@
         { title: '{{ i18n "username" }}', dataIndex: 'username' },
         { title: '{{ i18n "pages.admins.role" }}', dataIndex: 'role', scopedSlots: { customRender: 'role' } },
         { title: '{{ i18n "pages.admins.allowedInbounds" }}', dataIndex: 'allowedInbounds', scopedSlots: { customRender: 'allowedInbounds' } },
-        { title: '{{ i18n "actions" }}', scopedSlots: { customRender: 'actions' }, width: 280 },
+        { title: '{{ i18n "pages.admins.trafficQuota" }}', dataIndex: 'trafficQuota', scopedSlots: { customRender: 'trafficQuota' }, width: 200 },
+        { title: '{{ i18n "actions" }}', scopedSlots: { customRender: 'actions' }, width: 320 },
       ],
       auditColumns: [
         { title: 'ID', dataIndex: 'id', width: 60 },
@@ -274,19 +359,43 @@
         if (r.success) this.auditRows = r.obj || [];
       },
       openCreate() {
-        Object.assign(this.formModal, { visible: true, isEdit: false, id: 0, username: '', password: '', role: 'manager', allowedInboundIds: [] });
+        Object.assign(this.formModal, {
+          visible: true, isEdit: false, id: 0, username: '', password: '',
+          role: 'manager', allowedInboundIds: [],
+          quotaAmount: 0, quotaUnit: 'GB', quotaUnlimited: true,
+        });
         // Always re-fetch on open so a stale empty list from the initial
         // mount doesn't leave the reseller picker empty.
         this.loadInbounds();
       },
       openEdit(rec) {
+        // Decompose bytes back into a pretty (amount, unit) pair for the
+        // form. Pick the largest unit that yields a non-fractional value
+        // — so 1 GB stays "1 GB" instead of "1024 MB".
+        const bytes = rec.trafficQuota || 0;
+        const { amount, unit } = this.bytesToPretty(bytes);
         Object.assign(this.formModal, {
           visible: true, isEdit: true, saving: false,
           id: rec.id, username: rec.username, password: '',
           role: rec.role || 'manager',
           allowedInboundIds: (rec.allowedInbounds || '').split(',').filter(Boolean).map(Number),
+          quotaAmount: amount,
+          quotaUnit: unit,
+          quotaUnlimited: bytes <= 0,
         });
         this.loadInbounds();
+      },
+      onQuotaUnlimitedChanged() {
+        // Reset the number input when toggling to unlimited so the saved
+        // value is deterministic (0). When toggling OFF (= cap on), seed
+        // a sensible default of 100 GB so the operator doesn't have to
+        // start from zero.
+        if (this.formModal.quotaUnlimited) {
+          this.formModal.quotaAmount = 0;
+        } else if (!this.formModal.quotaAmount) {
+          this.formModal.quotaAmount = 100;
+          this.formModal.quotaUnit = 'GB';
+        }
       },
       openResetPwd(rec) {
         Object.assign(this.resetPwdModal, { visible: true, saving: false, id: rec.id, username: rec.username, password: '' });
@@ -294,10 +403,18 @@
       async saveAdmin() {
         this.formModal.saving = true;
         try {
+          // Convert the (amount, unit) form pair to bytes. For non-reseller
+          // roles we still send 0 — the backend stores it but ignores it,
+          // and that way a future role flip starts from a clean state.
+          let quotaBytes = 0;
+          if (this.formModal.role === 'reseller' && !this.formModal.quotaUnlimited) {
+            quotaBytes = this.prettyToBytes(this.formModal.quotaAmount, this.formModal.quotaUnit);
+          }
           const payload = {
             username: this.formModal.username,
             role: this.formModal.role,
             allowedInbounds: (this.formModal.allowedInboundIds || []).join(','),
+            trafficQuota: quotaBytes,
           };
           if (!this.formModal.isEdit) {
             payload.password = this.formModal.password;
@@ -317,6 +434,50 @@
           }
         } finally {
           this.formModal.saving = false;
+        }
+      },
+      // ---------- byte / quota helpers --------------------------------------
+      // Server stores TrafficQuota / TrafficUsed as bytes. We convert to MB
+      // / GB / TB at the edges so operators don't have to think in bytes.
+      prettyToBytes(amount, unit) {
+        const n = Number(amount) || 0;
+        const mult = ({ MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4 })[unit] || 1024 ** 3;
+        // Math.round to avoid floating-point cruft (e.g. 1.1 GB → an exact
+        // int64). The cap on input precision is two decimals — anything
+        // smaller than ~10 KB is irrelevant for a quota anyway.
+        return Math.round(n * mult);
+      },
+      bytesToPretty(bytes) {
+        const b = Number(bytes) || 0;
+        if (b <= 0) return { amount: 0, unit: 'GB' };
+        const TB = 1024 ** 4, GB = 1024 ** 3, MB = 1024 ** 2;
+        if (b % TB === 0) return { amount: b / TB, unit: 'TB' };
+        if (b >= TB)      return { amount: +(b / TB).toFixed(2), unit: 'TB' };
+        if (b >= GB)      return { amount: +(b / GB).toFixed(2), unit: 'GB' };
+        return { amount: +(b / MB).toFixed(2), unit: 'MB' };
+      },
+      humanBytes(bytes) {
+        // Compact pretty-printer for the table — picks the largest unit
+        // that yields a value >= 1, keeps two decimals, strips trailing
+        // zeros. Mirrors what `bytesToPretty` returns but as a string.
+        const n = Number(bytes) || 0;
+        if (n <= 0) return '0';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+        let i = 0, v = n;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return `${(+v.toFixed(2)).toString()} ${units[i]}`;
+      },
+      quotaPercent(record) {
+        const q = Number(record.trafficQuota) || 0;
+        if (q <= 0) return 0;
+        const u = Number(record.trafficUsed) || 0;
+        return Math.min(999, Math.round((u / q) * 100));
+      },
+      async doResetTrafficUsage(rec) {
+        const r = await HttpUtil.post(`/panel/admin/resetTrafficUsage/${rec.id}`);
+        if (r.success) {
+          this.$message.success('{{ i18n "pages.admins.toasts.trafficUsageReset" }}');
+          await Promise.all([this.loadAdmins(), this.loadAudit()]);
         }
       },
       async doResetPassword() {
