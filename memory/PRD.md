@@ -129,6 +129,21 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Admins page auto-refresh on reseller traffic mutations**.
+  Reported: when a reseller adds a client to their assigned inbound,
+  the admins page (open in a super_admin's tab) didn't reflect the
+  freshly-billed quota until a manual reload. Fix: introduce a new
+  `websocket.MessageTypeAdmins` and broadcast `invalidate{type:admins}`
+  from `AdminService.AccumulateUsage`, `AdminService.RefundUsage`,
+  and `AdminService.ResetTrafficUsage` — i.e. every code path that
+  mutates `traffic_used`. On the frontend, `admins.html` now subscribes
+  to `wsClient.on('invalidate', ...)` after mount, debounces bursts of
+  600 ms, and re-calls `loadAdmins() + loadAudit()`. If the WebSocket
+  never connects, falls back to a 15 s background poll so the page is
+  eventually consistent. End-to-end verified via Playwright: super_admin
+  saw `0 / 2 GB` → `512 MB / 2 GB` immediately after a separate
+  reseller session POSTed `/panel/api/inbounds/addClient`. AMD64 tarball
+  rebuilt.
 - 2026-02 — **Reseller quota refund on client/inbound delete**. When
   a client is deleted, the unused portion of its allocated quota
   (`max(0, client.totalGB - (client.up + client.down))`) is now

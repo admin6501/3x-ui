@@ -26,6 +26,12 @@ const (
 	// scales to 10k+ clients without falling back to REST.
 	MessageTypeClientStats MessageType = "client_stats"
 	MessageTypeInvalidate  MessageType = "invalidate" // Tells frontend to re-fetch via REST (last-resort).
+	// MessageTypeAdmins is a marker used with BroadcastInvalidate to tell
+	// any open admins-page session it should re-fetch /panel/admin/list.
+	// Used when a reseller's traffic_used changes via AccumulateUsage /
+	// RefundUsage so the super_admin's Admins table reflects the new
+	// quota usage without a manual refresh.
+	MessageTypeAdmins MessageType = "admins"
 
 	// maxMessageSize caps the WebSocket payload. Beyond this the hub sends a
 	// lightweight invalidate signal and the frontend re-fetches via REST.

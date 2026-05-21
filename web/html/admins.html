@@ -777,6 +777,49 @@
       } finally {
         this.loading = false;
       }
+
+      // Live updates: when a reseller's traffic_used changes elsewhere in
+      // the panel (a reseller adding a client in another tab, a refund on
+      // delete, a super_admin reset) the backend pushes an
+      // `invalidate { type: 'admins' }` over the existing wsClient. We
+      // debounce by ~600ms so a burst of mutations (e.g. bulk client add)
+      // collapses into a single re-fetch. Without this, operators had to
+      // hit F5 to see the new "X used / Y total" — exactly the
+      // "نشون نمیده یا دیر نشون میده" symptom the user reported.
+      const refresh = () => {
+        if (this._adminsInvTimer) return;
+        this._adminsInvTimer = setTimeout(() => {
+          this._adminsInvTimer = null;
+          this.loadAdmins();
+          this.loadAudit();
+        }, 600);
+      };
+      const attachListener = () => {
+        if (!window.wsClient || typeof window.wsClient.on !== 'function') return false;
+        try { window.wsClient.connect(); } catch (e) { /* already connected */ }
+        window.wsClient.on('invalidate', (payload) => {
+          if (payload && payload.type === 'admins') refresh();
+        });
+        return true;
+      };
+      if (!attachListener()) {
+        // wsClient script may not have run yet — poll briefly. Falls back
+        // to a 15s timer if the WebSocket truly never comes up so the
+        // page is at least eventually-consistent.
+        let attempts = 0;
+        const t = setInterval(() => {
+          if (attachListener() || ++attempts > 20) {
+            clearInterval(t);
+            if (attempts > 20) {
+              this._adminsPollTimer = setInterval(refresh, 15000);
+            }
+          }
+        }, 300);
+      }
+    },
+    beforeDestroy() {
+      if (this._adminsInvTimer) clearTimeout(this._adminsInvTimer);
+      if (this._adminsPollTimer) clearInterval(this._adminsPollTimer);
     },
   });
 </script>

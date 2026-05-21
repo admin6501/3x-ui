@@ -11,6 +11,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v2/database"
 	"github.com/mhsanaei/3x-ui/v2/database/model"
 	"github.com/mhsanaei/3x-ui/v2/util/crypto"
+	"github.com/mhsanaei/3x-ui/v2/web/websocket"
 
 	"gorm.io/gorm"
 )
@@ -294,6 +295,7 @@ func (s *AdminService) ResetTrafficUsage(actor *model.User, id int) error {
 	}
 	s.logAction(actor, "reset_traffic_usage", u.Id, u.Username,
 		fmt.Sprintf("previousUsed=%d", u.TrafficUsed))
+	websocket.BroadcastInvalidate(websocket.MessageTypeAdmins)
 	return nil
 }
 
@@ -347,6 +349,10 @@ func (s *AdminService) AccumulateUsage(u *model.User, bytes int64) error {
 	// the same request don't undercount; a fresh DB read happens on the
 	// next CheckResellerQuota() call anyway.
 	u.TrafficUsed += bytes
+	// Nudge any open admins page (super_admin viewing in another tab) to
+	// re-fetch its list so the freshly-billed traffic_used surfaces without
+	// waiting for a manual refresh.
+	websocket.BroadcastInvalidate(websocket.MessageTypeAdmins)
 	return nil
 }
 
@@ -378,6 +384,8 @@ func (s *AdminService) RefundUsage(u *model.User, bytes int64) error {
 	} else {
 		u.TrafficUsed = 0
 	}
+	// Same auto-refresh nudge as AccumulateUsage — see comments there.
+	websocket.BroadcastInvalidate(websocket.MessageTypeAdmins)
 	return nil
 }
 
