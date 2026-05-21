@@ -3,6 +3,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -426,6 +427,108 @@ func (s *AdminService) ResellerRemaining(u *model.User) int64 {
 		return 0
 	}
 	return remaining
+}
+
+// RecalculateResellerQuota recomputes `traffic_used` from the ground up by
+// scanning every inbound owned by this reseller and summing the unconsumed
+// allocations of every still-existing client: `Σ max(0, client.TotalGB -
+// (clientTraffic.Up + clientTraffic.Down))`. This is the authoritative
+// recovery path for operators whose `traffic_used` drifted out of sync
+// (e.g. earlier panel versions deleted clients without refunding, or a
+// crash interrupted a billing operation half-way). Writes the new value
+// to the DB, logs an audit entry, and broadcasts an admins-invalidate so
+// open panels refresh immediately.
+//
+// Returns (oldUsed, newUsed, err).
+func (s *AdminService) RecalculateResellerQuota(actor *model.User, id int) (int64, int64, error) {
+	u, err := s.GetUserByID(id)
+	if err != nil {
+		return 0, 0, err
+	}
+	if u == nil {
+		return 0, 0, errors.New("admin not found")
+	}
+	if u.Role != model.RoleReseller {
+		return 0, 0, errors.New("only resellers have a recalculable quota")
+	}
+
+	db := database.GetDB()
+	type inboundRow struct {
+		Id       int    `gorm:"column:id"`
+		Settings string `gorm:"column:settings"`
+	}
+	var inbounds []inboundRow
+	if err := db.Table("inbounds").Select("id, settings").Where("user_id = ?", u.Id).
+		Find(&inbounds).Error; err != nil {
+		return 0, 0, err
+	}
+
+	// Collect every email referenced + each client's allocation. We parse
+	// only the fields we care about — settings JSON has many other keys
+	// (decryption, fallbacks, ...) we can safely ignore.
+	type clientLite struct {
+		Email   string `json:"email"`
+		TotalGB int64  `json:"totalGB"`
+	}
+	type settingsLite struct {
+		Clients []clientLite `json:"clients"`
+	}
+	type emailAlloc struct {
+		alloc int64
+	}
+	all := map[string]int64{} // email -> allocated bytes
+	for _, ib := range inbounds {
+		var s settingsLite
+		if jerr := json.Unmarshal([]byte(ib.Settings), &s); jerr != nil {
+			continue // malformed settings — skip, don't fail the whole recalc
+		}
+		for _, cl := range s.Clients {
+			if cl.Email == "" || cl.TotalGB <= 0 {
+				continue
+			}
+			all[cl.Email] = cl.TotalGB
+		}
+	}
+
+	// Sum unconsumed allocations: for each client we know exists, look up
+	// its consumed counter from client_traffics and subtract.
+	var newUsed int64
+	if len(all) > 0 {
+		type traffRow struct {
+			Email string `gorm:"column:email"`
+			Up    int64  `gorm:"column:up"`
+			Down  int64  `gorm:"column:down"`
+		}
+		emails := make([]string, 0, len(all))
+		for e := range all {
+			emails = append(emails, e)
+		}
+		var traffs []traffRow
+		_ = db.Table("client_traffics").Select("email, up, down").
+			Where("email IN ?", emails).Find(&traffs).Error
+		consumed := map[string]int64{}
+		for _, t := range traffs {
+			consumed[t.Email] = t.Up + t.Down
+		}
+		for email, alloc := range all {
+			unused := alloc - consumed[email]
+			if unused < 0 {
+				unused = 0
+			}
+			newUsed += unused
+		}
+	}
+
+	oldUsed := u.TrafficUsed
+	if err := db.Model(&model.User{}).Where("id = ?", u.Id).
+		UpdateColumn("traffic_used", newUsed).Error; err != nil {
+		return oldUsed, oldUsed, err
+	}
+	u.TrafficUsed = newUsed
+	s.logAction(actor, "quota_recalculate", u.Id, u.Username,
+		fmt.Sprintf("old=%d new=%d", oldUsed, newUsed))
+	websocket.BroadcastInvalidate(websocket.MessageTypeAdmins)
+	return oldUsed, newUsed, nil
 }
 
 // ResetAdminPassword overwrites another admin's password without requiring

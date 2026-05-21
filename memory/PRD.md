@@ -129,6 +129,23 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Drift-recovery "Recalculate Quota" feature**. User
+  reported their reseller's `traffic_used` showed 1.90 GB while
+  actual all-time usage was only 372 MB — clearly drifted (older
+  panel versions / pre-fix deletes / interrupted ops). New endpoint
+  `POST /panel/admin/recalculateQuota/:id` (super_admin only) walks
+  every inbound owned by the reseller, parses each client's `totalGB`
+  from the settings JSON, looks up consumed `up + down` from
+  `client_traffics`, and recomputes the authoritative `traffic_used`
+  as `Σ max(0, totalGB - consumed)`. Returns `{oldUsed, newUsed}` so
+  the UI can show a clear before/after toast. Writes a
+  `quota_recalculate` audit log entry. Exposed in the admins panel
+  as a new "Recalculate" button next to "Reset Quota" — both on
+  desktop and the mobile card list. AMD64 tarball rebuilt; new
+  binary MD5 `e8ee2ed5bf7b269e8eda4aaa790165c0`. Verified end-to-end
+  drift scenario: reseller with `traffic_used=2040109465 (1.9 GB)`
+  and only one 200 MB client (172 MB consumed) → recalculate brings
+  it to `29360128 (28 MB)` = correct unused remainder.
 - 2026-02 — **Hardened reseller-quota flow + audit log**. User
   reported that the refund-on-delete + live-quota-card fixes weren't
   visible on their deployed VPS. Root cause was tentative — likely

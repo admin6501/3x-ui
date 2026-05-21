@@ -35,6 +35,11 @@ func (a *AdminController) initRouter(g *gin.RouterGroup) {
 	g.POST("/delete/:id", a.delete)
 	g.POST("/resetPassword/:id", a.resetPassword)
 	g.POST("/resetTrafficUsage/:id", a.resetTrafficUsage)
+	// recalculateQuota: drift recovery. Re-derives traffic_used from the
+	// actual client allocations the reseller currently owns. Use this
+	// when the counter looks wrong (e.g. an older panel build deleted
+	// clients without refunding, or a crash interrupted a billing op).
+	g.POST("/recalculateQuota/:id", a.recalculateQuota)
 	g.GET("/auditLog", a.auditLog)
 }
 
@@ -151,6 +156,30 @@ func (a *AdminController) resetTrafficUsage(c *gin.Context) {
 		return
 	}
 	jsonMsg(c, "reset traffic usage", nil)
+}
+
+// recalculateQuota is the drift-recovery endpoint. Unlike resetTrafficUsage
+// which zeros the counter unconditionally, this re-derives the *correct*
+// `traffic_used` value from the reseller's currently-existing client
+// allocations. Returns old + new values so the UI can show what changed.
+// Super-admin only.
+func (a *AdminController) recalculateQuota(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	actor := session.GetLoginUser(c)
+	oldUsed, newUsed, err := a.adminService.RecalculateResellerQuota(actor, id)
+	if err != nil {
+		jsonMsg(c, "recalculate quota", err)
+		return
+	}
+	type resp struct {
+		OldUsed int64 `json:"oldUsed"`
+		NewUsed int64 `json:"newUsed"`
+	}
+	jsonObj(c, resp{OldUsed: oldUsed, NewUsed: newUsed}, nil)
 }
 
 func (a *AdminController) auditLog(c *gin.Context) {
