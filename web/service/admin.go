@@ -525,8 +525,13 @@ func (s *AdminService) RecalculateResellerQuota(actor *model.User, id int) (int6
 		return oldUsed, oldUsed, err
 	}
 	u.TrafficUsed = newUsed
-	s.logAction(actor, "quota_recalculate", u.Id, u.Username,
-		fmt.Sprintf("old=%d new=%d", oldUsed, newUsed))
+	// Only log if the recalc actually changed something — this method is
+	// now called after every delete (silent auto-refund), so logging the
+	// no-op cases would flood the audit panel.
+	if oldUsed != newUsed {
+		s.logAction(actor, "quota_recalculate", u.Id, u.Username,
+			fmt.Sprintf("old=%d new=%d", oldUsed, newUsed))
+	}
 	websocket.BroadcastInvalidate(websocket.MessageTypeAdmins)
 	return oldUsed, newUsed, nil
 }

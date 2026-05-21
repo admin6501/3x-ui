@@ -239,24 +239,6 @@
                       {{ i18n "pages.admins.resetTrafficUsage" }}
                     </a-button>
                   </a-popconfirm>
-                  <!-- "Recalculate Quota" is the drift-recovery action.
-                       Unlike Reset Quota which zeros traffic_used, this
-                       recomputes the correct value from the reseller's
-                       currently-existing client allocations. Use this when
-                       the counter drifted (older panel versions deleted
-                       clients without refunding). Result is shown in a
-                       toast: "Quota corrected: X GB → Y GB". -->
-                  <a-popconfirm
-                    v-if="record.role === 'reseller'"
-                    title="Recalculate this reseller's quota from current allocations?"
-                    ok-text="Yes"
-                    cancel-text="No"
-                    @confirm="doRecalculateQuota(record)">
-                    <a-button size="small" :data-testid="`recalc-quota-${record.id}`" :style="{ marginLeft: '4px' }">
-                      <a-icon type="sync"></a-icon>
-                      Recalculate
-                    </a-button>
-                  </a-popconfirm>
                   <a-popconfirm
                     :title='`{{ i18n "pages.admins.confirmDelete" }}`'
                     :ok-text='`{{ i18n "yes" }}`'
@@ -337,17 +319,6 @@
                       <a-button size="small" block :data-testid="`m-reset-traffic-${record.id}`">
                         <a-icon type="reload"></a-icon>
                         {{ i18n "pages.admins.resetTrafficUsage" }}
-                      </a-button>
-                    </a-popconfirm>
-                    <a-popconfirm
-                      v-if="record.role === 'reseller'"
-                      title="Recalculate this reseller's quota from current allocations?"
-                      ok-text="Yes"
-                      cancel-text="No"
-                      @confirm="doRecalculateQuota(record)">
-                      <a-button size="small" block :data-testid="`m-recalc-quota-${record.id}`">
-                        <a-icon type="sync"></a-icon>
-                        Recalculate
                       </a-button>
                     </a-popconfirm>
                     <a-popconfirm

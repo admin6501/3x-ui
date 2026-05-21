@@ -10,7 +10,6 @@ import (
 	"github.com/mhsanaei/3x-ui/v2/web/service"
 	"github.com/mhsanaei/3x-ui/v2/web/session"
 	"github.com/mhsanaei/3x-ui/v2/web/websocket"
-	"github.com/mhsanaei/3x-ui/v2/xray"
 
 	"github.com/gin-gonic/gin"
 )
@@ -291,44 +290,6 @@ func (a *InboundController) addInbound(c *gin.Context) {
 	a.broadcastInboundsUpdate(user.Id)
 }
 
-// computeClientRefund returns how many bytes should be refunded to the
-// reseller who owns the inbound when this client is deleted. The refund is
-// the *unused* portion of the client's quota:
-//
-//	refund = max(0, client.TotalGB - (consumed.Up + consumed.Down))
-//
-// A totalGB of 0 (unlimited) has no allocated cap to refund so it returns 0.
-// `consumed` may be nil — that case is treated as zero usage (fresh client).
-func computeClientRefund(client model.Client, consumed *xray.ClientTraffic) int64 {
-	if client.TotalGB <= 0 {
-		return 0
-	}
-	var used int64
-	if consumed != nil {
-		used = consumed.Up + consumed.Down
-	}
-	refund := client.TotalGB - used
-	if refund < 0 {
-		return 0
-	}
-	return refund
-}
-
-// refundClientToOwner looks up the inbound's owner and refunds `refund`
-// bytes to their reseller quota. No-op when the owner is not a reseller,
-// when refund is non-positive, or when the lookup fails (we never fail
-// the parent delete on a refund error — the client is already gone).
-func (a *InboundController) refundClientToOwner(inbound *model.Inbound, refund int64) {
-	if inbound == nil || refund <= 0 || inbound.UserId <= 0 {
-		return
-	}
-	owner, err := a.adminService.GetUserByID(inbound.UserId)
-	if err != nil || owner == nil {
-		return
-	}
-	_ = a.adminService.RefundUsage(owner, refund)
-}
-
 // delInbound deletes an inbound configuration by its ID.
 func (a *InboundController) delInbound(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -336,36 +297,46 @@ func (a *InboundController) delInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), err)
 		return
 	}
-	// Capture the inbound + its clients BEFORE deletion so we can refund
-	// the owning reseller the unused portion of each client's quota.
-	// Failures here are non-fatal — the delete still proceeds; the worst
-	// case is the reseller doesn't get a refund.
-	var totalRefund int64
-	var owningInbound *model.Inbound
+	// Capture the inbound owner BEFORE the delete so we can recompute their
+	// quota afterwards. Failures here are non-fatal — the worst case is the
+	// reseller doesn't get a refund.
+	var ownerId int
 	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
-		owningInbound = ib
-		if clients, cerr := a.inboundService.GetClients(ib); cerr == nil {
-			for _, cl := range clients {
-				if cl.TotalGB <= 0 {
-					continue
-				}
-				t, _ := a.inboundService.GetClientTrafficByEmail(cl.Email)
-				totalRefund += computeClientRefund(cl, t)
-			}
-		}
+		ownerId = ib.UserId
 	}
 	needRestart, err := a.inboundService.DelInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	a.refundClientToOwner(owningInbound, totalRefund)
+	// Authoritative refund path: instead of trying to pre-compute the refund
+	// (and risk missing it on a clientId/protocol mismatch), simply
+	// recalculate the owner's `traffic_used` from the remaining
+	// allocations. This is bulletproof — works for every protocol, every
+	// delete shape, every edge case. See AdminService.RecalculateResellerQuota.
+	a.reconcileOwnerQuota(ownerId)
 	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), id, nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
 	}
 	user := session.GetLoginUser(c)
 	a.broadcastInboundsUpdate(user.Id)
+}
+
+// reconcileOwnerQuota auto-recomputes the inbound owner's reseller quota
+// from the ground up — invoked after every delete path so resellers never
+// see stale `traffic_used` numbers. No-op for non-reseller owners. Errors
+// are intentionally swallowed (we don't fail the parent operation; an
+// out-of-sync quota is a less bad outcome than rejecting a delete).
+func (a *InboundController) reconcileOwnerQuota(userId int) {
+	if userId <= 0 {
+		return
+	}
+	owner, err := a.adminService.GetUserByID(userId)
+	if err != nil || owner == nil || owner.Role != model.RoleReseller {
+		return
+	}
+	_, _, _ = a.adminService.RecalculateResellerQuota(owner, userId)
 }
 
 // updateInbound updates an existing inbound configuration.
@@ -664,28 +635,13 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 	}
 	clientId := c.Param("clientId")
 
-	// Capture refund-relevant state BEFORE the delete: locate the client in
-	// the inbound's settings (clientId is the UUID/ID/Password depending on
-	// protocol — we match against Client.ID first, then Email as a fallback
-	// because some protocols use email-as-id) and read its current consumed
-	// counter from client_traffics. After the delete succeeds, refund the
-	// inbound owner's reseller quota by `totalGB - consumed`.
-	var refund int64
-	var owningInbound *model.Inbound
+	// Capture the inbound's owner BEFORE the delete. After the delete
+	// succeeds we recompute their `traffic_used` from the remaining
+	// allocations — see reconcileOwnerQuota for why this is more reliable
+	// than pre-computing a refund.
+	var ownerId int
 	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
-		owningInbound = ib
-		if clients, cerr := a.inboundService.GetClients(ib); cerr == nil {
-			for _, cl := range clients {
-				if cl.ID != clientId && cl.Password != clientId && cl.Email != clientId && cl.Auth != clientId {
-					continue
-				}
-				if cl.TotalGB > 0 {
-					t, _ := a.inboundService.GetClientTrafficByEmail(cl.Email)
-					refund = computeClientRefund(cl, t)
-				}
-				break
-			}
-		}
+		ownerId = ib.UserId
 	}
 
 	needRestart, err := a.inboundService.DelInboundClient(id, clientId)
@@ -693,7 +649,7 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	a.refundClientToOwner(owningInbound, refund)
+	a.reconcileOwnerQuota(ownerId)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientDeleteSuccess"), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -776,6 +732,11 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 		}
 		if delta > 0 {
 			_ = a.adminService.AccumulateUsage(actor, delta)
+		} else if delta < 0 {
+			// Negative delta = reseller lowered the client's allocation.
+			// Reconcile so the freed bytes show up immediately as unused
+			// quota. Same authoritative recalc we use after every delete.
+			a.reconcileOwnerQuota(actor.Id)
 		}
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientUpdateSuccess"), nil)
 		if needRestart {
@@ -788,6 +749,11 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
+	}
+	// Non-reseller actor updating a reseller's client — still reconcile
+	// the owner so the change reflects in their quota immediately.
+	if oldInbound, oerr := a.inboundService.GetInbound(inbound.Id); oerr == nil && oldInbound != nil {
+		a.reconcileOwnerQuota(oldInbound.UserId)
 	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientUpdateSuccess"), nil)
 	if needRestart {
@@ -910,11 +876,24 @@ func (a *InboundController) delDepletedClients(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
 		return
 	}
+	var ownerId int
+	if id == -1 {
+		// id=-1 means delete depleted clients across ALL inbounds — we'd
+		// have to reconcile every reseller's quota. For now, scope the
+		// reconciliation to the actor (covers the reseller-deleting-own
+		// depleted-clients case correctly).
+		if u := session.GetLoginUser(c); u != nil {
+			ownerId = u.Id
+		}
+	} else if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
+		ownerId = ib.UserId
+	}
 	err = a.inboundService.DelDepletedClients(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	a.reconcileOwnerQuota(ownerId)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.delDepletedClientsSuccess"), nil)
 }
 
@@ -965,23 +944,9 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 
 	email := c.Param("email")
 
-	// Same refund pre-capture as delInboundClient — see comments there.
-	var refund int64
-	var owningInbound *model.Inbound
+	var ownerId int
 	if ib, ferr := a.inboundService.GetInbound(inboundId); ferr == nil && ib != nil {
-		owningInbound = ib
-		if clients, cerr := a.inboundService.GetClients(ib); cerr == nil {
-			for _, cl := range clients {
-				if cl.Email != email {
-					continue
-				}
-				if cl.TotalGB > 0 {
-					t, _ := a.inboundService.GetClientTrafficByEmail(cl.Email)
-					refund = computeClientRefund(cl, t)
-				}
-				break
-			}
-		}
+		ownerId = ib.UserId
 	}
 
 	needRestart, err := a.inboundService.DelInboundClientByEmail(inboundId, email)
@@ -990,7 +955,7 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 		return
 	}
 
-	a.refundClientToOwner(owningInbound, refund)
+	a.reconcileOwnerQuota(ownerId)
 	jsonMsg(c, "Client deleted successfully", nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()

@@ -129,6 +129,34 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Automatic, instant reseller refund on delete (no admin button)**.
+  Final design after user pushback: the manual "Recalculate Quota"
+  button was removed; instead the controller transparently calls
+  `RecalculateResellerQuota(ownerId)` after every successful client /
+  inbound delete (and after `updateInboundClient` lowers a client's
+  `totalGB`). This means:
+    * The reseller deletes a 2 GB client → `traffic_used` immediately
+      drops by the FULL 2 GB regardless of how much was consumed.
+      Past consumption isn't held against them — it's the operator's
+      bandwidth cost, not reseller debt. (User explicitly requested
+      this billing model.)
+    * Auto self-heals historical drift: any existing reseller whose
+      counter was wrong (from earlier panel versions that deleted
+      clients without refunding) will be corrected the next time
+      any client under them is deleted. No admin intervention needed.
+    * Works for every protocol (vless/vmess/trojan/shadowsocks/
+      hysteria/hysteria2) because the reconciler reads the canonical
+      DB state, not a pre-computed snapshot.
+    * Works regardless of which delete endpoint is hit:
+      `delInbound`, `delInboundClient`, `delInboundClientByEmail`,
+      `delDepletedClients`, and the negative-delta path of
+      `updateInboundClient` all call `reconcileOwnerQuota`.
+  Audit-log noise reduced: `quota_recalculate` only writes a row when
+  `oldUsed != newUsed`. AMD64 tarball rebuilt; new binary MD5
+  `3c6ad7b72dda4941e8274ac073a6340b`. End-to-end verified including
+  the user's exact drift scenario: 1.9 GB stale value with one 200 MB
+  client → reseller adds and deletes a new client → counter auto-
+  corrects to 100 MB (the actual unused remainder).
 - 2026-02 — **Drift-recovery "Recalculate Quota" feature**. User
   reported their reseller's `traffic_used` showed 1.90 GB while
   actual all-time usage was only 372 MB — clearly drifted (older

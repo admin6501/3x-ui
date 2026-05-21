@@ -35,7 +35,8 @@ def reset_state():
     """Clean db state for repeatable runs."""
     c = sqlite3.connect("/etc/x-ui/x-ui.db")
     cur = c.cursor()
-    cur.execute("UPDATE users SET traffic_used=0 WHERE username='rcapped1'")
+    GIB = 1024**3
+    cur.execute("UPDATE users SET traffic_used=0, traffic_quota=? WHERE username='rcapped1'", (2 * GIB,))
     seed = json.dumps({"clients":[{"id":"seed-uuid","email":"seed@e2e","totalGB":0,"expiryTime":0,"enable":True,"limitIp":0,"subId":"s","comment":"","reset":0}], "decryption":"none","fallbacks":[]})
     cur.execute("UPDATE inbounds SET settings=? WHERE tag='test-ib-1'", (seed,))
     cur.execute("DELETE FROM client_traffics WHERE email NOT IN ('seed@e2e')")
@@ -94,9 +95,12 @@ def run():
     assert used_after_del == 0, f"BUG 3 FAIL: used={used_after_del} expected 0"
     results.append("Bug 3 (refund on delete): PASS")
 
-    # ------ Bug 4: partial use refund ------
+    # ------ Bug 4: full refund on delete (new auto-reconcile model) ------
     # add 5 GB client (bump quota to 10 GB), simulate 2 GB consumption,
-    # delete → 5 allocated - 3 refunded = 2 used (the 2 GiB consumed stays as debt).
+    # delete → reconciler walks remaining clients (none) and sets used=0.
+    # In the NEW model, deletion releases the FULL allocation regardless of
+    # past consumption. The consumed bytes are the operator's bandwidth
+    # cost, not the reseller's debt.
     reset_state()
     c = sqlite3.connect("/etc/x-ui/x-ui.db")
     c.execute("UPDATE users SET traffic_quota=? WHERE username='rcapped1'", (10 * GIB,))
@@ -117,15 +121,15 @@ def run():
     code, resp = del_client_by_email(sess, csrf, 1, "test2@e2e")
     print(f"delClient: HTTP {code}, success={resp.get('success')}, msg={resp.get('msg')}")
     used_after = db_used("rcapped1")
-    expected = 2 * GIB  # 5 allocated - 3 refunded = 2 used (the 2 GiB consumed stays as debt)
-    print(f"AFTER delete: reseller.used={used_after} (expected {expected})")
+    expected = 0  # full release: no clients remain so used = 0
+    print(f"AFTER delete (auto-reconcile): reseller.used={used_after} (expected {expected})")
     assert used_after == expected, f"BUG 4 FAIL: used={used_after} expected {expected}"
     # restore original quota
     c = sqlite3.connect("/etc/x-ui/x-ui.db")
     c.execute("UPDATE users SET traffic_quota=? WHERE username='rcapped1'", (2 * GIB,))
     c.execute("UPDATE users SET traffic_used=0 WHERE username='rcapped1'")
     c.commit(); c.close()
-    results.append("Bug 4 (partial refund 5GB - 2GB consumed = 3GB refund): PASS")
+    results.append("Bug 4 (full refund on delete, auto-reconcile model): PASS")
 
     print("\n" + "=" * 60)
     for r in results: print("  " + r)
