@@ -349,6 +349,10 @@ func (s *AdminService) AccumulateUsage(u *model.User, bytes int64) error {
 	// the same request don't undercount; a fresh DB read happens on the
 	// next CheckResellerQuota() call anyway.
 	u.TrafficUsed += bytes
+	// Audit trail so the operator can see in the panel what got billed
+	// when — invaluable for debugging "the reseller's quota looks wrong"
+	// support reports. Self-action: the reseller themselves caused this.
+	s.logAction(u, "quota_accumulate", u.Id, u.Username, fmt.Sprintf("bytes=%d", bytes))
 	// Nudge any open admins page (super_admin viewing in another tab) to
 	// re-fetch its list so the freshly-billed traffic_used surfaces without
 	// waiting for a manual refresh.
@@ -384,6 +388,8 @@ func (s *AdminService) RefundUsage(u *model.User, bytes int64) error {
 	} else {
 		u.TrafficUsed = 0
 	}
+	// Audit trail — see comment in AccumulateUsage.
+	s.logAction(u, "quota_refund", u.Id, u.Username, fmt.Sprintf("bytes=%d", bytes))
 	// Same auto-refresh nudge as AccumulateUsage — see comments there.
 	websocket.BroadcastInvalidate(websocket.MessageTypeAdmins)
 	return nil

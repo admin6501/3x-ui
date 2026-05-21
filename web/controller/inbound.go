@@ -676,7 +676,7 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 		owningInbound = ib
 		if clients, cerr := a.inboundService.GetClients(ib); cerr == nil {
 			for _, cl := range clients {
-				if cl.ID != clientId && cl.Password != clientId && cl.Email != clientId {
+				if cl.ID != clientId && cl.Password != clientId && cl.Email != clientId && cl.Auth != clientId {
 					continue
 				}
 				if cl.TotalGB > 0 {

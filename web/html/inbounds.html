@@ -2216,6 +2216,17 @@
           }
         });
 
+        // Polling fallback for the quota card. The WebSocket invalidate
+        // signal is the primary refresh path, but on some VPS setups
+        // (reverse proxies that strip the Upgrade header, container
+        // restarts, mobile background tab throttling) the WS connection
+        // can be silently broken — in which case the quota card would
+        // stay stale until the next user-initiated mutation. A 10 s poll
+        // is cheap (single GET to /panel/api/inbounds/myQuota returning
+        // ~80 bytes) and guarantees the card converges to truth even when
+        // every push channel fails.
+        this._quotaPollTimer = setInterval(() => this.refreshMyQuota(), 10000);
+
         // Real-time delta updates: per-client absolute counters + inbound
         // totals applied in-place. Replaces the periodic full-list refresh
         // and scales to 10k+ clients without REST fallback.

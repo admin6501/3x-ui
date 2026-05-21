@@ -129,6 +129,25 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Hardened reseller-quota flow + audit log**. User
+  reported that the refund-on-delete + live-quota-card fixes weren't
+  visible on their deployed VPS. Root cause was tentative — likely
+  WS connection silently broken (reverse proxy stripping Upgrade
+  headers, or container cold-start before listener attached).
+  Defensive improvements:
+  1. **10-second polling fallback** on `inbounds.html` that always
+     calls `refreshMyQuota()` regardless of WS state. Single tiny GET
+     to `/panel/api/inbounds/myQuota` (~80 bytes). Guarantees the
+     quota card converges within at most 10 s of any backend change.
+  2. **Audit log every quota mutation**: `AccumulateUsage` writes a
+     `quota_accumulate` row, `RefundUsage` writes a `quota_refund`
+     row, with `bytes=...` in details. Now the operator can open the
+     panel's audit log and see concrete proof of every billing /
+     refund event keyed by reseller, with timestamps.
+  3. **Hysteria `Auth` matcher** added to `delInboundClient` refund
+     lookup — previously the matcher only covered ID / Password /
+     Email, so refunds for Hysteria clients were silently skipped.
+  AMD64 tarball rebuilt; new binary MD5 `dafb1b5355a45d01912ddd7a994114e5`.
 - 2026-02 — **Inbounds-page "Reseller Quota" card is now live**.
   Reported: the reseller's quota progress card on the inbounds page
   kept showing the stale `0 B / 2 GB` after the reseller added a
