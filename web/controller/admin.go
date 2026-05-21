@@ -34,17 +34,11 @@ func (a *AdminController) initRouter(g *gin.RouterGroup) {
 	g.POST("/update/:id", a.update)
 	g.POST("/delete/:id", a.delete)
 	g.POST("/resetPassword/:id", a.resetPassword)
-	g.POST("/resetTrafficUsage/:id", a.resetTrafficUsage)
-	// recalculateQuota: drift recovery. Re-derives traffic_used from the
-	// actual client allocations the reseller currently owns. Use this
-	// when the counter looks wrong (e.g. an older panel build deleted
-	// clients without refunding, or a crash interrupted a billing op).
-	g.POST("/recalculateQuota/:id", a.recalculateQuota)
 	g.GET("/auditLog", a.auditLog)
 }
 
 func (a *AdminController) list(c *gin.Context) {
-	rows, err := a.adminService.ListAdminsWithStats()
+	rows, err := a.adminService.ListAdmins()
 	if err != nil {
 		jsonMsg(c, "list admins", err)
 		return
@@ -57,9 +51,6 @@ type adminCreateForm struct {
 	Password        string `form:"password" json:"password"`
 	Role            string `form:"role" json:"role"`
 	AllowedInbounds string `form:"allowedInbounds" json:"allowedInbounds"`
-	// TrafficQuota is the reseller-only byte cap. 0 = unlimited. Sent as a
-	// number (string-coercible) so the form/JSON binding both work.
-	TrafficQuota int64 `form:"trafficQuota" json:"trafficQuota"`
 }
 
 func (a *AdminController) add(c *gin.Context) {
@@ -69,7 +60,7 @@ func (a *AdminController) add(c *gin.Context) {
 		return
 	}
 	actor := session.GetLoginUser(c)
-	u, err := a.adminService.CreateAdmin(actor, f.Username, f.Password, f.Role, f.AllowedInbounds, f.TrafficQuota)
+	u, err := a.adminService.CreateAdmin(actor, f.Username, f.Password, f.Role, f.AllowedInbounds)
 	if err != nil {
 		jsonMsg(c, "create admin", err)
 		return
@@ -83,7 +74,6 @@ type adminUpdateForm struct {
 	Username        string `form:"username" json:"username"`
 	Role            string `form:"role" json:"role"`
 	AllowedInbounds string `form:"allowedInbounds" json:"allowedInbounds"`
-	TrafficQuota    int64  `form:"trafficQuota" json:"trafficQuota"`
 }
 
 func (a *AdminController) update(c *gin.Context) {
@@ -98,7 +88,7 @@ func (a *AdminController) update(c *gin.Context) {
 		return
 	}
 	actor := session.GetLoginUser(c)
-	if err := a.adminService.UpdateAdmin(actor, id, f.Username, f.Role, f.AllowedInbounds, f.TrafficQuota); err != nil {
+	if err := a.adminService.UpdateAdmin(actor, id, f.Username, f.Role, f.AllowedInbounds); err != nil {
 		jsonMsg(c, "update admin", err)
 		return
 	}
@@ -140,46 +130,6 @@ func (a *AdminController) resetPassword(c *gin.Context) {
 		return
 	}
 	jsonMsg(c, "reset password", nil)
-}
-
-// resetTrafficUsage clears a reseller's TrafficUsed counter (giving them a
-// fresh quota). Super-admin only.
-func (a *AdminController) resetTrafficUsage(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	actor := session.GetLoginUser(c)
-	if err := a.adminService.ResetTrafficUsage(actor, id); err != nil {
-		jsonMsg(c, "reset traffic usage", err)
-		return
-	}
-	jsonMsg(c, "reset traffic usage", nil)
-}
-
-// recalculateQuota is the drift-recovery endpoint. Unlike resetTrafficUsage
-// which zeros the counter unconditionally, this re-derives the *correct*
-// `traffic_used` value from the reseller's currently-existing client
-// allocations. Returns old + new values so the UI can show what changed.
-// Super-admin only.
-func (a *AdminController) recalculateQuota(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	actor := session.GetLoginUser(c)
-	oldUsed, newUsed, err := a.adminService.RecalculateResellerQuota(actor, id)
-	if err != nil {
-		jsonMsg(c, "recalculate quota", err)
-		return
-	}
-	type resp struct {
-		OldUsed int64 `json:"oldUsed"`
-		NewUsed int64 `json:"newUsed"`
-	}
-	jsonObj(c, resp{OldUsed: oldUsed, NewUsed: newUsed}, nil)
 }
 
 func (a *AdminController) auditLog(c *gin.Context) {

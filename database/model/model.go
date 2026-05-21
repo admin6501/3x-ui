@@ -60,20 +60,6 @@ type User struct {
 	// by RoleReseller. Empty = no inbounds visible (intentionally restrictive
 	// — admins must explicitly grant access). Other roles ignore this field.
 	AllowedInbounds string `json:"allowedInbounds" gorm:"type:varchar(1024);default:''"`
-	// TrafficQuota is the maximum total bandwidth (in bytes) a reseller is
-	// allowed to allocate across the clients they create. Zero (the default)
-	// means *unlimited* — no quota enforcement. Only meaningful for
-	// RoleReseller; other roles ignore this field.
-	TrafficQuota int64 `json:"trafficQuota" gorm:"type:bigint;default:0;not null"`
-	// TrafficUsed is the running counter of bytes the reseller has "spent"
-	// from their quota. It accumulates on three actions:
-	//   • Create client     → +new totalGB
-	//   • Update client     → +delta if totalGB increases
-	//   • Reset client trf  → +bytes that were consumed before the reset
-	// It never decreases — deleting a client does NOT free up quota,
-	// because that would let a reseller loop create→delete to bypass the
-	// cap. Stored as bytes so the panel can display it in MB/GB/TB.
-	TrafficUsed int64 `json:"trafficUsed" gorm:"type:bigint;default:0;not null"`
 }
 
 // AdminAuditLog records mutations performed by admin users — admin CRUD,

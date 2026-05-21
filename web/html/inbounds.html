@@ -104,39 +104,6 @@
                 </a-row>
               </a-card>
             </a-col>
-            <!--
-              Reseller quota indicator. Only rendered for resellers and only
-              when a cap is actually set (quota > 0). Mirrors the layout in
-              the admins list so a reseller seeing both pages has a
-              consistent feel. The bar turns red >= 100% — quota CAN go
-              over the cap via reset-traffic billing (the user's "no
-              bypass" rule), so we surface that state instead of capping
-              the percentage at 100%.
-            -->
-            <a-col v-if="isReseller && resellerQuota > 0">
-              <a-card hoverable>
-                <a-statistic title='{{ i18n "pages.inbounds.resellerQuota" }}'>
-                  <template #formatter>
-                    <div :style="{ minWidth: '180px', fontSize: '16px' }">
-                      [[ SizeFormatter.sizeFormat(resellerUsed) ]] /
-                      <span :style="{ color: resellerUsed >= resellerQuota ? '#ff4d4f' : 'inherit' }">
-                        [[ SizeFormatter.sizeFormat(resellerQuota) ]]
-                      </span>
-                    </div>
-                    <a-progress
-                      :percent="resellerQuotaPct"
-                      :status="resellerQuotaPct >= 100 ? 'exception' : 'active'"
-                      :stroke-color="resellerQuotaPct >= 80 ? '#fa8c16' : '#1890ff'"
-                      :show-info="false"
-                      size="small" />
-                    <div :style="{ fontSize: '12px', color: resellerQuotaPct >= 100 ? '#ff4d4f' : '#888', marginTop: '4px' }">
-                      <template v-if="resellerQuotaPct >= 100">{{ i18n "pages.inbounds.resellerQuotaExhausted" }}</template>
-                      <template v-else>[[ SizeFormatter.sizeFormat(resellerQuota - resellerUsed) ]] {{ i18n "pages.inbounds.resellerQuotaRemaining" }}</template>
-                    </div>
-                  </template>
-                </a-statistic>
-              </a-card>
-            </a-col>
             <a-col>
               <a-card hoverable>
                 <template #title>
@@ -1107,14 +1074,6 @@
       showAlert: false,
       ipLimitEnable: false,
       pageSize: 0,
-      // Live reseller-quota state. Initialised from the Go template snapshot
-      // baked into the page on first render, then refreshed via
-      // GET /panel/api/inbounds/myQuota after any mutating reseller action
-      // (addClient / updateClient / delClient / resetClient) and on every
-      // `invalidate{type:admins}` WebSocket push. Without this the quota
-      // card kept showing the old "0 / 2 GB" until the operator hit F5.
-      currentUserTrafficQuota: Number('{{ .current_user_traffic_quota }}') || 0,
-      currentUserTrafficUsed: Number('{{ .current_user_traffic_used }}') || 0,
     },
     methods: {
       loading(spinning = true) {
@@ -1817,30 +1776,7 @@
         const msg = await HttpUtil.postWithModal(url, data, modal);
         if (msg.success) {
           await this.getDBInbounds();
-          // Every reseller-mutating action that funnels through submit()
-          // (addClient / updateClient / delClient / resetClient* / reset
-          // all traffics) may have changed traffic_used — fetch the
-          // fresh value so the header quota card updates without a
-          // page reload.
-          this.refreshMyQuota();
         }
-      },
-      // refreshMyQuota re-reads the actor's traffic_quota / traffic_used
-      // from the backend (single small GET) and updates the reactive
-      // data fields the header card binds to. Silent on failure — the
-      // worst case is the card stays stale until the next tick.
-      async refreshMyQuota() {
-        try {
-          const r = await HttpUtil.get(`/panel/api/inbounds/myQuota`);
-          if (r && r.success && r.obj) {
-            if (typeof r.obj.trafficQuota === 'number') {
-              this.currentUserTrafficQuota = r.obj.trafficQuota;
-            }
-            if (typeof r.obj.trafficUsed === 'number') {
-              this.currentUserTrafficUsed = r.obj.trafficUsed;
-            }
-          }
-        } catch (e) { /* ignored on purpose — see comment above */ }
       },
       getInboundClients(dbInbound) {
         if (!dbInbound) return null;
@@ -2199,33 +2135,14 @@
         // oversized full-list payload.
         let invalidateTimer = null;
         window.wsClient.on('invalidate', (payload) => {
-          if (!payload) return;
-          if (payload.type === 'inbounds' || payload.type === 'traffic') {
+          if (payload && (payload.type === 'inbounds' || payload.type === 'traffic')) {
             if (invalidateTimer) clearTimeout(invalidateTimer);
             invalidateTimer = setTimeout(() => {
               invalidateTimer = null;
               this.getDBInbounds();
             }, 1000);
           }
-          // `admins` invalidate fires whenever ANY admin's traffic_used
-          // changes — including the current reseller's. Use it as the
-          // cross-session signal that refreshes our quota card (e.g.
-          // a super_admin in another tab clicked "Reset Quota" on us).
-          if (payload.type === 'admins') {
-            this.refreshMyQuota();
-          }
         });
-
-        // Polling fallback for the quota card. The WebSocket invalidate
-        // signal is the primary refresh path, but on some VPS setups
-        // (reverse proxies that strip the Upgrade header, container
-        // restarts, mobile background tab throttling) the WS connection
-        // can be silently broken — in which case the quota card would
-        // stay stale until the next user-initiated mutation. A 10 s poll
-        // is cheap (single GET to /panel/api/inbounds/myQuota returning
-        // ~80 bytes) and guarantees the card converges to truth even when
-        // every push channel fails.
-        this._quotaPollTimer = setInterval(() => this.refreshMyQuota(), 10000);
 
         // Real-time delta updates: per-client absolute counters + inbound
         // totals applied in-place. Replaces the periodic full-list refresh
@@ -2327,22 +2244,6 @@
       // would only come back as a 403.
       isReseller() {
         return '{{ .current_user_role }}' === 'reseller';
-      },
-      // Reseller quota — both raw and as a percentage. Numbers come from
-      // reactive `currentUserTrafficQuota` / `currentUserTrafficUsed` in
-      // `data` (seeded from the Go template at first paint and refreshed
-      // via /panel/api/inbounds/myQuota after each mutating action). The
-      // quota progress card in the header re-reads them on every render.
-      resellerQuota() {
-        return Number(this.currentUserTrafficQuota) || 0;
-      },
-      resellerUsed() {
-        return Number(this.currentUserTrafficUsed) || 0;
-      },
-      resellerQuotaPct() {
-        const q = this.resellerQuota;
-        if (q <= 0) return 0;
-        return Math.min(999, Math.round((this.resellerUsed / q) * 100));
       },
       total() {
         let down = 0,

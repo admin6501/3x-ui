@@ -1,127 +1,6 @@
 {{ template "page/head_start" .}}
 {{ template "page/head_end" .}}
 
-<style>
-  /* Admins page — responsive layout.
-     Desktop (>768px): classic antd <a-table> with horizontal scroll.
-     Mobile  (<=768px): a stacked card-list (rendered by Vue with
-       `v-if="isMobile"`). Horizontally-scrolling antd tables proved
-       unusable on phones — the 7 columns + fixed action column left
-       barely any room for actual data, and the Persian/RTL text inside
-       narrow cells wrapped one character per line. Cards put every
-       field on its own row and the action buttons stretch full-width.
-  */
-  .admins-page .ant-table-cell,
-  .admins-page .ant-table-tbody > tr > td,
-  .admins-page .ant-table-thead > tr > th {
-    white-space: nowrap;
-  }
-  .admins-page .ant-table-tbody > tr > td.ant-table-cell-with-append,
-  .admins-page .ant-table-tbody .allowed-inbounds-cell {
-    white-space: normal;
-  }
-  .admins-page .ant-tag {
-    margin-bottom: 2px;
-  }
-
-  /* Mobile card list ---------------------------------------------------- */
-  .admin-card {
-    border: 1px solid rgba(140, 140, 140, 0.18);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    background: var(--card-background, transparent);
-  }
-  .admin-card + .admin-card { margin-top: 0; }
-  .admin-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  .admin-card-identity {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    flex: 1;
-  }
-  .admin-card-id {
-    font-family: monospace;
-    color: #888;
-    font-size: 12px;
-  }
-  .admin-card-name {
-    font-weight: 600;
-    font-size: 15px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .admin-card-field {
-    margin: 6px 0;
-    font-size: 13px;
-  }
-  .admin-card-field-label {
-    color: #888;
-    font-size: 12px;
-    margin-bottom: 2px;
-  }
-  .admin-card-field-value {
-    font-family: monospace;
-  }
-  .admin-card-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-top: 12px;
-  }
-  .admin-card-actions .ant-btn,
-  .admin-card-actions > .ant-popconfirm,
-  .admin-card-actions > span {
-    width: 100%;
-  }
-  .admin-card-actions .ant-btn { width: 100%; }
-  .admin-card-empty {
-    text-align: center;
-    color: #888;
-    padding: 24px 0;
-  }
-  /* Audit log mobile card -------------------------------------------------*/
-  .audit-card {
-    border: 1px solid rgba(140, 140, 140, 0.18);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    font-size: 12px;
-  }
-  .audit-card-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-  .audit-card-meta { color: #888; font-size: 11px; }
-  .audit-card-details {
-    margin-top: 4px;
-    word-break: break-word;
-    color: #555;
-  }
-
-  @media (max-width: 768px) {
-    .admins-page h2 { font-size: 18px; }
-    .admins-page .ant-card-body { padding: 12px; }
-    /* Header row: title block above the Add button on phones, button block-wide */
-    .admins-page .admins-header-row { flex-wrap: wrap; gap: 8px; }
-    .admins-page .admins-header-row > .ant-col { width: 100%; }
-    .admins-page .admins-header-row .ant-btn { width: 100%; }
-    /* Tighten gutters between cards on phones */
-    .admins-page .ant-card { border-radius: 8px; }
-  }
-</style>
-
 {{ template "page/body_start" .}}
 <a-layout id="app" v-cloak :class="themeSwitcher.currentTheme + ' admins-page'">
   <a-sidebar></a-sidebar>
@@ -131,7 +10,7 @@
         <a-row :gutter="[isMobile ? 8 : 16, isMobile ? 8 : 12]">
           <a-col :span="24">
             <a-card hoverable>
-              <a-row align="middle" justify="space-between" class="admins-header-row">
+              <a-row align="middle" justify="space-between">
                 <a-col>
                   <h2 :style="{ margin: 0 }">{{ i18n "pages.admins.title" }}</h2>
                   <span :style="{ color: '#888', fontSize: '13px' }">{{ i18n "pages.admins.subtitle" }}</span>
@@ -149,72 +28,24 @@
           <a-col :span="24">
             <a-card hoverable>
               <a-table
-                v-if="!isMobile"
                 :columns="columns"
                 :data-source="admins"
                 :pagination="false"
                 row-key="id"
                 size="middle"
-                :scroll="{ x: 1270 }"
-                class="admins-table"
+                :scroll="{ x: 800 }"
                 data-testid="admins-table">
                 <template slot="role" slot-scope="text, record">
                   <a-tag :color="roleColor(record.role)">[[ roleLabel(record.role) ]]</a-tag>
                 </template>
                 <template slot="allowedInbounds" slot-scope="text, record">
-                  <div class="allowed-inbounds-cell">
-                    <span v-if="record.role !== 'reseller'" :style="{ color: '#888' }">—</span>
-                    <span v-else-if="!record.allowedInbounds">
-                      <a-tag color="red">{{ i18n "pages.admins.noInbound" }}</a-tag>
-                    </span>
-                    <a-tag v-else v-for="id in record.allowedInbounds.split(',')" :key="id">[[ inboundLabel(id) ]]</a-tag>
-                  </div>
-                </template>
-                <template slot="trafficQuota" slot-scope="text, record">
-                  <!--
-                    Reseller quota column. Layout decisions:
-                      • Non-resellers show "—" (the cap is meaningless for them).
-                      • A 0 quota is "unlimited" and rendered as a single ∞ tag
-                        so the operator notices it at a glance — no progress bar.
-                      • For capped resellers we show "used / total" + a slim
-                        progress bar that turns red >= 100% so an over-cap state
-                        (which can happen via reset-traffic billing) is visible.
-                  -->
                   <span v-if="record.role !== 'reseller'" :style="{ color: '#888' }">—</span>
-                  <a-tag v-else-if="!(record.trafficQuota > 0)" color="cyan">
-                    <a-icon type="infinity" v-if="false"></a-icon>∞ {{ i18n "pages.admins.unlimited" }}
-                  </a-tag>
-                  <div v-else :style="{ minWidth: '160px' }">
-                    <div :style="{ fontSize: '12px', whiteSpace: 'nowrap' }">
-                      [[ humanBytes(record.trafficUsed || 0) ]] / [[ humanBytes(record.trafficQuota) ]]
-                    </div>
-                    <a-progress
-                      :percent="quotaPercent(record)"
-                      :status="quotaPercent(record) >= 100 ? 'exception' : 'active'"
-                      :stroke-color="quotaPercent(record) >= 80 ? '#fa8c16' : '#1890ff'"
-                      :show-info="false"
-                      size="small" />
-                  </div>
-                </template>
-                <template slot="consumedTraffic" slot-scope="text, record">
-                  <!--
-                    "Real" consumed traffic: the sum of up+down across every
-                    client_traffic row inside this admin's accessible
-                    inbounds. For resellers that's their AllowedInbounds
-                    scope; for everyone else it's the panel-wide total
-                    (they can see all of it anyway). The value is
-                    informational only — it does NOT drive any quota
-                    enforcement; that's `trafficUsed` (the accounting
-                    counter) on the previous column.
-                  -->
-                  <a-tooltip :title='`{{ i18n "pages.admins.consumedTrafficTooltip" }}`'>
-                    <span :style="{ fontFamily: 'monospace' }">
-                      [[ humanBytes(record.consumedTraffic || 0) ]]
-                    </span>
-                  </a-tooltip>
+                  <span v-else-if="!record.allowedInbounds">
+                    <a-tag color="red">{{ i18n "pages.admins.noInbound" }}</a-tag>
+                  </span>
+                  <a-tag v-else v-for="id in record.allowedInbounds.split(',')" :key="id">[[ inboundLabel(id) ]]</a-tag>
                 </template>
                 <template slot="actions" slot-scope="text, record">
-                  <div class="admins-row-actions">
                   <a-button size="small" :data-testid="`edit-admin-${record.id}`" @click="openEdit(record)">
                     <a-icon type="edit"></a-icon>
                     {{ i18n "edit" }}
@@ -223,22 +54,6 @@
                     <a-icon type="lock"></a-icon>
                     {{ i18n "pages.admins.resetPassword" }}
                   </a-button>
-                  <!--
-                    Reset traffic counter button — only meaningful for capped
-                    resellers (others have no counter to reset). We hide it
-                    instead of disable to keep the row uncluttered.
-                  -->
-                  <a-popconfirm
-                    v-if="record.role === 'reseller' && (record.trafficQuota > 0)"
-                    :title='`{{ i18n "pages.admins.confirmResetTraffic" }}`'
-                    :ok-text='`{{ i18n "yes" }}`'
-                    :cancel-text='`{{ i18n "no" }}`'
-                    @confirm="doResetTrafficUsage(record)">
-                    <a-button size="small" :data-testid="`reset-traffic-${record.id}`" :style="{ marginLeft: '4px' }">
-                      <a-icon type="reload"></a-icon>
-                      {{ i18n "pages.admins.resetTrafficUsage" }}
-                    </a-button>
-                  </a-popconfirm>
                   <a-popconfirm
                     :title='`{{ i18n "pages.admins.confirmDelete" }}`'
                     :ok-text='`{{ i18n "yes" }}`'
@@ -249,91 +64,8 @@
                       {{ i18n "delete" }}
                     </a-button>
                   </a-popconfirm>
-                  </div>
                 </template>
               </a-table>
-
-              <!-- Mobile: stacked card list. Mirrors every column of the
-                   desktop table (role / allowed inbounds / quota /
-                   consumed / actions) but renders each admin as a
-                   vertically-stacked card. Resellers get the inbound
-                   tags + quota progress bar; other roles skip those
-                   sections so cards stay short. -->
-              <template v-if="isMobile">
-                <div v-if="!admins || admins.length === 0" class="admin-card-empty" data-testid="admin-cards-empty">—</div>
-                <div v-for="record in admins" :key="record.id" class="admin-card" :data-testid="`admin-card-${record.id}`">
-                  <div class="admin-card-header">
-                    <div class="admin-card-identity">
-                      <span class="admin-card-id">#[[ record.id ]]</span>
-                      <span class="admin-card-name">[[ record.username ]]</span>
-                    </div>
-                    <a-tag :color="roleColor(record.role)">[[ roleLabel(record.role) ]]</a-tag>
-                  </div>
-
-                  <div v-if="record.role === 'reseller'" class="admin-card-field">
-                    <div class="admin-card-field-label">{{ i18n "pages.admins.allowedInbounds" }}</div>
-                    <div class="allowed-inbounds-cell">
-                      <span v-if="!record.allowedInbounds">
-                        <a-tag color="red">{{ i18n "pages.admins.noInbound" }}</a-tag>
-                      </span>
-                      <a-tag v-else v-for="id in record.allowedInbounds.split(',')" :key="id">[[ inboundLabel(id) ]]</a-tag>
-                    </div>
-                  </div>
-
-                  <div v-if="record.role === 'reseller'" class="admin-card-field">
-                    <div class="admin-card-field-label">{{ i18n "pages.admins.trafficQuota" }}</div>
-                    <a-tag v-if="!(record.trafficQuota > 0)" color="cyan">∞ {{ i18n "pages.admins.unlimited" }}</a-tag>
-                    <div v-else>
-                      <div class="admin-card-field-value" :style="{ fontSize: '12px' }">
-                        [[ humanBytes(record.trafficUsed || 0) ]] / [[ humanBytes(record.trafficQuota) ]]
-                      </div>
-                      <a-progress
-                        :percent="quotaPercent(record)"
-                        :status="quotaPercent(record) >= 100 ? 'exception' : 'active'"
-                        :stroke-color="quotaPercent(record) >= 80 ? '#fa8c16' : '#1890ff'"
-                        :show-info="false"
-                        size="small" />
-                    </div>
-                  </div>
-
-                  <div class="admin-card-field">
-                    <div class="admin-card-field-label">{{ i18n "pages.admins.consumedTraffic" }}</div>
-                    <div class="admin-card-field-value">[[ humanBytes(record.consumedTraffic || 0) ]]</div>
-                  </div>
-
-                  <div class="admin-card-actions">
-                    <a-button size="small" block :data-testid="`m-edit-admin-${record.id}`" @click="openEdit(record)">
-                      <a-icon type="edit"></a-icon>
-                      {{ i18n "edit" }}
-                    </a-button>
-                    <a-button size="small" block :data-testid="`m-reset-pwd-${record.id}`" @click="openResetPwd(record)">
-                      <a-icon type="lock"></a-icon>
-                      {{ i18n "pages.admins.resetPassword" }}
-                    </a-button>
-                    <a-popconfirm
-                      v-if="record.role === 'reseller' && (record.trafficQuota > 0)"
-                      :title='`{{ i18n "pages.admins.confirmResetTraffic" }}`'
-                      :ok-text='`{{ i18n "yes" }}`'
-                      :cancel-text='`{{ i18n "no" }}`'
-                      @confirm="doResetTrafficUsage(record)">
-                      <a-button size="small" block :data-testid="`m-reset-traffic-${record.id}`">
-                        <a-icon type="reload"></a-icon>
-                        {{ i18n "pages.admins.resetTrafficUsage" }}
-                      </a-button>
-                    </a-popconfirm>
-                    <a-popconfirm
-                      :title='`{{ i18n "pages.admins.confirmDelete" }}`'
-                      :ok-text='`{{ i18n "yes" }}`'
-                      :cancel-text='`{{ i18n "no" }}`'
-                      @confirm="doDelete(record)">
-                      <a-button size="small" block type="danger" :data-testid="`m-delete-admin-${record.id}`">
-                        <a-icon type="delete"></a-icon>
-                        {{ i18n "delete" }}
-                      </a-button>
-                    </a-popconfirm>
-                  </div>
-                </div>
-              </template>
             </a-card>
           </a-col>
 
@@ -344,14 +76,12 @@
                 {{ i18n "pages.admins.auditLog" }}
               </h3>
               <a-table
-                v-if="!isMobile"
                 :columns="auditColumns"
                 :data-source="auditRows"
                 :pagination="{ pageSize: 20 }"
                 row-key="id"
                 size="small"
-                :scroll="{ x: 930 }"
-                class="admins-audit-table"
+                :scroll="{ x: 600 }"
                 data-testid="audit-table">
                 <template slot="action" slot-scope="text">
                   <a-tag>[[ text ]]</a-tag>
@@ -360,24 +90,6 @@
                   [[ new Date(text).toLocaleString() ]]
                 </template>
               </a-table>
-
-              <!-- Mobile audit log: compact card list (no horizontal
-                   scroll, no antd table). Newest first; limited to the
-                   first 30 entries on phones to keep the page light. -->
-              <template v-if="isMobile">
-                <div v-if="!auditRows || auditRows.length === 0" class="admin-card-empty" data-testid="audit-cards-empty">—</div>
-                <div v-for="row in auditRows.slice(0, 30)" :key="row.id" class="audit-card" :data-testid="`audit-card-${row.id}`">
-                  <div class="audit-card-row">
-                    <a-tag>[[ row.action ]]</a-tag>
-                    <span class="audit-card-meta">#[[ row.id ]]</span>
-                  </div>
-                  <div class="audit-card-row">
-                    <span><strong>[[ row.actor || '—' ]]</strong> → [[ row.target || '—' ]]</span>
-                  </div>
-                  <div v-if="row.details" class="audit-card-details">[[ row.details ]]</div>
-                  <div class="audit-card-meta">[[ new Date(row.createdAt).toLocaleString() ]]</div>
-                </div>
-              </template>
             </a-card>
           </a-col>
         </a-row>
@@ -392,8 +104,6 @@
     :ok-text='`{{ i18n "save" }}`'
     :cancel-text='`{{ i18n "cancel" }}`'
     :confirm-loading="formModal.saving"
-    :width="isMobile ? '95%' : 520"
-    :dialog-style="isMobile ? { top: '12px' } : {}"
     @ok="saveAdmin"
     data-testid="admin-form-modal">
     <a-form layout="vertical">
@@ -433,59 +143,6 @@
           </span>
         </div>
       </a-form-item>
-      <!--
-        Traffic quota form field. Only shown for resellers — for other roles
-        the cap is meaningless and would just confuse operators. The user
-        types a NUMBER (with two decimal places of precision) and picks the
-        UNIT (MB / GB / TB); we convert to bytes server-side. A value of 0
-        means *unlimited* and is allowed explicitly via the "unlimited"
-        checkbox to make intent obvious (sliding to 0 by mistake would be
-        easy otherwise).
-
-        Layout: the previous version used a single flex row with checkbox +
-        number-input + select all side-by-side. On narrow viewports (and in
-        Persian/RTL where the checkbox label "∞ نامحدود" is wider than its
-        English counterpart) the select would visually disappear off the
-        right edge of the form-item — operators reported they could enter a
-        number but not see the unit picker. The fix is to split the field
-        into two stacked rows AND to v-if-hide the unit picker when
-        unlimited is on (so the cleared/disabled state can never be
-        confused with a missing element). a-input-group compact glues the
-        number + unit visually so they still read as one control.
-      -->
-      <a-form-item v-if="formModal.role === 'reseller'" label='{{ i18n "pages.admins.trafficQuota" }}'>
-        <a-checkbox v-model="formModal.quotaUnlimited" data-testid="admin-form-quota-unlimited"
-          @change="onQuotaUnlimitedChanged">
-          ∞ {{ i18n "pages.admins.unlimited" }}
-        </a-checkbox>
-        <div v-if="!formModal.quotaUnlimited" :style="{ marginTop: '8px' }">
-          <a-input-number
-            v-model="formModal.quotaAmount"
-            :min="0" :step="1" :precision="2"
-            :style="{ width: '100%', marginBottom: '8px' }"
-            data-testid="admin-form-quota-amount"></a-input-number>
-          <!--
-            Unit picker rendered as a Radio button-group (not a dropdown) so
-            it's visually impossible to miss — every option is on screen at
-            all times. NOTE: <a-input-number .../> self-closing syntax
-            does NOT work here because templates are compiled at runtime
-            from server-rendered HTML; the browser parses the self-closing
-            slash on a custom element as an unclosed tag and silently
-            swallows the next sibling. Always use </a-input-number>.
-          -->
-          <a-radio-group
-            v-model="formModal.quotaUnit"
-            button-style="solid"
-            data-testid="admin-form-quota-unit">
-            <a-radio-button value="MB">MB</a-radio-button>
-            <a-radio-button value="GB">GB</a-radio-button>
-            <a-radio-button value="TB">TB</a-radio-button>
-          </a-radio-group>
-        </div>
-        <div :style="{ color: '#888', fontSize: '12px', marginTop: '4px' }">
-          {{ i18n "pages.admins.trafficQuotaDesc" }}
-        </div>
-      </a-form-item>
     </a-form>
   </a-modal>
 
@@ -496,8 +153,6 @@
     :ok-text='`{{ i18n "save" }}`'
     :cancel-text='`{{ i18n "cancel" }}`'
     :confirm-loading="resetPwdModal.saving"
-    :width="isMobile ? '95%' : 520"
-    :dialog-style="isMobile ? { top: '12px' } : {}"
     @ok="doResetPassword"
     data-testid="reset-pwd-modal">
     <p>[[ resetPwdModal.username ]]</p>
@@ -529,13 +184,6 @@
         password: '',
         role: 'manager',
         allowedInboundIds: [],
-        // Quota form state. We store the *user-friendly* split (amount +
-        // unit) and convert to/from bytes when talking to the API. A
-        // separate boolean explicitly captures "unlimited" intent so the
-        // operator can't toggle it on by accidentally typing 0.
-        quotaAmount: 0,
-        quotaUnit: 'GB',
-        quotaUnlimited: true,
       },
       inboundsLoadError: '',
       resetPwdModal: {
@@ -546,21 +194,19 @@
         password: '',
       },
       columns: [
-        { title: 'ID', dataIndex: 'id', width: 60, align: 'center' },
-        { title: '{{ i18n "username" }}', dataIndex: 'username', width: 140, ellipsis: true },
-        { title: '{{ i18n "pages.admins.role" }}', dataIndex: 'role', scopedSlots: { customRender: 'role' }, width: 110, align: 'center' },
-        { title: '{{ i18n "pages.admins.allowedInbounds" }}', dataIndex: 'allowedInbounds', scopedSlots: { customRender: 'allowedInbounds' }, width: 240 },
-        { title: '{{ i18n "pages.admins.trafficQuota" }}', dataIndex: 'trafficQuota', scopedSlots: { customRender: 'trafficQuota' }, width: 220 },
-        { title: '{{ i18n "pages.admins.consumedTraffic" }}', dataIndex: 'consumedTraffic', scopedSlots: { customRender: 'consumedTraffic' }, width: 140, align: 'center' },
-        { title: '{{ i18n "actions" }}', scopedSlots: { customRender: 'actions' }, width: 360, fixed: 'right' },
+        { title: 'ID', dataIndex: 'id', width: 60 },
+        { title: '{{ i18n "username" }}', dataIndex: 'username' },
+        { title: '{{ i18n "pages.admins.role" }}', dataIndex: 'role', scopedSlots: { customRender: 'role' } },
+        { title: '{{ i18n "pages.admins.allowedInbounds" }}', dataIndex: 'allowedInbounds', scopedSlots: { customRender: 'allowedInbounds' } },
+        { title: '{{ i18n "actions" }}', scopedSlots: { customRender: 'actions' }, width: 280 },
       ],
       auditColumns: [
-        { title: 'ID', dataIndex: 'id', width: 60, align: 'center' },
-        { title: '{{ i18n "pages.admins.actor" }}', dataIndex: 'actor', width: 120, ellipsis: true },
-        { title: '{{ i18n "pages.admins.action" }}', dataIndex: 'action', scopedSlots: { customRender: 'action' }, width: 180 },
-        { title: '{{ i18n "pages.admins.target" }}', dataIndex: 'target', width: 140, ellipsis: true },
-        { title: '{{ i18n "pages.admins.details" }}', dataIndex: 'details', width: 260, ellipsis: true },
-        { title: '{{ i18n "pages.admins.when" }}', dataIndex: 'createdAt', scopedSlots: { customRender: 'createdAt' }, width: 170 },
+        { title: 'ID', dataIndex: 'id', width: 60 },
+        { title: '{{ i18n "pages.admins.actor" }}', dataIndex: 'actor' },
+        { title: '{{ i18n "pages.admins.action" }}', dataIndex: 'action', scopedSlots: { customRender: 'action' } },
+        { title: '{{ i18n "pages.admins.target" }}', dataIndex: 'target' },
+        { title: '{{ i18n "pages.admins.details" }}', dataIndex: 'details' },
+        { title: '{{ i18n "pages.admins.when" }}', dataIndex: 'createdAt', scopedSlots: { customRender: 'createdAt' } },
       ],
     },
     methods: {
@@ -628,43 +274,19 @@
         if (r.success) this.auditRows = r.obj || [];
       },
       openCreate() {
-        Object.assign(this.formModal, {
-          visible: true, isEdit: false, id: 0, username: '', password: '',
-          role: 'manager', allowedInboundIds: [],
-          quotaAmount: 0, quotaUnit: 'GB', quotaUnlimited: true,
-        });
+        Object.assign(this.formModal, { visible: true, isEdit: false, id: 0, username: '', password: '', role: 'manager', allowedInboundIds: [] });
         // Always re-fetch on open so a stale empty list from the initial
         // mount doesn't leave the reseller picker empty.
         this.loadInbounds();
       },
       openEdit(rec) {
-        // Decompose bytes back into a pretty (amount, unit) pair for the
-        // form. Pick the largest unit that yields a non-fractional value
-        // — so 1 GB stays "1 GB" instead of "1024 MB".
-        const bytes = rec.trafficQuota || 0;
-        const { amount, unit } = this.bytesToPretty(bytes);
         Object.assign(this.formModal, {
           visible: true, isEdit: true, saving: false,
           id: rec.id, username: rec.username, password: '',
           role: rec.role || 'manager',
           allowedInboundIds: (rec.allowedInbounds || '').split(',').filter(Boolean).map(Number),
-          quotaAmount: amount,
-          quotaUnit: unit,
-          quotaUnlimited: bytes <= 0,
         });
         this.loadInbounds();
-      },
-      onQuotaUnlimitedChanged() {
-        // Reset the number input when toggling to unlimited so the saved
-        // value is deterministic (0). When toggling OFF (= cap on), seed
-        // a sensible default of 100 GB so the operator doesn't have to
-        // start from zero.
-        if (this.formModal.quotaUnlimited) {
-          this.formModal.quotaAmount = 0;
-        } else if (!this.formModal.quotaAmount) {
-          this.formModal.quotaAmount = 100;
-          this.formModal.quotaUnit = 'GB';
-        }
       },
       openResetPwd(rec) {
         Object.assign(this.resetPwdModal, { visible: true, saving: false, id: rec.id, username: rec.username, password: '' });
@@ -672,18 +294,10 @@
       async saveAdmin() {
         this.formModal.saving = true;
         try {
-          // Convert the (amount, unit) form pair to bytes. For non-reseller
-          // roles we still send 0 — the backend stores it but ignores it,
-          // and that way a future role flip starts from a clean state.
-          let quotaBytes = 0;
-          if (this.formModal.role === 'reseller' && !this.formModal.quotaUnlimited) {
-            quotaBytes = this.prettyToBytes(this.formModal.quotaAmount, this.formModal.quotaUnit);
-          }
           const payload = {
             username: this.formModal.username,
             role: this.formModal.role,
             allowedInbounds: (this.formModal.allowedInboundIds || []).join(','),
-            trafficQuota: quotaBytes,
           };
           if (!this.formModal.isEdit) {
             payload.password = this.formModal.password;
@@ -703,66 +317,6 @@
           }
         } finally {
           this.formModal.saving = false;
-        }
-      },
-      // ---------- byte / quota helpers --------------------------------------
-      // Server stores TrafficQuota / TrafficUsed as bytes. We convert to MB
-      // / GB / TB at the edges so operators don't have to think in bytes.
-      prettyToBytes(amount, unit) {
-        const n = Number(amount) || 0;
-        const mult = ({ MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4 })[unit] || 1024 ** 3;
-        // Math.round to avoid floating-point cruft (e.g. 1.1 GB → an exact
-        // int64). The cap on input precision is two decimals — anything
-        // smaller than ~10 KB is irrelevant for a quota anyway.
-        return Math.round(n * mult);
-      },
-      bytesToPretty(bytes) {
-        const b = Number(bytes) || 0;
-        if (b <= 0) return { amount: 0, unit: 'GB' };
-        const TB = 1024 ** 4, GB = 1024 ** 3, MB = 1024 ** 2;
-        if (b % TB === 0) return { amount: b / TB, unit: 'TB' };
-        if (b >= TB)      return { amount: +(b / TB).toFixed(2), unit: 'TB' };
-        if (b >= GB)      return { amount: +(b / GB).toFixed(2), unit: 'GB' };
-        return { amount: +(b / MB).toFixed(2), unit: 'MB' };
-      },
-      humanBytes(bytes) {
-        // Compact pretty-printer for the table — picks the largest unit
-        // that yields a value >= 1, keeps two decimals, strips trailing
-        // zeros. Mirrors what `bytesToPretty` returns but as a string.
-        const n = Number(bytes) || 0;
-        if (n <= 0) return '0';
-        const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-        let i = 0, v = n;
-        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-        return `${(+v.toFixed(2)).toString()} ${units[i]}`;
-      },
-      quotaPercent(record) {
-        const q = Number(record.trafficQuota) || 0;
-        if (q <= 0) return 0;
-        const u = Number(record.trafficUsed) || 0;
-        return Math.min(999, Math.round((u / q) * 100));
-      },
-      async doResetTrafficUsage(rec) {
-        const r = await HttpUtil.post(`/panel/admin/resetTrafficUsage/${rec.id}`);
-        if (r.success) {
-          this.$message.success('{{ i18n "pages.admins.toasts.trafficUsageReset" }}');
-          await Promise.all([this.loadAdmins(), this.loadAudit()]);
-        }
-      },
-      // doRecalculateQuota: drift-recovery. Hits the recalculate endpoint,
-      // shows the before/after numbers in a success toast (so the operator
-      // can confirm something actually changed), then refreshes the table.
-      // Format bytes with the same humanBytes helper used elsewhere so
-      // "5368709120 → 372834304" reads as "5.00 GB → 355.55 MB".
-      async doRecalculateQuota(rec) {
-        const r = await HttpUtil.post(`/panel/admin/recalculateQuota/${rec.id}`);
-        if (r.success && r.obj) {
-          const oldStr = this.humanBytes(r.obj.oldUsed || 0);
-          const newStr = this.humanBytes(r.obj.newUsed || 0);
-          this.$message.success(`Quota corrected: ${oldStr} → ${newStr}`);
-          await Promise.all([this.loadAdmins(), this.loadAudit()]);
-        } else if (!r.success) {
-          this.$message.error(r.msg || 'recalculate failed');
         }
       },
       async doResetPassword() {
@@ -793,49 +347,6 @@
       } finally {
         this.loading = false;
       }
-
-      // Live updates: when a reseller's traffic_used changes elsewhere in
-      // the panel (a reseller adding a client in another tab, a refund on
-      // delete, a super_admin reset) the backend pushes an
-      // `invalidate { type: 'admins' }` over the existing wsClient. We
-      // debounce by ~600ms so a burst of mutations (e.g. bulk client add)
-      // collapses into a single re-fetch. Without this, operators had to
-      // hit F5 to see the new "X used / Y total" — exactly the
-      // "نشون نمیده یا دیر نشون میده" symptom the user reported.
-      const refresh = () => {
-        if (this._adminsInvTimer) return;
-        this._adminsInvTimer = setTimeout(() => {
-          this._adminsInvTimer = null;
-          this.loadAdmins();
-          this.loadAudit();
-        }, 600);
-      };
-      const attachListener = () => {
-        if (!window.wsClient || typeof window.wsClient.on !== 'function') return false;
-        try { window.wsClient.connect(); } catch (e) { /* already connected */ }
-        window.wsClient.on('invalidate', (payload) => {
-          if (payload && payload.type === 'admins') refresh();
-        });
-        return true;
-      };
-      if (!attachListener()) {
-        // wsClient script may not have run yet — poll briefly. Falls back
-        // to a 15s timer if the WebSocket truly never comes up so the
-        // page is at least eventually-consistent.
-        let attempts = 0;
-        const t = setInterval(() => {
-          if (attachListener() || ++attempts > 20) {
-            clearInterval(t);
-            if (attempts > 20) {
-              this._adminsPollTimer = setInterval(refresh, 15000);
-            }
-          }
-        }, 300);
-      }
-    },
-    beforeDestroy() {
-      if (this._adminsInvTimer) clearTimeout(this._adminsInvTimer);
-      if (this._adminsPollTimer) clearInterval(this._adminsPollTimer);
     },
   });
 </script>

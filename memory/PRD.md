@@ -129,6 +129,38 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Revert: reseller traffic-quota feature removed (per user request)**.
+  All code introduced by commit `5986b201` (feat reseller-quota) and
+  every follow-up patch on top of it was restored to the pre-feature
+  state (parent commit `6f86dc06`). Reverted files:
+    * `database/model/model.go` — drops `TrafficQuota` / `TrafficUsed`
+      columns from the `User` model
+    * `web/service/admin.go` — drops `AccumulateUsage`, `RefundUsage`,
+      `CheckResellerQuota`, `ResetTrafficUsage`, `GetUserByID`,
+      `RecalculateResellerQuota`, `ResellerRemaining`
+    * `web/controller/admin.go` — drops `/resetTrafficUsage/:id` and
+      `/recalculateQuota/:id` routes
+    * `web/controller/inbound.go` — drops `getMyQuota`, all
+      `snapshotRefundFor*` helpers, `applyRefund`, and the
+      AccumulateUsage / RefundUsage call sites
+    * `web/controller/util.go` — drops `current_user_traffic_*`
+      template fields
+    * `web/html/admins.html` — drops the Traffic Quota column /
+      progress bar, the unit-selector radio, and the
+      doResetTrafficUsage button
+    * `web/html/inbounds.html` — drops the "Reseller Quota" card
+      and the WS quota-refresh listener
+    * `web/service/inbound.go` — drops the `CheckResellerQuota` call
+      in addClient
+    * `web/websocket/hub.go` — drops `MessageTypeAdmins`
+    * `web/translation/translate.{en_US,fa_IR}.toml` — drops the
+      i18n strings for quota labels
+    * `offline/x-ui-linux-amd64.tar.gz` — restored to pre-feature
+      binary (MD5 `82bf7e3ab5786b73d8fc23cca53d78a5`)
+  Other RBAC features (multi-admin roles, audit log, allowed-inbounds
+  scoping, reseller add-inbound restriction) remain intact. My
+  follow-up test helpers (`admin_refund_test.go`, `e2e_refund_test.py`)
+  were deleted since they referenced the removed methods.
 - 2026-02 — **FINAL: Per-event explicit refund (consumed = debt)**.
   Switched back from auto-reconcile to explicit per-event accounting
   per user clarification: "مصرف قبلی رو در نظر بگیرد" — past consumed

@@ -18,7 +18,6 @@ import (
 type InboundController struct {
 	inboundService service.InboundService
 	xrayService    service.XrayService
-	adminService   service.AdminService
 }
 
 // NewInboundController creates a new InboundController and sets up its routes.
@@ -61,21 +60,15 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 
 	g.GET("/list", a.getInbounds)
 	g.GET("/get/:id", a.scopeInboundParam, a.getInbound)
-	g.GET("/getClientTraffics/:email", a.scopeClientByEmail, a.getClientTraffics)
-	g.GET("/getClientTrafficsById/:id", a.scopeClientByUUID, a.getClientTrafficsById)
-	// myQuota returns the fresh traffic_quota / traffic_used for the
-	// CURRENT logged-in user. The inbounds page renders a quota progress
-	// card from the Go template snapshot at page-load; this endpoint lets
-	// it re-read the live values after the reseller mutates traffic (add
-	// client / delete client) without a full page refresh.
-	g.GET("/myQuota", a.getMyQuota)
+	g.GET("/getClientTraffics/:email", a.getClientTraffics)
+	g.GET("/getClientTrafficsById/:id", a.scopeInboundParam, a.getClientTrafficsById)
 
 	g.POST("/add", a.scopeRejectResellerCreate, a.addInbound)
 	g.POST("/del/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.delInbound)
 	g.POST("/update/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.updateInbound)
 	g.POST("/setEnable/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.setInboundEnable)
-	g.POST("/clientIps/:email", a.scopeClientByEmail, a.getClientIps)
-	g.POST("/clearClientIps/:email", a.scopeClientByEmail, a.clearClientIps)
+	g.POST("/clientIps/:email", a.getClientIps)
+	g.POST("/clearClientIps/:email", a.clearClientIps)
 	g.POST("/addClient", a.addInboundClient)
 	g.POST("/:id/copyClients", a.scopeInboundParam, a.copyInboundClients)
 	g.POST("/:id/delClient/:clientId", a.scopeInboundParam, a.delInboundClient)
@@ -87,7 +80,7 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/import", a.scopeRejectResellerCreate, a.importInbound)
 	g.POST("/onlines", a.onlines)
 	g.POST("/lastOnline", a.lastOnline)
-	g.POST("/updateClientTraffic/:email", a.scopeClientByEmail, a.updateClientTraffic)
+	g.POST("/updateClientTraffic/:email", a.updateClientTraffic)
 	g.POST("/:id/delClientByEmail/:email", a.scopeInboundParam, a.delInboundClientByEmail)
 }
 
@@ -102,28 +95,6 @@ func (a *InboundController) scopeInboundParam(c *gin.Context) {
 		return
 	}
 	if !enforceInboundScope(c, id) {
-		return
-	}
-	c.Next()
-}
-
-// scopeClientByEmail enforces reseller scope on endpoints whose only URL
-// parameter is a client email. Wrapper around enforceInboundScopeByEmail.
-// No-op for super_admin / manager / readonly.
-func (a *InboundController) scopeClientByEmail(c *gin.Context) {
-	email := c.Param("email")
-	if !enforceInboundScopeByEmail(c, email) {
-		return
-	}
-	c.Next()
-}
-
-// scopeClientByUUID enforces reseller scope on endpoints whose URL
-// parameter is a client UUID/password (not an inbound id). Wrapper around
-// enforceInboundScopeByClientUUID. No-op for non-resellers.
-func (a *InboundController) scopeClientByUUID(c *gin.Context) {
-	uuid := c.Param("id")
-	if !enforceInboundScopeByClientUUID(c, uuid) {
 		return
 	}
 	c.Next()
@@ -225,43 +196,6 @@ func (a *InboundController) getClientTrafficsById(c *gin.Context) {
 	jsonObj(c, clientTraffics, nil)
 }
 
-// getMyQuota returns the fresh traffic_quota / traffic_used for the
-// currently-authenticated user. Used by the inbounds page to update
-// the reseller quota card in-place after a client add/update/delete.
-// Returns zeros (no error) for unauthenticated requests and for
-// non-reseller roles whose values are meaningless in the UI; that keeps
-// the response shape stable so the JS doesn't need a special-case branch.
-func (a *InboundController) getMyQuota(c *gin.Context) {
-	type myQuotaResp struct {
-		Role         string `json:"role"`
-		TrafficQuota int64  `json:"trafficQuota"`
-		TrafficUsed  int64  `json:"trafficUsed"`
-	}
-	u := session.GetLoginUser(c)
-	if u == nil {
-		jsonObj(c, myQuotaResp{}, nil)
-		return
-	}
-	// Re-read from the DB so we don't return a stale session snapshot
-	// (the session's TrafficUsed is updated in-memory after each
-	// AccumulateUsage call but only this DB read survives a refresh).
-	fresh, err := a.adminService.GetUserByID(u.Id)
-	if err != nil || fresh == nil {
-		// Fall back to whatever the session has — better than a 500.
-		jsonObj(c, myQuotaResp{
-			Role:         u.Role,
-			TrafficQuota: u.TrafficQuota,
-			TrafficUsed:  u.TrafficUsed,
-		}, nil)
-		return
-	}
-	jsonObj(c, myQuotaResp{
-		Role:         fresh.Role,
-		TrafficQuota: fresh.TrafficQuota,
-		TrafficUsed:  fresh.TrafficUsed,
-	}, nil)
-}
-
 // addInbound creates a new inbound configuration.
 func (a *InboundController) addInbound(c *gin.Context) {
 	inbound := &model.Inbound{}
@@ -290,197 +224,6 @@ func (a *InboundController) addInbound(c *gin.Context) {
 	a.broadcastInboundsUpdate(user.Id)
 }
 
-// computeClientRefund returns how many bytes should be refunded when this
-// client is deleted: the *unused* portion of its allocation,
-// `max(0, totalGB - (consumed.Up + consumed.Down))`. A `totalGB <= 0`
-// (unlimited) client has no allocation to refund. `consumed` may be nil
-// (fresh client never used) — treated as zero usage.
-//
-// IMPORTANT: We refund only the UNUSED remainder, NOT the full allocation.
-// Already-consumed traffic stays as the reseller's debt — that traffic was
-// real bandwidth the operator paid for, so charging the reseller for it
-// is correct billing semantics. (User explicitly requested this model.)
-func computeClientRefund(totalGB, up, down int64) int64 {
-	if totalGB <= 0 {
-		return 0
-	}
-	used := up + down
-	refund := totalGB - used
-	if refund < 0 {
-		return 0
-	}
-	return refund
-}
-
-// pickClientKey returns the protocol-specific field name that holds the
-// "client ID" for the given inbound protocol. Mirrors the switch inside
-// InboundService.DelInboundClient so our pre-delete refund lookup uses
-// the same matching rules — guaranteeing we never miss a client the
-// service can actually find.
-func pickClientKey(protocol model.Protocol) string {
-	switch protocol {
-	case "trojan":
-		return "password"
-	case "shadowsocks":
-		return "email"
-	case "hysteria", "hysteria2":
-		return "auth"
-	default:
-		return "id"
-	}
-}
-
-// snapshotRefundForClient walks the inbound's settings JSON and computes
-// the refund for the client identified by `clientId`. Returns 0 if the
-// client can't be found or has an unlimited allocation. Errors are
-// swallowed — refund failures must never block the parent delete.
-func (a *InboundController) snapshotRefundForClient(inbound *model.Inbound, clientId string) int64 {
-	if inbound == nil || inbound.Settings == "" {
-		return 0
-	}
-	var settings map[string]any
-	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
-		return 0
-	}
-	rawClients, ok := settings["clients"].([]any)
-	if !ok {
-		return 0
-	}
-	key := pickClientKey(inbound.Protocol)
-	for _, raw := range rawClients {
-		c, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		cid, _ := c[key].(string)
-		if cid != clientId {
-			continue
-		}
-		email, _ := c["email"].(string)
-		// totalGB may decode as float64 from JSON
-		var totalGB int64
-		switch v := c["totalGB"].(type) {
-		case float64:
-			totalGB = int64(v)
-		case int64:
-			totalGB = v
-		case int:
-			totalGB = int64(v)
-		}
-		if totalGB <= 0 {
-			return 0
-		}
-		var up, down int64
-		if t, _ := a.inboundService.GetClientTrafficByEmail(email); t != nil {
-			up, down = t.Up, t.Down
-		}
-		return computeClientRefund(totalGB, up, down)
-	}
-	return 0
-}
-
-// snapshotRefundForEmail is the email-keyed variant for
-// delInboundClientByEmail. Same logic, different match key.
-func (a *InboundController) snapshotRefundForEmail(inbound *model.Inbound, email string) int64 {
-	if inbound == nil || inbound.Settings == "" {
-		return 0
-	}
-	var settings map[string]any
-	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
-		return 0
-	}
-	rawClients, ok := settings["clients"].([]any)
-	if !ok {
-		return 0
-	}
-	for _, raw := range rawClients {
-		c, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		clEmail, _ := c["email"].(string)
-		if clEmail != email {
-			continue
-		}
-		var totalGB int64
-		switch v := c["totalGB"].(type) {
-		case float64:
-			totalGB = int64(v)
-		case int64:
-			totalGB = v
-		case int:
-			totalGB = int64(v)
-		}
-		if totalGB <= 0 {
-			return 0
-		}
-		var up, down int64
-		if t, _ := a.inboundService.GetClientTrafficByEmail(email); t != nil {
-			up, down = t.Up, t.Down
-		}
-		return computeClientRefund(totalGB, up, down)
-	}
-	return 0
-}
-
-// snapshotRefundForAllClients sums per-client refunds for every client in
-// the inbound. Used by `delInbound` (whole inbound delete) — each client's
-// unused portion is summed and refunded to the owning reseller.
-func (a *InboundController) snapshotRefundForAllClients(inbound *model.Inbound) int64 {
-	if inbound == nil || inbound.Settings == "" {
-		return 0
-	}
-	var settings map[string]any
-	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
-		return 0
-	}
-	rawClients, ok := settings["clients"].([]any)
-	if !ok {
-		return 0
-	}
-	var total int64
-	for _, raw := range rawClients {
-		c, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		var totalGB int64
-		switch v := c["totalGB"].(type) {
-		case float64:
-			totalGB = int64(v)
-		case int64:
-			totalGB = v
-		case int:
-			totalGB = int64(v)
-		}
-		if totalGB <= 0 {
-			continue
-		}
-		email, _ := c["email"].(string)
-		var up, down int64
-		if t, _ := a.inboundService.GetClientTrafficByEmail(email); t != nil {
-			up, down = t.Up, t.Down
-		}
-		total += computeClientRefund(totalGB, up, down)
-	}
-	return total
-}
-
-// applyRefund credits `bytes` back to the inbound owner's reseller quota.
-// No-op for non-reseller owners or zero/negative refunds. Errors are
-// intentionally swallowed (an out-of-sync quota is a less bad outcome
-// than rejecting the parent delete).
-func (a *InboundController) applyRefund(ownerId int, bytes int64) {
-	if ownerId <= 0 || bytes <= 0 {
-		return
-	}
-	owner, err := a.adminService.GetUserByID(ownerId)
-	if err != nil || owner == nil || owner.Role != model.RoleReseller {
-		return
-	}
-	_ = a.adminService.RefundUsage(owner, bytes)
-}
-
 // delInbound deletes an inbound configuration by its ID.
 func (a *InboundController) delInbound(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -488,22 +231,11 @@ func (a *InboundController) delInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), err)
 		return
 	}
-	// Snapshot owner + summed-refund-of-all-clients BEFORE the delete.
-	// Refund is the *unused* portion of every client's allocation — past
-	// consumed traffic stays as the reseller's debt (intentional billing
-	// model — see computeClientRefund).
-	var ownerId int
-	var refund int64
-	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
-		ownerId = ib.UserId
-		refund = a.snapshotRefundForAllClients(ib)
-	}
 	needRestart, err := a.inboundService.DelInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	a.applyRefund(ownerId, refund)
 	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), id, nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -650,56 +382,6 @@ func (a *InboundController) addInboundClient(c *gin.Context) {
 		return
 	}
 
-	// Reseller quota guard. We parse the new clients out of the payload
-	// (data.Settings is JSON with a "clients" array) and sum their TotalGB
-	// — for a reseller this must fit inside their remaining TrafficQuota.
-	// All-or-nothing per the spec: if the sum overflows the cap, the whole
-	// add call is rejected so a bulk-add never partially succeeds.
-	actor := session.GetLoginUser(c)
-	if actor != nil && actor.Role == model.RoleReseller {
-		newClients, perr := a.inboundService.GetClients(data)
-		if perr != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), perr)
-			return
-		}
-		var sum int64
-		for _, cl := range newClients {
-			// totalGB == 0 means *unlimited* on the client side. Only
-			// allow it when the reseller themselves has an unlimited
-			// quota (TrafficQuota == 0). Otherwise it would let one
-			// client drain the reseller's whole cap silently.
-			if cl.TotalGB <= 0 {
-				if actor.TrafficQuota > 0 {
-					jsonMsg(c, "forbidden",
-						fmt.Errorf("resellers with a traffic quota cannot create unlimited (totalGB=0) clients; assign a non-zero limit"))
-					return
-				}
-				continue // unlimited reseller — unlimited clients are fine
-			}
-			sum += cl.TotalGB
-		}
-		if err := a.adminService.CheckResellerQuota(actor, sum); err != nil {
-			jsonMsg(c, "quota exceeded", err)
-			return
-		}
-
-		needRestart, err := a.inboundService.AddInboundClient(data)
-		if err != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-			return
-		}
-		// Only bump usage AFTER the DB write succeeded. We intentionally
-		// accumulate even if needRestart is true — xray may pick the
-		// client up only after the restart, but the allocation is
-		// committed and the cap should reflect that.
-		_ = a.adminService.AccumulateUsage(actor, sum)
-		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientAddSuccess"), nil)
-		if needRestart {
-			a.xrayService.SetToNeedRestart()
-		}
-		return
-	}
-
 	needRestart, err := a.inboundService.AddInboundClient(data)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -738,60 +420,10 @@ func (a *InboundController) copyInboundClients(c *gin.Context) {
 		return
 	}
 
-	// Reseller quota guard for copy-clients: every cloned client adds its
-	// own totalGB to the reseller's used counter. Pre-flight the entire
-	// batch so we either copy them all or none (no partial billing).
-	actor := session.GetLoginUser(c)
-	var copyQuotaBill int64
-	if actor != nil && actor.Role == model.RoleReseller {
-		srcInbound, serr := a.inboundService.GetInbound(req.SourceInboundID)
-		if serr != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), serr)
-			return
-		}
-		srcClients, serr := a.inboundService.GetClients(srcInbound)
-		if serr != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), serr)
-			return
-		}
-		// Build a set of selected emails for O(1) lookup. Empty selection
-		// means "copy all" — match the service's behaviour.
-		var emailSet map[string]struct{}
-		if len(req.ClientEmails) > 0 {
-			emailSet = make(map[string]struct{}, len(req.ClientEmails))
-			for _, e := range req.ClientEmails {
-				emailSet[e] = struct{}{}
-			}
-		}
-		for _, sc := range srcClients {
-			if emailSet != nil {
-				if _, ok := emailSet[sc.Email]; !ok {
-					continue
-				}
-			}
-			if sc.TotalGB <= 0 {
-				if actor.TrafficQuota > 0 {
-					jsonMsg(c, "forbidden",
-						fmt.Errorf("copy aborted: source contains unlimited client %q which a quota-bound reseller cannot duplicate", sc.Email))
-					return
-				}
-				continue
-			}
-			copyQuotaBill += sc.TotalGB
-		}
-		if err := a.adminService.CheckResellerQuota(actor, copyQuotaBill); err != nil {
-			jsonMsg(c, "quota exceeded", err)
-			return
-		}
-	}
-
 	result, needRestart, err := a.inboundService.CopyInboundClients(targetID, req.SourceInboundID, req.ClientEmails, req.Flow)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
-	}
-	if copyQuotaBill > 0 {
-		_ = a.adminService.AccumulateUsage(actor, copyQuotaBill)
 	}
 	jsonObj(c, result, nil)
 	if needRestart {
@@ -808,23 +440,11 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 	}
 	clientId := c.Param("clientId")
 
-	// Snapshot the deleted client's unused-allocation BEFORE delete (the
-	// service-layer matching rules — protocol-keyed clientId — are mirrored
-	// inside snapshotRefundForClient so we never miss a client the service
-	// can actually find).
-	var ownerId int
-	var refund int64
-	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
-		ownerId = ib.UserId
-		refund = a.snapshotRefundForClient(ib, clientId)
-	}
-
 	needRestart, err := a.inboundService.DelInboundClient(id, clientId)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	a.applyRefund(ownerId, refund)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientDeleteSuccess"), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -844,97 +464,6 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 
 	// Reseller scope guard.
 	if !enforceInboundScope(c, inbound.Id) {
-		return
-	}
-
-	// Reseller quota guard. An *update* only costs quota when the totalGB
-	// is INCREASED — the delta (new - old) is what gets billed. A reduction
-	// or no-change is free; we never refund (no negative accumulate). The
-	// "old" totalGB comes from the live DB row so resellers can't pre-edit
-	// their copy of the inbound to fake a smaller delta.
-	actor := session.GetLoginUser(c)
-	if actor != nil && actor.Role == model.RoleReseller {
-		newClients, perr := a.inboundService.GetClients(inbound)
-		if perr != nil || len(newClients) == 0 {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"),
-				fmt.Errorf("invalid client payload"))
-			return
-		}
-		newTotal := newClients[0].TotalGB
-
-		// Disallow flipping a client to unlimited unless the reseller is
-		// themselves unlimited — same rule as the create path.
-		if newTotal <= 0 && actor.TrafficQuota > 0 {
-			jsonMsg(c, "forbidden",
-				fmt.Errorf("resellers with a traffic quota cannot set client totalGB to 0 (unlimited)"))
-			return
-		}
-
-		// Look up the OLD totalGB by clientId from the current DB row.
-		oldInbound, oerr := a.inboundService.GetInbound(inbound.Id)
-		if oerr != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), oerr)
-			return
-		}
-		oldClients, oerr := a.inboundService.GetClients(oldInbound)
-		if oerr != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), oerr)
-			return
-		}
-		var oldTotal int64
-		for _, oc := range oldClients {
-			// clientId matches one of: ID (vless/vmess), Password (trojan),
-			// Email (shadowsocks), Auth (hysteria). We compare against all
-			// four — only one will ever match per protocol.
-			if oc.ID == clientId || oc.Password == clientId || oc.Email == clientId || oc.Auth == clientId {
-				oldTotal = oc.TotalGB
-				break
-			}
-		}
-
-		delta := newTotal - oldTotal
-		if delta > 0 {
-			if err := a.adminService.CheckResellerQuota(actor, delta); err != nil {
-				jsonMsg(c, "quota exceeded", err)
-				return
-			}
-		}
-
-		needRestart, err := a.inboundService.UpdateInboundClient(inbound, clientId)
-		if err != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-			return
-		}
-		if delta > 0 {
-			_ = a.adminService.AccumulateUsage(actor, delta)
-		} else if delta < 0 {
-			// Negative delta = reseller lowered the client's allocation.
-			// The freed bytes (capped at the unused portion of the OLD
-			// allocation — anything already consumed stays as debt) are
-			// refunded explicitly so the per-event accounting stays
-			// consistent.
-			var oldUp, oldDown int64
-			for _, oc := range oldClients {
-				if oc.ID == clientId || oc.Password == clientId || oc.Email == clientId || oc.Auth == clientId {
-					if t, _ := a.inboundService.GetClientTrafficByEmail(oc.Email); t != nil {
-						oldUp, oldDown = t.Up, t.Down
-					}
-					break
-				}
-			}
-			oldUnused := computeClientRefund(oldTotal, oldUp, oldDown)
-			refundAmt := -delta
-			if refundAmt > oldUnused {
-				refundAmt = oldUnused
-			}
-			if refundAmt > 0 {
-				_ = a.adminService.RefundUsage(actor, refundAmt)
-			}
-		}
-		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientUpdateSuccess"), nil)
-		if needRestart {
-			a.xrayService.SetToNeedRestart()
-		}
 		return
 	}
 
@@ -958,26 +487,10 @@ func (a *InboundController) resetClientTraffic(c *gin.Context) {
 	}
 	email := c.Param("email")
 
-	// For reseller accounting: capture the up+down BEFORE the reset, so we
-	// can bill that amount against the reseller's quota. Resetting a client
-	// is effectively re-allocating their previously-consumed bytes — without
-	// this the reset would be a free way to extend a client indefinitely
-	// (the user mentioned this is THE most important guardrail).
-	var consumedBeforeReset int64
-	actor := session.GetLoginUser(c)
-	if actor != nil && actor.Role == model.RoleReseller {
-		if t, terr := a.inboundService.GetClientTrafficByEmail(email); terr == nil && t != nil {
-			consumedBeforeReset = t.Up + t.Down
-		}
-	}
-
 	needRestart, err := a.inboundService.ResetClientTraffic(id, email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
-	}
-	if consumedBeforeReset > 0 {
-		_ = a.adminService.AccumulateUsage(actor, consumedBeforeReset)
 	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.resetInboundClientTrafficSuccess"), nil)
 	if needRestart {
@@ -1005,24 +518,12 @@ func (a *InboundController) resetAllClientTraffics(c *gin.Context) {
 		return
 	}
 
-	// Reseller accounting for bulk reset: sum up+down across every client
-	// in this inbound before resetting. Same rationale as the single-client
-	// reset path — re-allocating already-consumed bytes spends quota.
-	var bulkBill int64
-	actor := session.GetLoginUser(c)
-	if actor != nil && actor.Role == model.RoleReseller {
-		bulkBill = a.inboundService.SumInboundClientTraffic(id)
-	}
-
 	err = a.inboundService.ResetAllClientTraffics(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	} else {
 		a.xrayService.SetToNeedRestart()
-	}
-	if bulkBill > 0 {
-		_ = a.adminService.AccumulateUsage(actor, bulkBill)
 	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.resetAllClientTrafficSuccess"), nil)
 }
@@ -1064,85 +565,12 @@ func (a *InboundController) delDepletedClients(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
 		return
 	}
-	// Snapshot depleted-client refunds BEFORE delete. A "depleted" client
-	// has consumed all (or more than) its allocated quota, so per the
-	// `max(0, totalGB - consumed)` formula the refund is 0 in the typical
-	// case. We still walk the list because some clients may be marked
-	// depleted via the disable flag rather than by exact byte-match.
-	type ibSnap struct {
-		ownerId int
-		refund  int64
-	}
-	var snaps []ibSnap
-	if id == -1 {
-		// Across-all-inbounds variant. Walk every inbound to collect refunds
-		// grouped by owner, then apply them after the bulk delete succeeds.
-		ibs, _ := a.inboundService.GetAllInbounds()
-		for _, ib := range ibs {
-			if r := a.snapshotRefundForDepleted(ib); r > 0 {
-				snaps = append(snaps, ibSnap{ownerId: ib.UserId, refund: r})
-			}
-		}
-	} else if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
-		if r := a.snapshotRefundForDepleted(ib); r > 0 {
-			snaps = append(snaps, ibSnap{ownerId: ib.UserId, refund: r})
-		}
-	}
 	err = a.inboundService.DelDepletedClients(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	for _, s := range snaps {
-		a.applyRefund(s.ownerId, s.refund)
-	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.delDepletedClientsSuccess"), nil)
-}
-
-// snapshotRefundForDepleted sums unused-allocation refunds for clients
-// that the panel considers depleted (the same definition used by
-// DelDepletedClients: `client_traffics.up + down >= client.totalGB`).
-func (a *InboundController) snapshotRefundForDepleted(inbound *model.Inbound) int64 {
-	if inbound == nil || inbound.Settings == "" {
-		return 0
-	}
-	var settings map[string]any
-	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
-		return 0
-	}
-	rawClients, ok := settings["clients"].([]any)
-	if !ok {
-		return 0
-	}
-	var total int64
-	for _, raw := range rawClients {
-		cl, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		var totalGB int64
-		switch v := cl["totalGB"].(type) {
-		case float64:
-			totalGB = int64(v)
-		case int64:
-			totalGB = v
-		case int:
-			totalGB = int64(v)
-		}
-		if totalGB <= 0 {
-			continue
-		}
-		email, _ := cl["email"].(string)
-		t, _ := a.inboundService.GetClientTrafficByEmail(email)
-		if t == nil {
-			continue
-		}
-		// "Depleted" matches service-layer DelDepletedClients criteria.
-		if t.Up+t.Down >= totalGB {
-			total += computeClientRefund(totalGB, t.Up, t.Down)
-		}
-	}
-	return total
 }
 
 // onlines retrieves the list of currently online clients.
@@ -1191,21 +619,12 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 	}
 
 	email := c.Param("email")
-
-	var ownerId int
-	var refund int64
-	if ib, ferr := a.inboundService.GetInbound(inboundId); ferr == nil && ib != nil {
-		ownerId = ib.UserId
-		refund = a.snapshotRefundForEmail(ib, email)
-	}
-
 	needRestart, err := a.inboundService.DelInboundClientByEmail(inboundId, email)
 	if err != nil {
 		jsonMsg(c, "Failed to delete client by email", err)
 		return
 	}
 
-	a.applyRefund(ownerId, refund)
 	jsonMsg(c, "Client deleted successfully", nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
