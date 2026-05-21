@@ -129,6 +129,32 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Inbounds-page "Reseller Quota" card is now live**.
+  Reported: the reseller's quota progress card on the inbounds page
+  kept showing the stale `0 B / 2 GB` after the reseller added a
+  client; the value only refreshed on full page reload. Root cause:
+  `resellerQuota` and `resellerUsed` computed properties were reading
+  baked-in Go template literals (`{{ .current_user_traffic_quota }}`)
+  which are a snapshot at page-load. Fix:
+  1. New `GET /panel/api/inbounds/myQuota` returns the freshly-read
+     `{role, trafficQuota, trafficUsed}` for the logged-in user.
+  2. `web/html/inbounds.html` introduces reactive
+     `currentUserTrafficQuota` / `currentUserTrafficUsed` data fields
+     seeded from the template, and a `refreshMyQuota()` method that
+     polls the new endpoint and updates them. The computed properties
+     now read from this reactive state.
+  3. `submit()` (the wrapper every mutating client/inbound action goes
+     through) calls `refreshMyQuota()` on success — so addClient /
+     updateClient / delClient / resetClient* / resetAllTraffics all
+     refresh the card automatically.
+  4. The existing WebSocket `invalidate{type:admins}` listener (added
+     for the admins page) now also calls `refreshMyQuota()` — so a
+     super_admin in another tab clicking "Reset Quota" on a reseller
+     also refreshes that reseller's quota card live.
+  Verified end-to-end in Playwright: card flipped from `0 B / 2.00 GB`
+  to `256.00 MB / 2.00 GB` with a partially-filled blue progress bar
+  immediately after the reseller added a 256 MB client. AMD64 tarball
+  rebuilt.
 - 2026-02 — **Admins page auto-refresh on reseller traffic mutations**.
   Reported: when a reseller adds a client to their assigned inbound,
   the admins page (open in a super_admin's tab) didn't reflect the

@@ -64,6 +64,12 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.GET("/get/:id", a.scopeInboundParam, a.getInbound)
 	g.GET("/getClientTraffics/:email", a.scopeClientByEmail, a.getClientTraffics)
 	g.GET("/getClientTrafficsById/:id", a.scopeClientByUUID, a.getClientTrafficsById)
+	// myQuota returns the fresh traffic_quota / traffic_used for the
+	// CURRENT logged-in user. The inbounds page renders a quota progress
+	// card from the Go template snapshot at page-load; this endpoint lets
+	// it re-read the live values after the reseller mutates traffic (add
+	// client / delete client) without a full page refresh.
+	g.GET("/myQuota", a.getMyQuota)
 
 	g.POST("/add", a.scopeRejectResellerCreate, a.addInbound)
 	g.POST("/del/:id", a.scopeRejectResellerInboundEdit, a.scopeInboundParam, a.delInbound)
@@ -218,6 +224,43 @@ func (a *InboundController) getClientTrafficsById(c *gin.Context) {
 		return
 	}
 	jsonObj(c, clientTraffics, nil)
+}
+
+// getMyQuota returns the fresh traffic_quota / traffic_used for the
+// currently-authenticated user. Used by the inbounds page to update
+// the reseller quota card in-place after a client add/update/delete.
+// Returns zeros (no error) for unauthenticated requests and for
+// non-reseller roles whose values are meaningless in the UI; that keeps
+// the response shape stable so the JS doesn't need a special-case branch.
+func (a *InboundController) getMyQuota(c *gin.Context) {
+	type myQuotaResp struct {
+		Role         string `json:"role"`
+		TrafficQuota int64  `json:"trafficQuota"`
+		TrafficUsed  int64  `json:"trafficUsed"`
+	}
+	u := session.GetLoginUser(c)
+	if u == nil {
+		jsonObj(c, myQuotaResp{}, nil)
+		return
+	}
+	// Re-read from the DB so we don't return a stale session snapshot
+	// (the session's TrafficUsed is updated in-memory after each
+	// AccumulateUsage call but only this DB read survives a refresh).
+	fresh, err := a.adminService.GetUserByID(u.Id)
+	if err != nil || fresh == nil {
+		// Fall back to whatever the session has — better than a 500.
+		jsonObj(c, myQuotaResp{
+			Role:         u.Role,
+			TrafficQuota: u.TrafficQuota,
+			TrafficUsed:  u.TrafficUsed,
+		}, nil)
+		return
+	}
+	jsonObj(c, myQuotaResp{
+		Role:         fresh.Role,
+		TrafficQuota: fresh.TrafficQuota,
+		TrafficUsed:  fresh.TrafficUsed,
+	}, nil)
 }
 
 // addInbound creates a new inbound configuration.

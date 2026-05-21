@@ -1107,6 +1107,14 @@
       showAlert: false,
       ipLimitEnable: false,
       pageSize: 0,
+      // Live reseller-quota state. Initialised from the Go template snapshot
+      // baked into the page on first render, then refreshed via
+      // GET /panel/api/inbounds/myQuota after any mutating reseller action
+      // (addClient / updateClient / delClient / resetClient) and on every
+      // `invalidate{type:admins}` WebSocket push. Without this the quota
+      // card kept showing the old "0 / 2 GB" until the operator hit F5.
+      currentUserTrafficQuota: Number('{{ .current_user_traffic_quota }}') || 0,
+      currentUserTrafficUsed: Number('{{ .current_user_traffic_used }}') || 0,
     },
     methods: {
       loading(spinning = true) {
@@ -1809,7 +1817,30 @@
         const msg = await HttpUtil.postWithModal(url, data, modal);
         if (msg.success) {
           await this.getDBInbounds();
+          // Every reseller-mutating action that funnels through submit()
+          // (addClient / updateClient / delClient / resetClient* / reset
+          // all traffics) may have changed traffic_used — fetch the
+          // fresh value so the header quota card updates without a
+          // page reload.
+          this.refreshMyQuota();
         }
+      },
+      // refreshMyQuota re-reads the actor's traffic_quota / traffic_used
+      // from the backend (single small GET) and updates the reactive
+      // data fields the header card binds to. Silent on failure — the
+      // worst case is the card stays stale until the next tick.
+      async refreshMyQuota() {
+        try {
+          const r = await HttpUtil.get(`/panel/api/inbounds/myQuota`);
+          if (r && r.success && r.obj) {
+            if (typeof r.obj.trafficQuota === 'number') {
+              this.currentUserTrafficQuota = r.obj.trafficQuota;
+            }
+            if (typeof r.obj.trafficUsed === 'number') {
+              this.currentUserTrafficUsed = r.obj.trafficUsed;
+            }
+          }
+        } catch (e) { /* ignored on purpose — see comment above */ }
       },
       getInboundClients(dbInbound) {
         if (!dbInbound) return null;
@@ -2168,12 +2199,20 @@
         // oversized full-list payload.
         let invalidateTimer = null;
         window.wsClient.on('invalidate', (payload) => {
-          if (payload && (payload.type === 'inbounds' || payload.type === 'traffic')) {
+          if (!payload) return;
+          if (payload.type === 'inbounds' || payload.type === 'traffic') {
             if (invalidateTimer) clearTimeout(invalidateTimer);
             invalidateTimer = setTimeout(() => {
               invalidateTimer = null;
               this.getDBInbounds();
             }, 1000);
+          }
+          // `admins` invalidate fires whenever ANY admin's traffic_used
+          // changes — including the current reseller's. Use it as the
+          // cross-session signal that refreshes our quota card (e.g.
+          // a super_admin in another tab clicked "Reset Quota" on us).
+          if (payload.type === 'admins') {
+            this.refreshMyQuota();
           }
         });
 
@@ -2278,15 +2317,16 @@
       isReseller() {
         return '{{ .current_user_role }}' === 'reseller';
       },
-      // Reseller quota — both raw and as a percentage.  Numbers come from
-      // the Go template (current_user_traffic_quota / used), so they are
-      // a snapshot at page-load; we don't try to live-update them. The
+      // Reseller quota — both raw and as a percentage. Numbers come from
+      // reactive `currentUserTrafficQuota` / `currentUserTrafficUsed` in
+      // `data` (seeded from the Go template at first paint and refreshed
+      // via /panel/api/inbounds/myQuota after each mutating action). The
       // quota progress card in the header re-reads them on every render.
       resellerQuota() {
-        return Number('{{ .current_user_traffic_quota }}') || 0;
+        return Number(this.currentUserTrafficQuota) || 0;
       },
       resellerUsed() {
-        return Number('{{ .current_user_traffic_used }}') || 0;
+        return Number(this.currentUserTrafficUsed) || 0;
       },
       resellerQuotaPct() {
         const q = this.resellerQuota;
