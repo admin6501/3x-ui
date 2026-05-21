@@ -350,6 +350,55 @@ func (s *AdminService) AccumulateUsage(u *model.User, bytes int64) error {
 	return nil
 }
 
+// RefundUsage decrements the reseller's TrafficUsed counter by `bytes` —
+// used when a client is deleted to return the unused remainder of that
+// client's allocation to the reseller's pool. Floors at 0 so a refund
+// larger than the current usage (e.g. an inbound deleted by a super_admin
+// whose client allocations were never billed in the first place) can
+// never push the counter negative. For non-resellers this is a no-op.
+//
+// Pair this with the `delete` controllers; never call it during a reset
+// (resets are intentionally billed — see AccumulateUsage usage in
+// resetClientTraffic/resetAllClientTraffics).
+func (s *AdminService) RefundUsage(u *model.User, bytes int64) error {
+	if u == nil || u.Role != model.RoleReseller || bytes <= 0 {
+		return nil
+	}
+	db := database.GetDB()
+	if err := db.Model(&model.User{}).Where("id = ?", u.Id).
+		UpdateColumn("traffic_used",
+			gorm.Expr("CASE WHEN traffic_used - ? < 0 THEN 0 ELSE traffic_used - ? END", bytes, bytes)).
+		Error; err != nil {
+		return err
+	}
+	// Mirror the change on the in-memory copy so the same request sees a
+	// fresh remaining-quota reading.
+	if u.TrafficUsed >= bytes {
+		u.TrafficUsed -= bytes
+	} else {
+		u.TrafficUsed = 0
+	}
+	return nil
+}
+
+// GetUserByID returns the User row for the given id (or nil if missing).
+// Used by the delete-client refund path so the controller can find an
+// inbound's owner (which may be a reseller different from the actor).
+func (s *AdminService) GetUserByID(id int) (*model.User, error) {
+	if id <= 0 {
+		return nil, nil
+	}
+	db := database.GetDB()
+	var u model.User
+	if err := db.First(&u, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &u, nil
+}
+
 // ResellerRemaining returns how many bytes the reseller can still allocate.
 // For unlimited / non-reseller it returns math.MaxInt64 so callers can use
 // it directly in arithmetic without special-casing.

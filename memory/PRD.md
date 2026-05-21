@@ -129,6 +129,28 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **Reseller quota refund on client/inbound delete**. When
+  a client is deleted, the unused portion of its allocated quota
+  (`max(0, client.totalGB - (client.up + client.down))`) is now
+  returned to the owning reseller's `traffic_used` counter. Deleting
+  an entire inbound applies the same per-client refund to every
+  client inside, summed. Implemented via new `AdminService.RefundUsage`
+  (SQL-level `max(0, traffic_used - bytes)` so older clients whose
+  allocations predate the billing system can never push the counter
+  negative) and a `computeClientRefund` helper in
+  `web/controller/inbound.go`. Hooked into `delInbound`,
+  `delInboundClient`, and `delInboundClientByEmail`. Refund is keyed
+  off the *inbound owner* (via `Inbound.UserId`), not the actor — so
+  a super_admin or manager deleting a reseller's client still refunds
+  the reseller correctly. Reset-traffic flows intentionally remain
+  unchanged (resets still bill the reseller — see comments in
+  `resetClientTraffic`). Unit-tested in
+  `web/service/admin_refund_test.go` and end-to-end verified against a
+  running panel for the three scenarios: partial-use delete (3 GiB
+  refund of 5 GiB allocation), full-inbound delete (2.5 GiB summed),
+  and floor-at-zero edge case (10 GiB refund attempt → traffic_used
+  clamped to 0). AMD64 tarball rebuilt at
+  `/app/offline/x-ui-linux-amd64.tar.gz`.
 - 2026-02 — **Admins page mobile UX overhaul**. On desktop the admins
   page stays unchanged (antd `<a-table>` with horizontal scroll). On
   viewports ≤ 768px (the same breakpoint `MediaQueryMixin.isMobile`

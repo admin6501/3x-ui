@@ -10,6 +10,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v2/web/service"
 	"github.com/mhsanaei/3x-ui/v2/web/session"
 	"github.com/mhsanaei/3x-ui/v2/web/websocket"
+	"github.com/mhsanaei/3x-ui/v2/xray"
 
 	"github.com/gin-gonic/gin"
 )
@@ -247,6 +248,44 @@ func (a *InboundController) addInbound(c *gin.Context) {
 	a.broadcastInboundsUpdate(user.Id)
 }
 
+// computeClientRefund returns how many bytes should be refunded to the
+// reseller who owns the inbound when this client is deleted. The refund is
+// the *unused* portion of the client's quota:
+//
+//	refund = max(0, client.TotalGB - (consumed.Up + consumed.Down))
+//
+// A totalGB of 0 (unlimited) has no allocated cap to refund so it returns 0.
+// `consumed` may be nil — that case is treated as zero usage (fresh client).
+func computeClientRefund(client model.Client, consumed *xray.ClientTraffic) int64 {
+	if client.TotalGB <= 0 {
+		return 0
+	}
+	var used int64
+	if consumed != nil {
+		used = consumed.Up + consumed.Down
+	}
+	refund := client.TotalGB - used
+	if refund < 0 {
+		return 0
+	}
+	return refund
+}
+
+// refundClientToOwner looks up the inbound's owner and refunds `refund`
+// bytes to their reseller quota. No-op when the owner is not a reseller,
+// when refund is non-positive, or when the lookup fails (we never fail
+// the parent delete on a refund error — the client is already gone).
+func (a *InboundController) refundClientToOwner(inbound *model.Inbound, refund int64) {
+	if inbound == nil || refund <= 0 || inbound.UserId <= 0 {
+		return
+	}
+	owner, err := a.adminService.GetUserByID(inbound.UserId)
+	if err != nil || owner == nil {
+		return
+	}
+	_ = a.adminService.RefundUsage(owner, refund)
+}
+
 // delInbound deletes an inbound configuration by its ID.
 func (a *InboundController) delInbound(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -254,11 +293,30 @@ func (a *InboundController) delInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), err)
 		return
 	}
+	// Capture the inbound + its clients BEFORE deletion so we can refund
+	// the owning reseller the unused portion of each client's quota.
+	// Failures here are non-fatal — the delete still proceeds; the worst
+	// case is the reseller doesn't get a refund.
+	var totalRefund int64
+	var owningInbound *model.Inbound
+	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
+		owningInbound = ib
+		if clients, cerr := a.inboundService.GetClients(ib); cerr == nil {
+			for _, cl := range clients {
+				if cl.TotalGB <= 0 {
+					continue
+				}
+				t, _ := a.inboundService.GetClientTrafficByEmail(cl.Email)
+				totalRefund += computeClientRefund(cl, t)
+			}
+		}
+	}
 	needRestart, err := a.inboundService.DelInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	a.refundClientToOwner(owningInbound, totalRefund)
 	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), id, nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -563,11 +621,36 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 	}
 	clientId := c.Param("clientId")
 
+	// Capture refund-relevant state BEFORE the delete: locate the client in
+	// the inbound's settings (clientId is the UUID/ID/Password depending on
+	// protocol — we match against Client.ID first, then Email as a fallback
+	// because some protocols use email-as-id) and read its current consumed
+	// counter from client_traffics. After the delete succeeds, refund the
+	// inbound owner's reseller quota by `totalGB - consumed`.
+	var refund int64
+	var owningInbound *model.Inbound
+	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
+		owningInbound = ib
+		if clients, cerr := a.inboundService.GetClients(ib); cerr == nil {
+			for _, cl := range clients {
+				if cl.ID != clientId && cl.Password != clientId && cl.Email != clientId {
+					continue
+				}
+				if cl.TotalGB > 0 {
+					t, _ := a.inboundService.GetClientTrafficByEmail(cl.Email)
+					refund = computeClientRefund(cl, t)
+				}
+				break
+			}
+		}
+	}
+
 	needRestart, err := a.inboundService.DelInboundClient(id, clientId)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	a.refundClientToOwner(owningInbound, refund)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientDeleteSuccess"), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -838,12 +921,33 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 	}
 
 	email := c.Param("email")
+
+	// Same refund pre-capture as delInboundClient — see comments there.
+	var refund int64
+	var owningInbound *model.Inbound
+	if ib, ferr := a.inboundService.GetInbound(inboundId); ferr == nil && ib != nil {
+		owningInbound = ib
+		if clients, cerr := a.inboundService.GetClients(ib); cerr == nil {
+			for _, cl := range clients {
+				if cl.Email != email {
+					continue
+				}
+				if cl.TotalGB > 0 {
+					t, _ := a.inboundService.GetClientTrafficByEmail(cl.Email)
+					refund = computeClientRefund(cl, t)
+				}
+				break
+			}
+		}
+	}
+
 	needRestart, err := a.inboundService.DelInboundClientByEmail(inboundId, email)
 	if err != nil {
 		jsonMsg(c, "Failed to delete client by email", err)
 		return
 	}
 
+	a.refundClientToOwner(owningInbound, refund)
 	jsonMsg(c, "Client deleted successfully", nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
