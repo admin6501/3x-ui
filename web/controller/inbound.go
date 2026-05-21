@@ -75,16 +75,13 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/updateClient/:clientId", a.updateInboundClient)
 	g.POST("/:id/resetClientTraffic/:email", a.scopeInboundParam, a.resetClientTraffic)
 	g.POST("/resetAllTraffics", a.scopeRejectReseller, a.resetAllTraffics)
-	g.POST("/resetAllClientTraffics/:id", a.scopeRejectReseller, a.scopeInboundParam, a.resetAllClientTraffics)
-	g.POST("/delDepletedClients/:id", a.scopeRejectReseller, a.scopeInboundParam, a.delDepletedClients)
+	g.POST("/resetAllClientTraffics/:id", a.scopeInboundParam, a.resetAllClientTraffics)
+	g.POST("/delDepletedClients/:id", a.scopeInboundParam, a.delDepletedClients)
 	g.POST("/import", a.scopeRejectResellerCreate, a.importInbound)
 	g.POST("/onlines", a.onlines)
 	g.POST("/lastOnline", a.lastOnline)
 	g.POST("/updateClientTraffic/:email", a.updateClientTraffic)
 	g.POST("/:id/delClientByEmail/:email", a.scopeInboundParam, a.delInboundClientByEmail)
-	// Bulk-assign every client in an inbound to a reseller. Super-admin /
-	// manager only; rejects reseller callers.
-	g.POST("/:id/assignClientsToReseller", a.scopeRejectReseller, a.scopeInboundParam, a.assignClientsToReseller)
 }
 
 // scopeInboundParam ensures the URL :id is in the reseller's allowed set.
@@ -151,10 +148,7 @@ type CopyInboundClientsRequest struct {
 
 // getInbounds retrieves the list of inbounds visible to the logged-in
 // admin: super_admin / manager / readonly see everything; reseller sees
-// only the inbounds in their AllowedInbounds scope. Super-admin / manager
-// may additionally pass `?ownerFilter=<username>` to narrow the embedded
-// client lists down to one reseller — useful for auditing a specific
-// reseller's clients from the main inbounds page.
+// only the inbounds in their AllowedInbounds scope.
 func (a *InboundController) getInbounds(c *gin.Context) {
 	inbounds, err := a.inboundService.GetAllInbounds()
 	if err != nil {
@@ -162,17 +156,6 @@ func (a *InboundController) getInbounds(c *gin.Context) {
 		return
 	}
 	inbounds = filterInboundsForRole(c, inbounds)
-	if u := session.GetLoginUser(c); u != nil && u.Role != model.RoleReseller {
-		if ownerFilter := c.Query("ownerFilter"); ownerFilter != "" {
-			cloned := make([]*model.Inbound, 0, len(inbounds))
-			for _, ib := range inbounds {
-				clone := *ib
-				filterInboundClientsToOwner(&clone, ownerFilter)
-				cloned = append(cloned, &clone)
-			}
-			inbounds = cloned
-		}
-	}
 	jsonObj(c, inbounds, nil)
 }
 
@@ -183,20 +166,10 @@ func (a *InboundController) getInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "get"), err)
 		return
 	}
-	if !enforceInboundScope(c, id) {
-		return
-	}
 	inbound, err := a.inboundService.GetInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return
-	}
-	// Strip clients the reseller doesn't own so /api/inbounds/get/:id
-	// matches what /api/inbounds/list serves them.
-	if owner := currentResellerUsername(c); owner != "" {
-		clone := *inbound
-		filterInboundClientsToOwner(&clone, owner)
-		inbound = &clone
 	}
 	jsonObj(c, inbound, nil)
 }
@@ -204,9 +177,6 @@ func (a *InboundController) getInbound(c *gin.Context) {
 // getClientTraffics retrieves client traffic information by email.
 func (a *InboundController) getClientTraffics(c *gin.Context) {
 	email := c.Param("email")
-	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
-		return
-	}
 	clientTraffics, err := a.inboundService.GetClientTrafficByEmail(email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.trafficGetError"), err)
@@ -293,14 +263,6 @@ func (a *InboundController) updateInbound(c *gin.Context) {
 	// with scope on inbound A could PUT body{id: B} and update inbound B
 	// via the A-scoped URL.
 	inbound.Id = id
-	// Preserve ownerUsername of every client the DB knows about, even if
-	// the JS payload doesn't round-trip it. Without this, a super-admin
-	// editing an inbound (which serialises every embedded client) would
-	// wipe the owner stamps and break the reseller per-client scoping.
-	if err := preserveExistingOwners(a.inboundService, inbound); err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
 	inbound, needRestart, err := a.inboundService.UpdateInbound(inbound)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -353,10 +315,6 @@ func (a *InboundController) setInboundEnable(c *gin.Context) {
 func (a *InboundController) getClientIps(c *gin.Context) {
 	email := c.Param("email")
 
-	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
-		return
-	}
-
 	ips, err := a.inboundService.GetInboundClientIps(email)
 	if err != nil || ips == "" {
 		jsonObj(c, "No IP Record", nil)
@@ -401,10 +359,6 @@ func (a *InboundController) getClientIps(c *gin.Context) {
 func (a *InboundController) clearClientIps(c *gin.Context) {
 	email := c.Param("email")
 
-	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
-		return
-	}
-
 	err := a.inboundService.ClearClientIps(email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.updateSuccess"), err)
@@ -426,15 +380,6 @@ func (a *InboundController) addInboundClient(c *gin.Context) {
 	// reseller does not own.
 	if !enforceInboundScope(c, data.Id) {
 		return
-	}
-
-	// Stamp ownership on every new client in the payload so it shows up
-	// only under this reseller's panel view. No-op for non-reseller roles.
-	if owner := currentResellerUsername(c); owner != "" {
-		if err := stampClientOwnerOnInbound(data, owner); err != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-			return
-		}
 	}
 
 	needRestart, err := a.inboundService.AddInboundClient(data)
@@ -495,10 +440,6 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 	}
 	clientId := c.Param("clientId")
 
-	if !enforceClientOwnershipByUUID(c, a.inboundService, id, clientId) {
-		return
-	}
-
 	needRestart, err := a.inboundService.DelInboundClient(id, clientId)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -525,28 +466,6 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 	if !enforceInboundScope(c, inbound.Id) {
 		return
 	}
-	// Ownership check: the client we're updating must belong to this
-	// reseller. Also reject payloads that try to overwrite someone else's
-	// client by including their ownerUsername.
-	if !enforceClientOwnershipByUUID(c, a.inboundService, inbound.Id, clientId) {
-		return
-	}
-	if !enforceAllClientsOwnedInPayload(c, inbound) {
-		return
-	}
-	if owner := currentResellerUsername(c); owner != "" {
-		if err := stampClientOwnerOnInbound(inbound, owner); err != nil {
-			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-			return
-		}
-	}
-	// Always merge in existing owners from the DB so the JS model (which
-	// doesn't round-trip ownerUsername) can't accidentally erase them
-	// when a non-reseller admin edits a reseller-owned client.
-	if err := preserveExistingOwners(a.inboundService, inbound); err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
 
 	needRestart, err := a.inboundService.UpdateInboundClient(inbound, clientId)
 	if err != nil {
@@ -567,10 +486,6 @@ func (a *InboundController) resetClientTraffic(c *gin.Context) {
 		return
 	}
 	email := c.Param("email")
-
-	if !enforceClientOwnership(c, a.inboundService, id, email) {
-		return
-	}
 
 	needRestart, err := a.inboundService.ResetClientTraffic(id, email)
 	if err != nil {
@@ -660,35 +575,12 @@ func (a *InboundController) delDepletedClients(c *gin.Context) {
 
 // onlines retrieves the list of currently online clients.
 func (a *InboundController) onlines(c *gin.Context) {
-	emails := a.inboundService.GetOnlineClients()
-	if owner := currentResellerUsername(c); owner != "" {
-		emails = filterEmailsByOwner(a.inboundService, emails, owner)
-	}
-	jsonObj(c, emails, nil)
+	jsonObj(c, a.inboundService.GetOnlineClients(), nil)
 }
 
 // lastOnline retrieves the last online timestamps for clients.
 func (a *InboundController) lastOnline(c *gin.Context) {
 	data, err := a.inboundService.GetClientsLastOnline()
-	if owner := currentResellerUsername(c); owner != "" && data != nil {
-		// data is map[string]int64 keyed by email — keep only owned ones.
-		filtered := make(map[string]int64, len(data))
-		emails := make([]string, 0, len(data))
-		for e := range data {
-			emails = append(emails, e)
-		}
-		owned := filterEmailsByOwner(a.inboundService, emails, owner)
-		ownedSet := make(map[string]struct{}, len(owned))
-		for _, e := range owned {
-			ownedSet[e] = struct{}{}
-		}
-		for k, v := range data {
-			if _, ok := ownedSet[k]; ok {
-				filtered[k] = v
-			}
-		}
-		data = filtered
-	}
 	jsonObj(c, data, err)
 }
 
@@ -706,10 +598,6 @@ func (a *InboundController) updateClientTraffic(c *gin.Context) {
 	err := c.ShouldBindJSON(&request)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
-		return
-	}
-
-	if !enforceClientOwnershipByEmail(c, a.inboundService, email) {
 		return
 	}
 
@@ -731,9 +619,6 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 	}
 
 	email := c.Param("email")
-	if !enforceClientOwnership(c, a.inboundService, inboundId, email) {
-		return
-	}
 	needRestart, err := a.inboundService.DelInboundClientByEmail(inboundId, email)
 	if err != nil {
 		jsonMsg(c, "Failed to delete client by email", err)
@@ -744,84 +629,4 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
 	}
-}
-
-// assignClientsToReseller bulk-assigns every client in an inbound to a
-// reseller by stamping ownerUsername on each client entry. Useful when a
-// super-admin wants to hand off an existing inbound (with legacy clients)
-// to a reseller without editing each client by hand.
-//
-// Body:
-//
-//	{ "username": "<reseller>", "onlyLegacy": false }
-//
-// When onlyLegacy=true, only clients without an ownerUsername are stamped
-// — useful for partial migrations where some clients already belong to
-// another reseller and must stay there.
-//
-// The endpoint validates that the target user exists and has role reseller
-// (so a super-admin can't accidentally hand clients to a non-reseller
-// account). Returns the count of clients actually reassigned.
-func (a *InboundController) assignClientsToReseller(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	type bulkReq struct {
-		Username   string `json:"username" form:"username"`
-		OnlyLegacy bool   `json:"onlyLegacy" form:"onlyLegacy"`
-	}
-	var req bulkReq
-	if err := c.ShouldBind(&req); err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	if req.Username == "" {
-		jsonMsg(c, "username is required", fmt.Errorf("missing username"))
-		return
-	}
-	// Verify the target is an actual reseller. Allows the super-admin to
-	// also clear ownership by passing username = "" (handled above as an
-	// error to avoid foot-guns; manual JSON edits remain available).
-	admins, err := (&service.AdminService{}).ListAdmins()
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	var found *model.User
-	for i := range admins {
-		if admins[i].Username == req.Username {
-			found = &admins[i]
-			break
-		}
-	}
-	if found == nil || found.Role != model.RoleReseller {
-		jsonMsg(c, "target user is not a reseller", fmt.Errorf("invalid target: %q", req.Username))
-		return
-	}
-
-	ib, err := a.inboundService.GetInbound(id)
-	if err != nil || ib == nil {
-		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
-		return
-	}
-
-	updated, err := bulkAssignOwnerInSettings(ib, req.Username, req.OnlyLegacy)
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	if updated == 0 {
-		jsonObj(c, map[string]any{"reassigned": 0}, nil)
-		return
-	}
-	if _, _, err := a.inboundService.UpdateInbound(ib); err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	a.xrayService.SetToNeedRestart()
-	user := session.GetLoginUser(c)
-	a.broadcastInboundsUpdate(user.Id)
-	jsonObj(c, map[string]any{"reassigned": updated, "username": req.Username}, nil)
 }
