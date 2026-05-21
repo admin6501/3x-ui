@@ -182,6 +182,12 @@ type Client struct {
 	SubID      string         `json:"subId" form:"subId"`           // Subscription identifier
 	Comment    string         `json:"comment" form:"comment"`       // Client comment
 	Reset      int            `json:"reset" form:"reset"`           // Reset period in days
+	// OwnerUsername stamps a client with the username of the admin who
+	// created it. Resellers see / can manage *only* clients whose owner
+	// matches their own username; super_admin / manager see everything.
+	// Empty for clients created before this feature shipped (treated as
+	// "legacy / super-admin-owned" by the scope guard).
+	OwnerUsername string `json:"ownerUsername,omitempty" form:"ownerUsername"`
 	CreatedAt  int64          `json:"created_at,omitempty"`         // Creation timestamp
 	UpdatedAt  int64          `json:"updated_at,omitempty"`         // Last update timestamp
 }

@@ -131,15 +131,15 @@
                           {{ i18n "pages.inbounds.export" }} - {{ i18n
                           "pages.settings.subSettings" }}
                         </a-menu-item>
-                        <a-menu-item key="resetInbounds">
+                        <a-menu-item key="resetInbounds" v-if="!isReseller">
                           <a-icon type="reload"></a-icon>
                           {{ i18n "pages.inbounds.resetAllTraffic" }}
                         </a-menu-item>
-                        <a-menu-item key="resetClients">
+                        <a-menu-item key="resetClients" v-if="!isReseller">
                           <a-icon type="file-done"></a-icon>
                           {{ i18n "pages.inbounds.resetAllClientTraffics" }}
                         </a-menu-item>
-                        <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }">
+                        <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }" v-if="!isReseller">
                           <a-icon type="rest"></a-icon>
                           {{ i18n "pages.inbounds.delDepletedClients" }}
                         </a-menu-item>
@@ -196,6 +196,17 @@
                       <a-radio-button value="online">{{ i18n "online"
                         }}</a-radio-button>
                     </a-radio-group>
+                    <a-select v-if="!isReseller && resellers.length > 0"
+                      v-model="ownerFilter"
+                      :dropdown-class-name="themeSwitcher.currentTheme"
+                      allow-clear
+                      placeholder="Filter by reseller"
+                      :style="{ marginLeft: '.5rem', minWidth: '200px' }"
+                      :size="isMobile ? 'small' : ''"
+                      @change="getDBInbounds"
+                      data-testid="reseller-owner-filter">
+                      <a-select-option v-for="u in resellers" :key="u" :value="u">[[ u ]]</a-select-option>
+                    </a-select>
                   </div>
                   <a-table :columns="isMobile ? mobileColumns : columns" :row-key="dbInbound => dbInbound.id"
                     :data-source="searchedInbounds" :scroll="isMobile ? {} : { x: 1000 }"
@@ -232,7 +243,7 @@
                               <a-icon type="copy"></a-icon>
                               {{ i18n "pages.client.copyFromInbound"}}
                             </a-menu-item>
-                            <a-menu-item key="resetClients">
+                            <a-menu-item key="resetClients" v-if="!isReseller">
                               <a-icon type="file-done"></a-icon>
                               {{ i18n
                               "pages.inbounds.resetInboundClientTraffics"}}
@@ -246,7 +257,7 @@
                               {{ i18n "pages.inbounds.export"}} - {{ i18n
                               "pages.settings.subSettings" }}
                             </a-menu-item>
-                            <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }">
+                            <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }" v-if="!isReseller">
                               <a-icon type="rest"></a-icon>
                               {{ i18n "pages.inbounds.delDepletedClients" }}
                             </a-menu-item>
@@ -270,7 +281,7 @@
                             <a-icon type="copy"></a-icon>
                             {{ i18n "pages.inbounds.exportInbound" }}
                           </a-menu-item>
-                          <a-menu-item key="resetTraffic">
+                          <a-menu-item key="resetTraffic" v-if="!isReseller">
                             <a-icon type="retweet"></a-icon> {{ i18n
                             "pages.inbounds.resetTraffic" }}
                           </a-menu-item>
@@ -278,8 +289,11 @@
                             <a-icon type="block"></a-icon> {{ i18n
                             "pages.inbounds.clone"}}
                           </a-menu-item>
-                          <a-menu-item key="delete" :disabled="isReseller">
-                            <span :style="{ color: isReseller ? '' : '#FF4D4F' }">
+                          <a-menu-item key="assign-reseller" v-if="!isReseller && resellers.length > 0">
+                            <a-icon type="user-add"></a-icon> Assign clients to reseller
+                          </a-menu-item>
+                          <a-menu-item key="delete" v-if="!isReseller">
+                            <span :style="{ color: '#FF4D4F' }">
                               <a-icon type="delete"></a-icon> {{ i18n "delete"}}
                             </span>
                           </a-menu-item>
@@ -689,6 +703,29 @@
 {{template "modals/inboundInfoModal" .}}
 {{template "modals/clientsModal" .}}
 {{template "modals/clientsBulkModal" .}}
+<a-modal id="assign-reseller-modal" title="Assign clients to reseller"
+  :visible="assignResellerModal.visible" :confirm-loading="assignResellerModal.loading"
+  :class="themeSwitcher.currentTheme" ok-text="Assign" cancel-text='{{ i18n "close" }}'
+  @ok="() => submitAssignReseller()" @cancel="() => assignResellerModal.visible = false">
+  <p>
+    Inbound: <strong>[[ assignResellerModal.inboundRemark ]]</strong>
+  </p>
+  <a-form-model layout="vertical">
+    <a-form-model-item label="Reseller">
+      <a-select v-model="assignResellerModal.username" :dropdown-class-name="themeSwitcher.currentTheme"
+        placeholder="Choose a reseller" data-testid="assign-reseller-select">
+        <a-select-option v-for="u in resellers" :key="u" :value="u">[[ u ]]</a-select-option>
+      </a-select>
+    </a-form-model-item>
+    <a-form-model-item>
+      <a-checkbox v-model="assignResellerModal.onlyLegacy">
+        Only assign clients without an existing owner (preserve other resellers)
+      </a-checkbox>
+    </a-form-model-item>
+  </a-form-model>
+  <a-alert type="warning" show-icon style="margin-top: 8px;"
+    message="This stamps ownerUsername on every matching client. The Xray service will restart."></a-alert>
+</a-modal>
 <a-modal id="copy-clients-modal" :title="copyClientsModal.title" :visible="copyClientsModal.visible"
   :confirm-loading="copyClientsModal.confirmLoading" ok-text='{{ i18n "pages.client.copySelected" }}'
   cancel-text='{{ i18n "close" }}' :class="themeSwitcher.currentTheme" :closable="true" :mask-closable="false"
@@ -1074,6 +1111,22 @@
       showAlert: false,
       ipLimitEnable: false,
       pageSize: 0,
+      // Reseller-ownership audit filter: when a super-admin / manager picks
+      // a reseller from the dropdown, /panel/api/inbounds/list is re-fetched
+      // with ?ownerFilter=<username> so only that reseller's clients show
+      // up across every inbound — handy for billing / support without
+      // having to log in as the reseller.
+      resellers: [],
+      ownerFilter: '',
+      // Bulk-assign modal state. Driven by `openAssignReseller`.
+      assignResellerModal: {
+        visible: false,
+        loading: false,
+        inboundId: 0,
+        inboundRemark: '',
+        username: '',
+        onlyLegacy: false,
+      },
     },
     methods: {
       loading(spinning = true) {
@@ -1146,7 +1199,8 @@
       },
       async getDBInbounds() {
         this.refreshing = true;
-        const msg = await HttpUtil.get('/panel/api/inbounds/list');
+        const qs = this.ownerFilter ? '?ownerFilter=' + encodeURIComponent(this.ownerFilter) : '';
+        const msg = await HttpUtil.get('/panel/api/inbounds/list' + qs);
         if (!msg.success) {
           this.refreshing = false;
           return;
@@ -1160,12 +1214,54 @@
           this.refreshing = false;
         }, 500);
       },
+      // Open the modal to assign every client of an inbound to a reseller.
+      openAssignReseller(dbInbound) {
+        this.assignResellerModal.inboundId = dbInbound.id;
+        this.assignResellerModal.inboundRemark = dbInbound.remark || ('inbound-' + dbInbound.port);
+        this.assignResellerModal.username = '';
+        this.assignResellerModal.onlyLegacy = false;
+        this.assignResellerModal.visible = true;
+      },
+      async submitAssignReseller() {
+        if (!this.assignResellerModal.username) {
+          this.$message.warning('Please choose a reseller');
+          return;
+        }
+        this.assignResellerModal.loading = true;
+        const r = await HttpUtil.postWithModal(
+          '/panel/api/inbounds/' + this.assignResellerModal.inboundId + '/assignClientsToReseller',
+          {
+            username: this.assignResellerModal.username,
+            onlyLegacy: !!this.assignResellerModal.onlyLegacy,
+          }
+        );
+        this.assignResellerModal.loading = false;
+        if (r && r.success) {
+          this.assignResellerModal.visible = false;
+          await this.getDBInbounds();
+        }
+      },
       async getOnlineUsers() {
         const msg = await HttpUtil.post('/panel/api/inbounds/onlines');
         if (!msg.success) {
           return;
         }
         this.onlineClients = msg.obj != null ? msg.obj : [];
+      },
+      // Load the list of reseller admins so the super-admin can pick one
+      // from the toolbar dropdown to filter the client view. Silently fails
+      // for non-super-admin roles (the endpoint 403s) — that's fine, the
+      // dropdown is hidden in that case via isReseller / role checks.
+      async loadResellersList() {
+        if (this.isReseller) return;
+        try {
+          const r = await HttpUtil.get('/panel/admin/list');
+          if (r && r.success && Array.isArray(r.obj)) {
+            this.resellers = r.obj
+              .filter(a => a.role === 'reseller')
+              .map(a => a.username);
+          }
+        } catch (e) { /* not super-admin; dropdown stays empty */ }
       },
       async getLastOnlineMap() {
         const msg = await HttpUtil.post('/panel/api/inbounds/lastOnline');
@@ -1401,15 +1497,10 @@
           case "clone":
             this.openCloneInbound(dbInbound);
             break;
+          case "assign-reseller":
+            this.openAssignReseller(dbInbound);
+            break;
           case "delete":
-            // Resellers cannot delete inbounds — the menu item is rendered
-            // as disabled for them, but guard here too so the action is a
-            // hard no-op even if the click somehow gets through (e.g. via
-            // keyboard or a stale Vue state). The backend also rejects it
-            // with scopeRejectResellerInboundEdit, but we don't want the
-            // confirmation modal (which would later show a misleading
-            // success toast on some Ant-Design versions).
-            if (this.isReseller) return;
             this.delInbound(dbInbound.id);
             break;
           case "delDepletedClients":
@@ -2106,6 +2197,7 @@
       }
       this.loading();
       this.getDefaultSettings();
+      this.loadResellersList();
 
       // Bootstrap from REST first, then attach WebSocket subscriptions.
       // Doing this in order eliminates a race where an early `inbounds` push
