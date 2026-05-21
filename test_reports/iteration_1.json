@@ -1,0 +1,41 @@
+{
+  "summary": "Validated all three reseller RBAC bug fixes end-to-end. Backend refund logic (Bug A), live UI quota refresh on inbounds page (Bug B), cross-session WebSocket admins-page update (Bug C) and mobile responsive admin-card all working as designed.",
+  "tests_executed": {
+    "Bug A.1 - addClient bills reseller traffic_used (+1 GiB)": "PASS",
+    "Bug A.2 - delClientByEmail fully refunds unused quota (back to 0)": "PASS",
+    "Bug A.3 - partial refund (5 GiB allocated - 2 GiB consumed = 3 GiB refund, used=2 GiB)": "PASS",
+    "Bug B - inbounds.html Reseller Quota card live-updates from '0 B / 2.00 GB' to '512.00 MB / 2.00 GB' after in-page addClient fetch (no F5)": "PASS",
+    "Bug B.2 - GET /panel/api/inbounds/myQuota returns 200 with {role:'reseller', trafficQuota:2147483648, trafficUsed:1073741824}": "PASS",
+    "Bug C - super_admin admins.html rcapped1 row updates from '0 / 2 GB' to '1 GB / 2 GB' after a DIFFERENT browser context (rcapped1 session) POSTs addClient (~3 s WS broadcast)": "PASS",
+    "Mobile responsive (414x820) - .admin-card present, ant-table hidden, Reseller tag + '#1 test-ib' tag + 4 action buttons visible": "PASS"
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/panel/admins (desktop & mobile)",
+        "issues": [
+          "Spec calls the third action button 'Reset Traffic' but the UI labels it 'Reset Quota'. Functionally identical (calls /panel/admin/resetTrafficUsage/:id). Not a bug, but consider unifying terminology in user-facing label vs internal endpoint name for clarity."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/web/service/e2e_refund_test.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Vue 2 root instance is not exposed via document.querySelector('#app').__vue__ in production build, so component data is read-only via rendered DOM in tests. Not a functional issue — only a testability note. Adding `window.__app = vm` in inbounds.html mounted hook would allow direct Vue state inspection during automated tests.",
+    "Existing e2e_refund_test.py mutates the SQLite DB directly (UPDATE client_traffics) to simulate consumption — fine for verification but means any concurrent xray usage stats writer could clobber the test row. Consider documenting that xray must be idle during the test (it already is in this qemu setup)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin/admin123 (super_admin), rcapped1/reseller123 (reseller, allowed_inbounds=1, quota=2 GiB)",
+  "seed_data_creation": "Reused existing seeded test-ib-1 inbound (id=1) owned by rcapped1 (id=2). Reset db state between scenarios via SQL: UPDATE users SET traffic_used=0..., DELETE client_traffics WHERE email != 'seed@e2e'. Restored final state before exit.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Server runs under qemu-x86_64-static at http://localhost:2053. DB at /etc/x-ui/x-ui.db; no system sqlite3 CLI installed — use python3 sqlite3 module. CSRF token must be re-parsed from /panel/inbounds or /panel/admins meta tag after /login because it rotates. For UI live-update tests, do NOT call page.reload(); use page.evaluate to fetch() from in-page context, then wait 3-4 s for the WebSocket 'invalidate' broadcast and re-read DOM. Vue 2 prod build does not expose __vue__, so assert against rendered DOM text rather than component data.",
+  "rca of the issue": "Not applicable — all three reported bugs verified fixed. Backend refund path (AccumulateUsage on add, RefundUsage on delete with floor-at-zero) works; WebSocket MessageTypeAdmins broadcast triggers refreshMyQuota() / loadAdmins() listeners on both inbounds.html and admins.html; mobile card view conditionally rendered via screen breakpoint hiding ant-table and showing .admin-card stack."
+}
