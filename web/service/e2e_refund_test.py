@@ -95,12 +95,10 @@ def run():
     assert used_after_del == 0, f"BUG 3 FAIL: used={used_after_del} expected 0"
     results.append("Bug 3 (refund on delete): PASS")
 
-    # ------ Bug 4: full refund on delete (new auto-reconcile model) ------
+    # ------ Bug 4: partial refund (consumed stays as debt) ------
     # add 5 GB client (bump quota to 10 GB), simulate 2 GB consumption,
-    # delete → reconciler walks remaining clients (none) and sets used=0.
-    # In the NEW model, deletion releases the FULL allocation regardless of
-    # past consumption. The consumed bytes are the operator's bandwidth
-    # cost, not the reseller's debt.
+    # delete → 5 allocated - 3 refunded = 2 used (the 2 GiB consumed stays
+    # as debt — operator paid for that bandwidth, so reseller pays for it).
     reset_state()
     c = sqlite3.connect("/etc/x-ui/x-ui.db")
     c.execute("UPDATE users SET traffic_quota=? WHERE username='rcapped1'", (10 * GIB,))
@@ -121,15 +119,14 @@ def run():
     code, resp = del_client_by_email(sess, csrf, 1, "test2@e2e")
     print(f"delClient: HTTP {code}, success={resp.get('success')}, msg={resp.get('msg')}")
     used_after = db_used("rcapped1")
-    expected = 0  # full release: no clients remain so used = 0
-    print(f"AFTER delete (auto-reconcile): reseller.used={used_after} (expected {expected})")
+    # 5 GB allocated - 3 GB refunded (unused) = 2 GB debt (consumed)
+    expected = 2 * GIB
+    print(f"AFTER delete: reseller.used={used_after} (expected {expected})")
     assert used_after == expected, f"BUG 4 FAIL: used={used_after} expected {expected}"
-    # restore original quota
     c = sqlite3.connect("/etc/x-ui/x-ui.db")
-    c.execute("UPDATE users SET traffic_quota=? WHERE username='rcapped1'", (2 * GIB,))
-    c.execute("UPDATE users SET traffic_used=0 WHERE username='rcapped1'")
+    c.execute("UPDATE users SET traffic_quota=?, traffic_used=0 WHERE username='rcapped1'", (2 * GIB,))
     c.commit(); c.close()
-    results.append("Bug 4 (full refund on delete, auto-reconcile model): PASS")
+    results.append("Bug 4 (partial refund: unused returns, consumed stays as debt): PASS")
 
     print("\n" + "=" * 60)
     for r in results: print("  " + r)

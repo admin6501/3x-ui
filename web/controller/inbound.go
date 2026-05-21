@@ -290,6 +290,197 @@ func (a *InboundController) addInbound(c *gin.Context) {
 	a.broadcastInboundsUpdate(user.Id)
 }
 
+// computeClientRefund returns how many bytes should be refunded when this
+// client is deleted: the *unused* portion of its allocation,
+// `max(0, totalGB - (consumed.Up + consumed.Down))`. A `totalGB <= 0`
+// (unlimited) client has no allocation to refund. `consumed` may be nil
+// (fresh client never used) — treated as zero usage.
+//
+// IMPORTANT: We refund only the UNUSED remainder, NOT the full allocation.
+// Already-consumed traffic stays as the reseller's debt — that traffic was
+// real bandwidth the operator paid for, so charging the reseller for it
+// is correct billing semantics. (User explicitly requested this model.)
+func computeClientRefund(totalGB, up, down int64) int64 {
+	if totalGB <= 0 {
+		return 0
+	}
+	used := up + down
+	refund := totalGB - used
+	if refund < 0 {
+		return 0
+	}
+	return refund
+}
+
+// pickClientKey returns the protocol-specific field name that holds the
+// "client ID" for the given inbound protocol. Mirrors the switch inside
+// InboundService.DelInboundClient so our pre-delete refund lookup uses
+// the same matching rules — guaranteeing we never miss a client the
+// service can actually find.
+func pickClientKey(protocol model.Protocol) string {
+	switch protocol {
+	case "trojan":
+		return "password"
+	case "shadowsocks":
+		return "email"
+	case "hysteria", "hysteria2":
+		return "auth"
+	default:
+		return "id"
+	}
+}
+
+// snapshotRefundForClient walks the inbound's settings JSON and computes
+// the refund for the client identified by `clientId`. Returns 0 if the
+// client can't be found or has an unlimited allocation. Errors are
+// swallowed — refund failures must never block the parent delete.
+func (a *InboundController) snapshotRefundForClient(inbound *model.Inbound, clientId string) int64 {
+	if inbound == nil || inbound.Settings == "" {
+		return 0
+	}
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		return 0
+	}
+	rawClients, ok := settings["clients"].([]any)
+	if !ok {
+		return 0
+	}
+	key := pickClientKey(inbound.Protocol)
+	for _, raw := range rawClients {
+		c, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		cid, _ := c[key].(string)
+		if cid != clientId {
+			continue
+		}
+		email, _ := c["email"].(string)
+		// totalGB may decode as float64 from JSON
+		var totalGB int64
+		switch v := c["totalGB"].(type) {
+		case float64:
+			totalGB = int64(v)
+		case int64:
+			totalGB = v
+		case int:
+			totalGB = int64(v)
+		}
+		if totalGB <= 0 {
+			return 0
+		}
+		var up, down int64
+		if t, _ := a.inboundService.GetClientTrafficByEmail(email); t != nil {
+			up, down = t.Up, t.Down
+		}
+		return computeClientRefund(totalGB, up, down)
+	}
+	return 0
+}
+
+// snapshotRefundForEmail is the email-keyed variant for
+// delInboundClientByEmail. Same logic, different match key.
+func (a *InboundController) snapshotRefundForEmail(inbound *model.Inbound, email string) int64 {
+	if inbound == nil || inbound.Settings == "" {
+		return 0
+	}
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		return 0
+	}
+	rawClients, ok := settings["clients"].([]any)
+	if !ok {
+		return 0
+	}
+	for _, raw := range rawClients {
+		c, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		clEmail, _ := c["email"].(string)
+		if clEmail != email {
+			continue
+		}
+		var totalGB int64
+		switch v := c["totalGB"].(type) {
+		case float64:
+			totalGB = int64(v)
+		case int64:
+			totalGB = v
+		case int:
+			totalGB = int64(v)
+		}
+		if totalGB <= 0 {
+			return 0
+		}
+		var up, down int64
+		if t, _ := a.inboundService.GetClientTrafficByEmail(email); t != nil {
+			up, down = t.Up, t.Down
+		}
+		return computeClientRefund(totalGB, up, down)
+	}
+	return 0
+}
+
+// snapshotRefundForAllClients sums per-client refunds for every client in
+// the inbound. Used by `delInbound` (whole inbound delete) — each client's
+// unused portion is summed and refunded to the owning reseller.
+func (a *InboundController) snapshotRefundForAllClients(inbound *model.Inbound) int64 {
+	if inbound == nil || inbound.Settings == "" {
+		return 0
+	}
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		return 0
+	}
+	rawClients, ok := settings["clients"].([]any)
+	if !ok {
+		return 0
+	}
+	var total int64
+	for _, raw := range rawClients {
+		c, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		var totalGB int64
+		switch v := c["totalGB"].(type) {
+		case float64:
+			totalGB = int64(v)
+		case int64:
+			totalGB = v
+		case int:
+			totalGB = int64(v)
+		}
+		if totalGB <= 0 {
+			continue
+		}
+		email, _ := c["email"].(string)
+		var up, down int64
+		if t, _ := a.inboundService.GetClientTrafficByEmail(email); t != nil {
+			up, down = t.Up, t.Down
+		}
+		total += computeClientRefund(totalGB, up, down)
+	}
+	return total
+}
+
+// applyRefund credits `bytes` back to the inbound owner's reseller quota.
+// No-op for non-reseller owners or zero/negative refunds. Errors are
+// intentionally swallowed (an out-of-sync quota is a less bad outcome
+// than rejecting the parent delete).
+func (a *InboundController) applyRefund(ownerId int, bytes int64) {
+	if ownerId <= 0 || bytes <= 0 {
+		return
+	}
+	owner, err := a.adminService.GetUserByID(ownerId)
+	if err != nil || owner == nil || owner.Role != model.RoleReseller {
+		return
+	}
+	_ = a.adminService.RefundUsage(owner, bytes)
+}
+
 // delInbound deletes an inbound configuration by its ID.
 func (a *InboundController) delInbound(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -297,46 +488,28 @@ func (a *InboundController) delInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), err)
 		return
 	}
-	// Capture the inbound owner BEFORE the delete so we can recompute their
-	// quota afterwards. Failures here are non-fatal — the worst case is the
-	// reseller doesn't get a refund.
+	// Snapshot owner + summed-refund-of-all-clients BEFORE the delete.
+	// Refund is the *unused* portion of every client's allocation — past
+	// consumed traffic stays as the reseller's debt (intentional billing
+	// model — see computeClientRefund).
 	var ownerId int
+	var refund int64
 	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
 		ownerId = ib.UserId
+		refund = a.snapshotRefundForAllClients(ib)
 	}
 	needRestart, err := a.inboundService.DelInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	// Authoritative refund path: instead of trying to pre-compute the refund
-	// (and risk missing it on a clientId/protocol mismatch), simply
-	// recalculate the owner's `traffic_used` from the remaining
-	// allocations. This is bulletproof — works for every protocol, every
-	// delete shape, every edge case. See AdminService.RecalculateResellerQuota.
-	a.reconcileOwnerQuota(ownerId)
+	a.applyRefund(ownerId, refund)
 	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), id, nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
 	}
 	user := session.GetLoginUser(c)
 	a.broadcastInboundsUpdate(user.Id)
-}
-
-// reconcileOwnerQuota auto-recomputes the inbound owner's reseller quota
-// from the ground up — invoked after every delete path so resellers never
-// see stale `traffic_used` numbers. No-op for non-reseller owners. Errors
-// are intentionally swallowed (we don't fail the parent operation; an
-// out-of-sync quota is a less bad outcome than rejecting a delete).
-func (a *InboundController) reconcileOwnerQuota(userId int) {
-	if userId <= 0 {
-		return
-	}
-	owner, err := a.adminService.GetUserByID(userId)
-	if err != nil || owner == nil || owner.Role != model.RoleReseller {
-		return
-	}
-	_, _, _ = a.adminService.RecalculateResellerQuota(owner, userId)
 }
 
 // updateInbound updates an existing inbound configuration.
@@ -635,13 +808,15 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 	}
 	clientId := c.Param("clientId")
 
-	// Capture the inbound's owner BEFORE the delete. After the delete
-	// succeeds we recompute their `traffic_used` from the remaining
-	// allocations — see reconcileOwnerQuota for why this is more reliable
-	// than pre-computing a refund.
+	// Snapshot the deleted client's unused-allocation BEFORE delete (the
+	// service-layer matching rules — protocol-keyed clientId — are mirrored
+	// inside snapshotRefundForClient so we never miss a client the service
+	// can actually find).
 	var ownerId int
+	var refund int64
 	if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
 		ownerId = ib.UserId
+		refund = a.snapshotRefundForClient(ib, clientId)
 	}
 
 	needRestart, err := a.inboundService.DelInboundClient(id, clientId)
@@ -649,7 +824,7 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	a.reconcileOwnerQuota(ownerId)
+	a.applyRefund(ownerId, refund)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientDeleteSuccess"), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -734,9 +909,27 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 			_ = a.adminService.AccumulateUsage(actor, delta)
 		} else if delta < 0 {
 			// Negative delta = reseller lowered the client's allocation.
-			// Reconcile so the freed bytes show up immediately as unused
-			// quota. Same authoritative recalc we use after every delete.
-			a.reconcileOwnerQuota(actor.Id)
+			// The freed bytes (capped at the unused portion of the OLD
+			// allocation — anything already consumed stays as debt) are
+			// refunded explicitly so the per-event accounting stays
+			// consistent.
+			var oldUp, oldDown int64
+			for _, oc := range oldClients {
+				if oc.ID == clientId || oc.Password == clientId || oc.Email == clientId || oc.Auth == clientId {
+					if t, _ := a.inboundService.GetClientTrafficByEmail(oc.Email); t != nil {
+						oldUp, oldDown = t.Up, t.Down
+					}
+					break
+				}
+			}
+			oldUnused := computeClientRefund(oldTotal, oldUp, oldDown)
+			refundAmt := -delta
+			if refundAmt > oldUnused {
+				refundAmt = oldUnused
+			}
+			if refundAmt > 0 {
+				_ = a.adminService.RefundUsage(actor, refundAmt)
+			}
 		}
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientUpdateSuccess"), nil)
 		if needRestart {
@@ -749,11 +942,6 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
-	}
-	// Non-reseller actor updating a reseller's client — still reconcile
-	// the owner so the change reflects in their quota immediately.
-	if oldInbound, oerr := a.inboundService.GetInbound(inbound.Id); oerr == nil && oldInbound != nil {
-		a.reconcileOwnerQuota(oldInbound.UserId)
 	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientUpdateSuccess"), nil)
 	if needRestart {
@@ -876,25 +1064,85 @@ func (a *InboundController) delDepletedClients(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
 		return
 	}
-	var ownerId int
+	// Snapshot depleted-client refunds BEFORE delete. A "depleted" client
+	// has consumed all (or more than) its allocated quota, so per the
+	// `max(0, totalGB - consumed)` formula the refund is 0 in the typical
+	// case. We still walk the list because some clients may be marked
+	// depleted via the disable flag rather than by exact byte-match.
+	type ibSnap struct {
+		ownerId int
+		refund  int64
+	}
+	var snaps []ibSnap
 	if id == -1 {
-		// id=-1 means delete depleted clients across ALL inbounds — we'd
-		// have to reconcile every reseller's quota. For now, scope the
-		// reconciliation to the actor (covers the reseller-deleting-own
-		// depleted-clients case correctly).
-		if u := session.GetLoginUser(c); u != nil {
-			ownerId = u.Id
+		// Across-all-inbounds variant. Walk every inbound to collect refunds
+		// grouped by owner, then apply them after the bulk delete succeeds.
+		ibs, _ := a.inboundService.GetAllInbounds()
+		for _, ib := range ibs {
+			if r := a.snapshotRefundForDepleted(ib); r > 0 {
+				snaps = append(snaps, ibSnap{ownerId: ib.UserId, refund: r})
+			}
 		}
 	} else if ib, ferr := a.inboundService.GetInbound(id); ferr == nil && ib != nil {
-		ownerId = ib.UserId
+		if r := a.snapshotRefundForDepleted(ib); r > 0 {
+			snaps = append(snaps, ibSnap{ownerId: ib.UserId, refund: r})
+		}
 	}
 	err = a.inboundService.DelDepletedClients(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	a.reconcileOwnerQuota(ownerId)
+	for _, s := range snaps {
+		a.applyRefund(s.ownerId, s.refund)
+	}
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.delDepletedClientsSuccess"), nil)
+}
+
+// snapshotRefundForDepleted sums unused-allocation refunds for clients
+// that the panel considers depleted (the same definition used by
+// DelDepletedClients: `client_traffics.up + down >= client.totalGB`).
+func (a *InboundController) snapshotRefundForDepleted(inbound *model.Inbound) int64 {
+	if inbound == nil || inbound.Settings == "" {
+		return 0
+	}
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		return 0
+	}
+	rawClients, ok := settings["clients"].([]any)
+	if !ok {
+		return 0
+	}
+	var total int64
+	for _, raw := range rawClients {
+		cl, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		var totalGB int64
+		switch v := cl["totalGB"].(type) {
+		case float64:
+			totalGB = int64(v)
+		case int64:
+			totalGB = v
+		case int:
+			totalGB = int64(v)
+		}
+		if totalGB <= 0 {
+			continue
+		}
+		email, _ := cl["email"].(string)
+		t, _ := a.inboundService.GetClientTrafficByEmail(email)
+		if t == nil {
+			continue
+		}
+		// "Depleted" matches service-layer DelDepletedClients criteria.
+		if t.Up+t.Down >= totalGB {
+			total += computeClientRefund(totalGB, t.Up, t.Down)
+		}
+	}
+	return total
 }
 
 // onlines retrieves the list of currently online clients.
@@ -945,8 +1193,10 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 	email := c.Param("email")
 
 	var ownerId int
+	var refund int64
 	if ib, ferr := a.inboundService.GetInbound(inboundId); ferr == nil && ib != nil {
 		ownerId = ib.UserId
+		refund = a.snapshotRefundForEmail(ib, email)
 	}
 
 	needRestart, err := a.inboundService.DelInboundClientByEmail(inboundId, email)
@@ -955,7 +1205,7 @@ func (a *InboundController) delInboundClientByEmail(c *gin.Context) {
 		return
 	}
 
-	a.reconcileOwnerQuota(ownerId)
+	a.applyRefund(ownerId, refund)
 	jsonMsg(c, "Client deleted successfully", nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()

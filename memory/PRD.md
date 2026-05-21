@@ -129,6 +129,31 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-02 — **FINAL: Per-event explicit refund (consumed = debt)**.
+  Switched back from auto-reconcile to explicit per-event accounting
+  per user clarification: "مصرف قبلی رو در نظر بگیرد" — past consumed
+  traffic should remain as the reseller's debt, only the *unused*
+  portion of a deleted client's allocation returns to the credit.
+  Implementation:
+    * `computeClientRefund(totalGB, up, down) = max(0, totalGB - up - down)`
+    * Three `snapshotRefundFor*` helpers in
+      `web/controller/inbound.go` parse the inbound settings JSON with
+      the same protocol-specific key lookup the service layer uses
+      (id / password / email / auth) so no client is missed.
+    * `delInboundClient`, `delInboundClientByEmail`, `delInbound`,
+      `delDepletedClients`, and the negative-delta branch of
+      `updateInboundClient` all pre-snapshot the refund amount and
+      call `applyRefund(ownerId, refund)` after the parent operation
+      succeeds. RefundUsage writes a `quota_refund` audit row.
+    * `addClient` already calls `AccumulateUsage` → bills the full
+      allocation immediately. Net effect:
+        - Add 5 GB client → `traffic_used += 5 GB`
+        - Client consumes 2 GB
+        - Delete client → `traffic_used -= 3 GB (unused refund)`
+        - Final state: `traffic_used += 2 GB` (the actual consumed
+          bandwidth — operator's bandwidth was real, so reseller pays).
+  End-to-end verified with the exact billing scenario above. AMD64
+  tarball rebuilt; new binary MD5 `78991507f759d8137a7549fe0eca0d0f`.
 - 2026-02 — **Automatic, instant reseller refund on delete (no admin button)**.
   Final design after user pushback: the manual "Recalculate Quota"
   button was removed; instead the controller transparently calls
