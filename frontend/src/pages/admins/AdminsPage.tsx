@@ -1,0 +1,355 @@
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  KeyOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
+
+import { HttpUtil } from '@/utils';
+
+const ROLES = ['super_admin', 'manager', 'reseller', 'readonly'] as const;
+type Role = (typeof ROLES)[number];
+
+interface AdminRow {
+  id: number;
+  username: string;
+  role: string;
+  allowedInbounds: string;
+}
+
+interface AuditRow {
+  id: number;
+  actor: string;
+  action: string;
+  target: string;
+  details: string;
+  createdAt: number;
+}
+
+interface InboundOption {
+  id: number;
+  remark: string;
+  protocol: string;
+  port: number;
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  super_admin: 'red',
+  manager: 'blue',
+  reseller: 'green',
+  readonly: 'default',
+};
+
+function csvToIds(csv: string): number[] {
+  if (!csv) return [];
+  return csv
+    .split(',')
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+interface FormValues {
+  username: string;
+  password?: string;
+  role: Role;
+  allowedInbounds: number[];
+}
+
+export default function AdminsPage() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+
+  const adminsQ = useQuery({
+    queryKey: ['admins'],
+    queryFn: async () => (await HttpUtil.get<AdminRow[]>('/panel/api/admin/list', undefined, { silent: true })).obj ?? [],
+  });
+  const auditQ = useQuery({
+    queryKey: ['adminAudit'],
+    queryFn: async () => (await HttpUtil.get<AuditRow[]>('/panel/api/admin/auditLog', undefined, { silent: true })).obj ?? [],
+  });
+  const inboundsQ = useQuery({
+    queryKey: ['inboundOptions'],
+    queryFn: async () => (await HttpUtil.get<InboundOption[]>('/panel/api/inbounds/options', undefined, { silent: true })).obj ?? [],
+  });
+
+  const inboundOptions = useMemo(
+    () =>
+      (inboundsQ.data ?? []).map((ib) => ({
+        value: ib.id,
+        label: `#${ib.id} · ${ib.remark || ib.protocol} (:${ib.port})`,
+      })),
+    [inboundsQ.data],
+  );
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['admins'] });
+    qc.invalidateQueries({ queryKey: ['adminAudit'] });
+  };
+
+  // ---- create / edit modal state ----
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<AdminRow | null>(null);
+  const [form] = Form.useForm<FormValues>();
+  const watchRole = Form.useWatch('role', form);
+
+  const openAdd = () => {
+    setEditing(null);
+    form.resetFields();
+    form.setFieldsValue({ role: 'manager', allowedInbounds: [] });
+    setModalOpen(true);
+  };
+  const openEdit = (row: AdminRow) => {
+    setEditing(row);
+    form.setFieldsValue({
+      username: row.username,
+      role: row.role as Role,
+      allowedInbounds: csvToIds(row.allowedInbounds),
+    });
+    setModalOpen(true);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      const allowed = values.role === 'reseller' ? (values.allowedInbounds ?? []).join(',') : '';
+      if (editing) {
+        return HttpUtil.post(`/panel/api/admin/update/${editing.id}`, {
+          username: values.username,
+          role: values.role,
+          allowedInbounds: allowed,
+        });
+      }
+      return HttpUtil.post('/panel/api/admin/add', {
+        username: values.username,
+        password: values.password,
+        role: values.role,
+        allowedInbounds: allowed,
+      });
+    },
+    onSuccess: (res) => {
+      if (res.success) {
+        setModalOpen(false);
+        refresh();
+      }
+    },
+  });
+
+  // ---- reset password modal ----
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwTarget, setPwTarget] = useState<AdminRow | null>(null);
+  const [pwForm] = Form.useForm<{ password: string }>();
+  const openResetPw = (row: AdminRow) => {
+    setPwTarget(row);
+    pwForm.resetFields();
+    setPwOpen(true);
+  };
+  const resetPwMutation = useMutation({
+    mutationFn: async (values: { password: string }) => {
+      if (!pwTarget) return null;
+      return HttpUtil.post(`/panel/api/admin/resetPassword/${pwTarget.id}`, { password: values.password });
+    },
+    onSuccess: (res) => {
+      if (res?.success) {
+        setPwOpen(false);
+        refresh();
+      }
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => HttpUtil.post(`/panel/api/admin/delete/${id}`),
+    onSuccess: () => refresh(),
+  });
+
+  const roleLabel = (r: string) => t(`pages.admins.roles.${r}`, r);
+
+  const columns: ColumnsType<AdminRow> = [
+    { title: 'ID', dataIndex: 'id', width: 70 },
+    { title: t('pages.admins.username'), dataIndex: 'username' },
+    {
+      title: t('pages.admins.role'),
+      dataIndex: 'role',
+      render: (role: string) => <Tag color={ROLE_COLORS[role] ?? 'default'}>{roleLabel(role)}</Tag>,
+    },
+    {
+      title: t('pages.admins.allowedInbounds'),
+      dataIndex: 'allowedInbounds',
+      render: (csv: string, row: AdminRow) =>
+        row.role === 'reseller'
+          ? csvToIds(csv).length > 0
+            ? csvToIds(csv).map((id) => <Tag key={id}>#{id}</Tag>)
+            : <Typography.Text type="secondary">{t('pages.admins.noInbound')}</Typography.Text>
+          : <Typography.Text type="secondary">—</Typography.Text>,
+    },
+    {
+      title: t('pages.admins.actions'),
+      key: 'actions',
+      width: 220,
+      render: (_: unknown, row: AdminRow) => (
+        <Space wrap>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
+            {t('edit')}
+          </Button>
+          <Button size="small" icon={<KeyOutlined />} onClick={() => openResetPw(row)}>
+            {t('pages.admins.resetPassword')}
+          </Button>
+          <Popconfirm
+            title={t('pages.admins.confirmDelete')}
+            onConfirm={() => deleteMutation.mutate(row.id)}
+            okText={t('confirm')}
+            cancelText={t('cancel')}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />}>
+              {t('delete')}
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  const auditColumns: ColumnsType<AuditRow> = [
+    {
+      title: t('pages.admins.when'),
+      dataIndex: 'createdAt',
+      width: 200,
+      render: (ms: number) => (ms ? new Date(ms).toLocaleString() : '—'),
+    },
+    { title: t('pages.admins.actor'), dataIndex: 'actor', render: (v: string) => v || '—' },
+    { title: t('pages.admins.action'), dataIndex: 'action', render: (v: string) => <Tag>{v}</Tag> },
+    { title: t('pages.admins.target'), dataIndex: 'target', render: (v: string) => v || '—' },
+    { title: t('pages.admins.details'), dataIndex: 'details', render: (v: string) => v || '—' },
+  ];
+
+  return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card
+        title={
+          <div>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              {t('pages.admins.title')}
+            </Typography.Title>
+            <Typography.Text type="secondary">{t('pages.admins.subtitle')}</Typography.Text>
+          </div>
+        }
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={refresh}>
+              {t('pages.admins.refresh')}
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
+              {t('pages.admins.addAdmin')}
+            </Button>
+          </Space>
+        }
+      >
+        <Table<AdminRow>
+          rowKey="id"
+          size="middle"
+          loading={adminsQ.isLoading}
+          dataSource={adminsQ.data ?? []}
+          columns={columns}
+          pagination={false}
+          scroll={{ x: 'max-content' }}
+        />
+      </Card>
+
+      <Card title={t('pages.admins.auditLog')}>
+        <Table<AuditRow>
+          rowKey="id"
+          size="small"
+          loading={auditQ.isLoading}
+          dataSource={auditQ.data ?? []}
+          columns={auditColumns}
+          pagination={{ pageSize: 20, hideOnSinglePage: true }}
+          scroll={{ x: 'max-content' }}
+        />
+      </Card>
+
+      <Modal
+        title={editing ? t('pages.admins.editAdmin') : t('pages.admins.addAdmin')}
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={() => form.submit()}
+        confirmLoading={saveMutation.isPending}
+        okText={t('confirm')}
+        cancelText={t('cancel')}
+        destroyOnHidden
+      >
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} preserve={false}>
+          <Form.Item
+            name="username"
+            label={t('pages.admins.username')}
+            rules={[{ required: true }]}
+          >
+            <Input autoComplete="off" />
+          </Form.Item>
+          {!editing && (
+            <Form.Item
+              name="password"
+              label={t('pages.admins.password')}
+              rules={[{ required: true }]}
+            >
+              <Input.Password autoComplete="new-password" />
+            </Form.Item>
+          )}
+          <Form.Item name="role" label={t('pages.admins.role')} rules={[{ required: true }]}>
+            <Select
+              options={ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
+            />
+          </Form.Item>
+          {watchRole === 'reseller' && (
+            <Form.Item
+              name="allowedInbounds"
+              label={t('pages.admins.allowedInbounds')}
+              extra={t('pages.admins.allowedInboundsDesc')}
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder={t('pages.admins.selectInbounds')}
+                options={inboundOptions}
+                loading={inboundsQ.isLoading}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+          )}
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`${t('pages.admins.resetPassword')}${pwTarget ? ` — ${pwTarget.username}` : ''}`}
+        open={pwOpen}
+        onCancel={() => setPwOpen(false)}
+        onOk={() => pwForm.submit()}
+        confirmLoading={resetPwMutation.isPending}
+        okText={t('confirm')}
+        cancelText={t('cancel')}
+        destroyOnHidden
+      >
+        <Form form={pwForm} layout="vertical" onFinish={(v) => resetPwMutation.mutate(v)} preserve={false}>
+          <Form.Item name="password" label={t('pages.admins.newPassword')} rules={[{ required: true }]}>
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}

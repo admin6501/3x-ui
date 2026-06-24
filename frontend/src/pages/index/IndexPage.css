@@ -1,0 +1,56 @@
+@media (max-width: 768px) {
+  .index-page .content-area {
+    padding: 12px;
+    padding-top: 64px;
+  }
+}
+
+.index-page .action {
+  cursor: pointer;
+  justify-content: center;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.index-page .action > span:not(.anticon):not(.tg-icon) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.index-page .action-update {
+  color: var(--ant-color-warning);
+  font-weight: 600;
+}
+
+.index-page .action-update .anticon {
+  color: var(--ant-color-warning);
+}
+
+.index-page .history-tag {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-end: 0;
+}
+
+.index-page .tg-icon {
+  display: inline-block;
+  vertical-align: -2px;
+}
+
+.index-page .ip-toggle-icon {
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.index-page .ip-hidden .ant-statistic-content-value {
+  filter: blur(6px);
+  transition: filter 0.2s ease;
+}
+
+.index-page .ip-visible .ant-statistic-content-value {
+  filter: none;
+}

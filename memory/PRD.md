@@ -129,6 +129,68 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-06 — **Re-fork onto upstream v3.4.0 + re-implement the RBAC "admin
+  manager" feature in the new architecture**. Upstream MHSanaei/3x-ui jumped
+  from the fork base (2.9.4) to **v3.4.0**, which is a full rewrite:
+    * Go code moved from `web/` + `database/` to `internal/...` and the module
+      path changed `…/v2` → `…/v3`.
+    * The server-rendered Vue-in-Go-template UI was replaced by a compiled
+      **React 19 + Ant Design 6 + Vite 8 + TypeScript + TanStack Query + zod**
+      SPA under `frontend/src/`, embedded into the binary via `internal/web/dist`.
+  Because of this, the old `admins.html`-based feature could not be re-applied
+  as a patch — it was re-implemented from scratch on the new stack:
+    * Backend (Go, `internal/`):
+        - `internal/database/model/model.go` — Role constants
+          (super_admin/manager/reseller/readonly), `User.Role`,
+          `User.AllowedInbounds`, `AdminAuditLog` model.
+        - `internal/database/db.go` — AdminAuditLog migration + default-admin
+          role + repair-on-startup backfill of empty roles → super_admin.
+        - `internal/web/session/session.go` — `HasRole`/`IsSuperAdmin`/`CanWrite`.
+        - `internal/web/controller/base.go` — `requireRole`/`requireSuperAdmin`/
+          `guardWriteMethods` middlewares.
+        - `internal/web/controller/access.go` (new) — reseller inbound scoping
+          (`filterInboundsForRole`, `filterInboundOptionsForRole`,
+          `scopeInboundParam`, `rejectReseller`, `enforceInboundScope`).
+        - `internal/web/controller/admin.go` (new) + `internal/web/service/admin.go`
+          (new) — admin CRUD + audit log, mounted at `/panel/api/admin/*`
+          (super_admin only).
+        - `internal/web/controller/api.go` — mounts admin group, applies
+          `guardWriteMethods` (readonly = no writes) on `/panel/api`, gates
+          xray-settings to super_admin.
+        - `internal/web/controller/setting.go` — gates update/restartPanel/
+          apiTokens*/testSmtp/testTgBot to super_admin.
+        - `internal/web/controller/inbound.go` — reseller list filtering +
+          per-:id scope guards + reject create/import/bulkDel/resetAll.
+        - `internal/web/controller/dist.go` — injects `window.X_UI_ROLE` into
+          the SPA shell so the frontend can hide role-gated UI.
+        - `internal/web/controller/spa.go` — serves the `/panel/admins` route.
+    * Frontend (React/TS):
+        - `frontend/src/pages/admins/AdminsPage.tsx` (new) — antd Table + modals
+          for add/edit/reset-password/delete + audit-log table, TanStack Query.
+        - `frontend/src/routes.tsx` — `/admins` route.
+        - `frontend/src/layouts/AppSidebar.tsx` — "Admins" menu item, shown
+          only when `window.X_UI_ROLE === 'super_admin'`.
+        - `frontend/src/env.d.ts` — `X_UI_ROLE` global typing.
+        - `internal/web/translation/{en-US,fa-IR}.json` — `menu.admins` +
+          `pages.admins.*` strings (other locales fall back to en-US).
+  Extra port (per user request, excluding sub-page branding):
+    * `internal/web/job/xray_traffic_job.go` — when `restartXrayOnClientDisable`
+      is explicitly false, schedule a deferred restart (`SetToNeedRestart`)
+      instead of doing nothing, so over-quota/expired clients are disconnected
+      on the next cron tick rather than proxying until a manual restart.
+    * NOTE: WireGuard subscription-link export is already native in v3.4.0
+      (`internal/sub/service.go`), so it was NOT re-ported.
+  Distribution (3b): `install.sh`, `update.sh`, `x-ui.sh` download/release URLs
+  and the top-level install command in all 7 READMEs now point at
+  `admin6501/3x-ui` (branch `main`); badges/wiki/attribution left upstream.
+  Verified end-to-end against a running binary on :2053: super_admin lists/
+  creates/audits admins (allowedInbounds normalized & deduped), reseller is
+  403'd on admin + inbound-create and sees a filtered inbound list, readonly
+  can GET but is 403'd on writes; `go vet` clean, frontend typecheck/lint/build
+  clean, full Go binary builds (CGO sqlite) and boots.
+  PENDING: offline installer + prebuilt offline tarball (`install_offline.sh`
+  / `offline/*`) for air-gapped VPS were NOT rebuilt yet (arch-specific,
+  ~71 MB bundle incl. xray-core + geo). Needs target-arch confirmation.
 - 2026-02 — **Revert: reseller traffic-quota feature removed (per user request)**.
   All code introduced by commit `5986b201` (feat reseller-quota) and
   every follow-up patch on top of it was restored to the pre-feature

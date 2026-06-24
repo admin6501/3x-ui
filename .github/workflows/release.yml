@@ -8,58 +8,27 @@ on:
     tags:
       - "v*.*.*"
     paths:
-      - "**.js"
-      - "**.css"
-      - "**.html"
-      - "**.sh"
       - "**.go"
       - "go.mod"
       - "go.sum"
+      - "**.sh"
+      - "frontend/**"
       - "x-ui.service.debian"
       - "x-ui.service.arch"
       - "x-ui.service.rhel"
   pull_request:
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "**.sh"
+      - "frontend/**"
+      - "x-ui.service.debian"
+      - "x-ui.service.arch"
+      - "x-ui.service.rhel"
 
 jobs:
-  analyze:
-    name: Analyze Go code
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Check formatting
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "These files are not gofmt-formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Run staticcheck
-        uses: dominikh/staticcheck-action@v1
-        with:
-          version: "latest"
-          install-go: false
-
-      - name: Run tests
-        run: go test -race -shuffle=on ./...
-
   build:
-    needs: analyze
     permissions:
       contents: write
     strategy:
@@ -75,13 +44,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           check-latest: true
+
+      # Frontend dist must be built BEFORE go build — Go's //go:embed
+      # all:dist directive in internal/web/web.go requires internal/web/dist/ to exist
+      # at compile time. internal/web/dist/ is .gitignored, so on a fresh CI
+      # checkout it doesn't exist until vite emits it.
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend bundle
+        run: |
+          npm ci
+          npm run build
+        working-directory: frontend
 
       - name: Build 3X-UI
         run: |
@@ -126,7 +112,7 @@ jobs:
           cd x-ui/bin
 
           # Download dependencies
-          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v26.4.25/"
+          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v26.6.22/"
           if [ "${{ matrix.platform }}" == "amd64" ]; then
             wget -q ${Xray_URL}Xray-linux-64.zip
             unzip Xray-linux-64.zip
@@ -164,6 +150,16 @@ jobs:
           wget -q -O geoip_RU.dat https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat
           wget -q -O geosite_RU.dat https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat
           mv xray xray-linux-${{ matrix.platform }}
+          # mtg (MTProto sidecar) - only for arches mtg publishes
+          MTG_VER="2.2.8"
+          case "${{ matrix.platform }}" in
+            amd64|arm64|armv7|armv6|386)
+              wget -q "https://github.com/9seconds/mtg/releases/download/v${MTG_VER}/mtg-${MTG_VER}-linux-${{ matrix.platform }}.tar.gz"
+              tar -xzf "mtg-${MTG_VER}-linux-${{ matrix.platform }}.tar.gz"
+              mv "mtg-${MTG_VER}-linux-${{ matrix.platform }}/mtg" "mtg-linux-${{ matrix.platform }}" 2>/dev/null || mv mtg "mtg-linux-${{ matrix.platform }}"
+              rm -rf "mtg-${MTG_VER}-linux-${{ matrix.platform }}" "mtg-${MTG_VER}-linux-${{ matrix.platform }}.tar.gz"
+              ;;
+          esac
           cd ../..
 
       - name: Package
@@ -191,7 +187,6 @@ jobs:
   # =================================
   build-windows:
     name: Build for Windows
-    needs: analyze
     permissions:
       contents: write
     strategy:
@@ -201,13 +196,30 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           check-latest: true
+
+      # Frontend dist must be built BEFORE go build — see comment on the
+      # Linux job above. This step is identical except npm runs on the
+      # Windows runner here.
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend bundle
+        shell: pwsh
+        run: |
+          npm ci
+          npm run build
+        working-directory: frontend
 
       - name: Install MSYS2
         uses: msys2/setup-msys2@v2
@@ -244,7 +256,7 @@ jobs:
           cd x-ui\bin
 
           # Download Xray for Windows
-          $Xray_URL = "https://github.com/XTLS/Xray-core/releases/download/v26.4.25/"
+          $Xray_URL = "https://github.com/XTLS/Xray-core/releases/download/v26.6.22/"
           Invoke-WebRequest -Uri "${Xray_URL}Xray-windows-64.zip" -OutFile "Xray-windows-64.zip"
           Expand-Archive -Path "Xray-windows-64.zip" -DestinationPath .
           Remove-Item "Xray-windows-64.zip"
@@ -256,6 +268,15 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat" -OutFile "geoip_RU.dat"
           Invoke-WebRequest -Uri "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat" -OutFile "geosite_RU.dat"
           Rename-Item xray.exe xray-windows-amd64.exe
+
+          # Download mtg (MTProto sidecar) for Windows
+          $MTG_VER = "2.2.8"
+          Invoke-WebRequest -Uri "https://github.com/9seconds/mtg/releases/download/v$MTG_VER/mtg-$MTG_VER-windows-amd64.zip" -OutFile "mtg-windows-amd64.zip"
+          Expand-Archive -Path "mtg-windows-amd64.zip" -DestinationPath "mtg-tmp"
+          $mtgExe = Get-ChildItem -Path "mtg-tmp" -Recurse -Filter "mtg.exe" | Select-Object -First 1
+          Move-Item $mtgExe.FullName "mtg-windows-amd64.exe"
+          Remove-Item "mtg-windows-amd64.zip", "mtg-tmp" -Recurse -Force
+
           cd ..
           Copy-Item -Path ..\windows_files\* -Destination . -Recurse
           cd ..

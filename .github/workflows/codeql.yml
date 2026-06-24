@@ -2,9 +2,21 @@ name: "CodeQL Advanced"
 
 on:
   push:
+    branches:
+      - main
     tags-ignore:
       - "v*"
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "frontend/**"
   pull_request:
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "frontend/**"
   schedule:
     - cron: "18 2 * * 2"
 
@@ -33,7 +45,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        if: matrix.language == 'go'
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend bundle
+        if: matrix.language == 'go'
+        run: |
+          npm ci
+          npm run build
+        working-directory: frontend
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
