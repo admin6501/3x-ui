@@ -54,3 +54,8 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Emergent platform / development scratch files (not part of the product)
+memory/
+test_reports/
+test_result.md
