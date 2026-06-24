@@ -81,10 +81,13 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/pushClientTraffics", a.pushClientTraffics)
 }
 
-// getInbounds retrieves the list of inbounds for the logged-in user.
+// getInbounds retrieves the inbounds visible to the logged-in admin. Inbounds
+// are panel-global (their owner user_id is vestigial), so we fetch all of them
+// (userId 0 = no ownership filter) and let filterInboundsForRole() scope the
+// result to a reseller's AllowedInbounds. Without this, a freshly-created
+// reseller/manager (whose own user_id owns no inbounds) would see an empty list.
 func (a *InboundController) getInbounds(c *gin.Context) {
-	user := session.GetLoginUser(c)
-	inbounds, err := a.inboundService.GetInbounds(user.Id)
+	inbounds, err := a.inboundService.GetInbounds(0)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return
@@ -95,8 +98,7 @@ func (a *InboundController) getInbounds(c *gin.Context) {
 // getInboundsSlim is the list-page variant that strips full client
 // payloads from settings.clients[]. Detail-view flows still use /get/:id.
 func (a *InboundController) getInboundsSlim(c *gin.Context) {
-	user := session.GetLoginUser(c)
-	inbounds, err := a.inboundService.GetInboundsSlim(user.Id)
+	inbounds, err := a.inboundService.GetInboundsSlim(0)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return
@@ -108,8 +110,7 @@ func (a *InboundController) getInboundsSlim(c *gin.Context) {
 // (id, remark, protocol, port, tlsFlowCapable) for pickers in the clients UI.
 // Avoids shipping per-client settings and traffic stats just to fill a dropdown.
 func (a *InboundController) getInboundOptions(c *gin.Context) {
-	user := session.GetLoginUser(c)
-	options, err := a.inboundService.GetInboundOptions(user.Id)
+	options, err := a.inboundService.GetInboundOptions(0)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return

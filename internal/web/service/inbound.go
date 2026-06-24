@@ -152,7 +152,14 @@ func normalizeInboundShareAddressColumns(tx *gorm.DB) error {
 func (s *InboundService) GetInbounds(userId int) ([]*model.Inbound, error) {
 	db := database.GetDB()
 	var inbounds []*model.Inbound
-	err := db.Model(model.Inbound{}).Preload("ClientStats").Where("user_id = ?", userId).Order("id ASC").Find(&inbounds).Error
+	// userId <= 0 means "no ownership filter" — used by the RBAC list endpoints
+	// so every admin role sees panel-wide inbounds (reseller scoping is applied
+	// afterwards in the controller). userId > 0 keeps the legacy per-owner filter.
+	q := db.Model(model.Inbound{}).Preload("ClientStats")
+	if userId > 0 {
+		q = q.Where("user_id = ?", userId)
+	}
+	err := q.Order("id ASC").Find(&inbounds).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
@@ -195,7 +202,11 @@ func (s *InboundService) annotateLocalOriginGuid(inbounds []*model.Inbound) {
 func (s *InboundService) GetInboundsSlim(userId int) ([]*model.Inbound, error) {
 	db := database.GetDB()
 	var inbounds []*model.Inbound
-	err := db.Model(model.Inbound{}).Preload("ClientStats").Where("user_id = ?", userId).Order("id ASC").Find(&inbounds).Error
+	q := db.Model(model.Inbound{}).Preload("ClientStats")
+	if userId > 0 {
+		q = q.Where("user_id = ?", userId)
+	}
+	err := q.Order("id ASC").Find(&inbounds).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
@@ -314,10 +325,12 @@ func (s *InboundService) GetInboundOptions(userId int) ([]InboundOption, error) 
 		Settings       string `gorm:"column:settings"`
 		NodeId         *int   `gorm:"column:node_id"`
 	}
-	err := db.Table("inbounds").
-		Select("id, remark, tag, protocol, port, stream_settings, settings, node_id").
-		Where("user_id = ?", userId).
-		Order("id ASC").
+	q := db.Table("inbounds").
+		Select("id, remark, tag, protocol, port, stream_settings, settings, node_id")
+	if userId > 0 {
+		q = q.Where("user_id = ?", userId)
+	}
+	err := q.Order("id ASC").
 		Scan(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err

@@ -119,23 +119,38 @@ export default function AppSidebar() {
 
   const currentTheme: 'light' | 'dark' = isDark ? 'dark' : 'light';
   const panelVersion = window.X_UI_CUR_VER || '';
-  const isSuperAdmin = ((typeof window !== 'undefined' && window.X_UI_ROLE) || 'super_admin') === 'super_admin';
+  const role = (typeof window !== 'undefined' && window.X_UI_ROLE) || 'super_admin';
+  const isSuperAdmin = role === 'super_admin';
 
-  const tabs = useMemo<{ key: string; icon: IconName; title: string }[]>(() => [
-    { key: '/', icon: 'dashboard', title: t('menu.dashboard') },
-    { key: '/inbounds', icon: 'inbound', title: t('menu.inbounds') },
-    { key: '/clients', icon: 'team', title: t('menu.clients') },
-    { key: '/groups', icon: 'groups', title: t('menu.groups') },
-    { key: '/nodes', icon: 'cluster', title: t('menu.nodes') },
-    { key: '/hosts', icon: 'hosts', title: t('menu.hosts') },
-    { key: '/outbound', icon: 'outbound', title: t('menu.outbounds') },
-    { key: '/routing', icon: 'routing', title: t('menu.routing') },
-    { key: '/settings', icon: 'setting', title: t('menu.settings') },
-    { key: '/xray', icon: 'tool', title: t('menu.xray') },
-    ...(isSuperAdmin ? [{ key: '/admins', icon: 'admins' as IconName, title: t('menu.admins') }] : []),
-    { key: '/api-docs', icon: 'apidocs', title: t('menu.apiDocs') },
-    { key: LOGOUT_KEY, icon: 'logout', title: t('logout') },
-  ], [t, isSuperAdmin]);
+  const tabs = useMemo<{ key: string; icon: IconName; title: string }[]>(() => {
+    const all: { key: string; icon: IconName; title: string }[] = [
+      { key: '/', icon: 'dashboard', title: t('menu.dashboard') },
+      { key: '/inbounds', icon: 'inbound', title: t('menu.inbounds') },
+      { key: '/clients', icon: 'team', title: t('menu.clients') },
+      { key: '/groups', icon: 'groups', title: t('menu.groups') },
+      { key: '/nodes', icon: 'cluster', title: t('menu.nodes') },
+      { key: '/hosts', icon: 'hosts', title: t('menu.hosts') },
+      { key: '/outbound', icon: 'outbound', title: t('menu.outbounds') },
+      { key: '/routing', icon: 'routing', title: t('menu.routing') },
+      { key: '/settings', icon: 'setting', title: t('menu.settings') },
+      { key: '/xray', icon: 'tool', title: t('menu.xray') },
+      { key: '/admins', icon: 'admins', title: t('menu.admins') },
+      { key: '/api-docs', icon: 'apidocs', title: t('menu.apiDocs') },
+      { key: LOGOUT_KEY, icon: 'logout', title: t('logout') },
+    ];
+    // super_admin sees everything. Other roles see only a role-appropriate
+    // subset (logout is always available). settings / xray / nodes / admins are
+    // super_admin-only and are also gated on the backend; a reseller is scoped
+    // down to just their assigned inbounds.
+    if (isSuperAdmin) return all;
+    const allowedByRole: Record<string, string[]> = {
+      manager: ['/', '/inbounds', '/clients', '/groups', '/hosts', '/api-docs'],
+      readonly: ['/', '/inbounds', '/clients', '/groups', '/hosts', '/api-docs'],
+      reseller: ['/', '/inbounds'],
+    };
+    const allowed = allowedByRole[role] ?? ['/'];
+    return all.filter((tab) => tab.key === LOGOUT_KEY || allowed.includes(tab.key));
+  }, [t, role, isSuperAdmin]);
 
   const navItems = useMemo(() => tabs.filter((tab) => tab.icon !== 'logout'), [tabs]);
   const utilItems = useMemo(() => tabs.filter((tab) => tab.icon === 'logout'), [tabs]);
