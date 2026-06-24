@@ -129,6 +129,29 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-06 — **Fork rebranding: remove donate button + point panel update-check at the fork**.
+    * Removed the "Donate" (حمایت مالی) button from the dashboard sidebar:
+      dropped `DonateButton`, `DONATE_URL`, the two usages and the now-unused
+      `HeartOutlined` import in `frontend/src/layouts/AppSidebar.tsx` (the
+      `menu.donate` translation key is left in place, harmless/unused).
+    * Panel "latest release" / update check now reads the FORK's releases:
+      `internal/web/service/panel/panel.go` — `panelUpdaterURL` →
+      `raw.githubusercontent.com/admin6501/3x-ui/main/update.sh` and
+      `fetchLatestPanelVersion` → `api.github.com/repos/admin6501/3x-ui/releases/latest`.
+      The dashboard "view releases" link (`IndexPage.tsx`) and the sidebar
+      version-badge repo link (`AppSidebar.tsx` REPO_URL) → `github.com/admin6501/3x-ui`.
+      (The custom-subscription-templates docs link in SubscriptionGeneralTab
+      still points at upstream docs — left intentionally as attribution.)
+    * Rebuilt the frontend (donate gone, admin6501 links present in dist) and
+      the amd64 binary; regenerated `offline/x-ui-linux-amd64.tar.gz` (75 MB).
+      Verified live under qemu: panel boots, login works, and
+      `/panel/api/server/getPanelUpdateInfo` returned `latestVersion: v3.4.0`
+      fetched from the user's own admin6501 release (updateAvailable=false).
+    * Added `.github/workflows/attach-offline-asset.yml`: a GitHub Actions
+      workflow (manual `workflow_dispatch` + on release publish/edit) that
+      attaches the committed `offline/x-ui-linux-amd64.tar.gz` to a release as a
+      downloadable asset using the built-in GITHUB_TOKEN — lets the online
+      install.sh work without uploading the 75 MB file from a slow local link.
 - 2026-06 — **Re-fork onto upstream v3.4.0 + re-implement the RBAC "admin
   manager" feature in the new architecture**. Upstream MHSanaei/3x-ui jumped
   from the fork base (2.9.4) to **v3.4.0**, which is a full rewrite:
