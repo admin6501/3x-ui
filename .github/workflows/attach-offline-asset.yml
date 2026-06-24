@@ -1,0 +1,74 @@
+name: Attach offline bundle to release
+
+# Why this exists:
+# The online installer (install.sh) downloads a prebuilt binary tarball from a
+# GitHub *release* asset. The prebuilt amd64 bundle is already committed in the
+# repo at offline/x-ui-linux-amd64.tar.gz, but a release needs it attached as an
+# *asset*. Uploading a 75 MB file from a slow local connection is painful, so
+# this workflow does it entirely on GitHub's servers: it reads the tarball that
+# is already in the repo and attaches it to the release via the built-in
+# GITHUB_TOKEN. Zero upload from your machine.
+#
+# How to use:
+#   1. In your fork, open the "Actions" tab and enable workflows (forks have
+#      them disabled by default).
+#   2. Run this workflow manually: Actions -> "Attach offline bundle to release"
+#      -> "Run workflow" -> enter the release tag (e.g. v3.4.0) -> Run.
+#   It also runs automatically whenever you publish/edit a release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the offline bundle to (e.g. v3.4.0)"
+        required: true
+        default: "v3.4.0"
+  release:
+    types: [published, edited]
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (includes the committed offline tarball)
+        uses: actions/checkout@v4
+
+      - name: Resolve target tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify the bundle exists in the repo
+        run: |
+          set -e
+          f="offline/x-ui-linux-amd64.tar.gz"
+          if [ ! -f "$f" ]; then
+            echo "::error::$f not found in the repository. Make sure it was pushed."
+            exit 1
+          fi
+          ls -lh "$f"
+          # Sanity check: must be a real gzip, not a Git LFS pointer.
+          head -c 2 "$f" | od -An -tx1 | grep -q "1f 8b" || {
+            echo "::error::$f does not look like a gzip file (LFS pointer?)."
+            exit 1
+          }
+
+      - name: Upload bundle as a release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          echo "Attaching offline/x-ui-linux-amd64.tar.gz to release $TAG ..."
+          gh release upload "$TAG" \
+            "offline/x-ui-linux-amd64.tar.gz" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+          echo "Done. install.sh can now download x-ui-linux-amd64.tar.gz from release $TAG."
