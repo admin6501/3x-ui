@@ -58,17 +58,17 @@ func (a *ClientController) initRouter(g *gin.RouterGroup) {
 	g.POST("/:email/attach", a.attach)
 	g.POST("/:email/detach", a.detach)
 	g.POST("/:email/externalLinks", a.setExternalLinks)
-	g.GET("/export", a.export)
-	g.POST("/import", a.importClients)
-	g.POST("/delOrphans", a.delOrphans)
-	g.POST("/resetAllTraffics", a.resetAllTraffics)
-	g.POST("/delDepleted", a.delDepleted)
-	g.POST("/bulkAdjust", a.bulkAdjust)
-	g.POST("/bulkDel", a.bulkDelete)
-	g.POST("/bulkCreate", a.bulkCreate)
-	g.POST("/bulkAttach", a.bulkAttach)
-	g.POST("/bulkDetach", a.bulkDetach)
-	g.POST("/bulkResetTraffic", a.bulkResetTraffic)
+	g.GET("/export", rejectReseller, a.export)
+	g.POST("/import", rejectReseller, a.importClients)
+	g.POST("/delOrphans", rejectReseller, a.delOrphans)
+	g.POST("/resetAllTraffics", rejectReseller, a.resetAllTraffics)
+	g.POST("/delDepleted", rejectReseller, a.delDepleted)
+	g.POST("/bulkAdjust", rejectReseller, a.bulkAdjust)
+	g.POST("/bulkDel", rejectReseller, a.bulkDelete)
+	g.POST("/bulkCreate", rejectReseller, a.bulkCreate)
+	g.POST("/bulkAttach", rejectReseller, a.bulkAttach)
+	g.POST("/bulkDetach", rejectReseller, a.bulkDetach)
+	g.POST("/bulkResetTraffic", rejectReseller, a.bulkResetTraffic)
 	g.POST("/resetTraffic/:email", a.resetTrafficByEmail)
 	g.POST("/updateTraffic/:email", a.updateTrafficByEmail)
 	g.POST("/ips/:email", a.getIps)
@@ -86,7 +86,7 @@ func (a *ClientController) list(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return
 	}
-	jsonObj(c, rows, nil)
+	jsonObj(c, filterClientsForRole(c, rows), nil)
 }
 
 func (a *ClientController) listPaged(c *gin.Context) {
@@ -94,6 +94,10 @@ func (a *ClientController) listPaged(c *gin.Context) {
 	if err := c.ShouldBindQuery(&params); err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return
+	}
+	if ids, isReseller := resellerInboundSlice(c); isReseller {
+		params.Restricted = true
+		params.RestrictInbounds = ids
 	}
 	resp, err := a.clientService.ListPaged(&a.inboundService, &a.settingService, params)
 	if err != nil {
@@ -105,6 +109,9 @@ func (a *ClientController) listPaged(c *gin.Context) {
 
 func (a *ClientController) get(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	rec, err := a.clientService.GetRecordByEmail(nil, email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "get"), err)
@@ -142,6 +149,9 @@ func (a *ClientController) create(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	if !guardInboundIdsScope(c, payload.InboundIds) {
+		return
+	}
 	needRestart, err := a.clientService.Create(&a.inboundService, &payload)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -156,6 +166,9 @@ func (a *ClientController) create(c *gin.Context) {
 
 func (a *ClientController) update(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	var updated model.Client
 	if err := c.ShouldBindJSON(&updated); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -176,6 +189,9 @@ func (a *ClientController) update(c *gin.Context) {
 
 func (a *ClientController) delete(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	keepTraffic := c.Query("keepTraffic") == "1"
 	needRestart, err := a.clientService.DeleteByEmail(&a.inboundService, email, keepTraffic)
 	if err != nil {
@@ -204,6 +220,12 @@ func (a *ClientController) attach(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
+	if !guardInboundIdsScope(c, body.InboundIds) {
+		return
+	}
 	needRestart, err := a.clientService.AttachByEmail(&a.inboundService, email, body.InboundIds)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -218,6 +240,9 @@ func (a *ClientController) attach(c *gin.Context) {
 
 func (a *ClientController) setExternalLinks(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	var body externalLinksBody
 	if err := c.ShouldBindJSON(&body); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -422,6 +447,9 @@ func (a *ClientController) delOrphans(c *gin.Context) {
 
 func (a *ClientController) resetTrafficByEmail(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	needRestart, err := a.clientService.ResetTrafficByEmail(&a.inboundService, email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -441,6 +469,9 @@ type trafficUpdateRequest struct {
 
 func (a *ClientController) updateTrafficByEmail(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	var req trafficUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -456,6 +487,9 @@ func (a *ClientController) updateTrafficByEmail(c *gin.Context) {
 
 func (a *ClientController) getIps(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	infos, err := a.inboundService.GetClientIpsWithNodes(email)
 	jsonObj(c, infos, err)
 }
@@ -467,6 +501,9 @@ func (a *ClientController) clientIpsByGuid(c *gin.Context) {
 
 func (a *ClientController) clearIps(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	if err := a.inboundService.ClearClientIps(email); err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.updateSuccess"), err)
 		return
@@ -493,6 +530,9 @@ func (a *ClientController) lastOnline(c *gin.Context) {
 
 func (a *ClientController) getTrafficByEmail(c *gin.Context) {
 	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	traffic, err := a.inboundService.GetClientTrafficByEmail(email)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.trafficGetError"), err)
@@ -511,6 +551,10 @@ func (a *ClientController) getSubLinks(c *gin.Context) {
 }
 
 func (a *ClientController) getClientLinks(c *gin.Context) {
+	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
 	links, err := a.inboundService.GetAllClientLinks(resolveHost(c), c.Param("email"))
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
@@ -524,6 +568,12 @@ func (a *ClientController) detach(c *gin.Context) {
 	var body attachDetachBody
 	if err := c.ShouldBindJSON(&body); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
+	if !guardInboundIdsScope(c, body.InboundIds) {
 		return
 	}
 	needRestart, err := a.clientService.DetachByEmailMany(&a.inboundService, email, body.InboundIds)

@@ -129,6 +129,43 @@ visibility into who got cut off, which usually translates to faster renewals
 and happier (paying) customers.
 
 ## Changelog
+- 2026-06 — **RBAC reseller hardening: clients fully scoped + reseller sees ONLY the Clients section**.
+  User reported (post-install) that every newly-created admin still saw all
+  super-admin sections (Nodes/Clients/Inbounds/Xray) and that a reseller's
+  assigned inbounds weren't shown. Root causes found:
+    1. The **client controller (`/panel/api/clients/*`) had NO reseller
+       scoping at all** — list/create/update/delete/per-email/bulk endpoints
+       were fully open, so a reseller could see/manage every client on the
+       panel. (The inbound controller was already scoped; clients was the gap.)
+    2. The deployed binary was stale — the menu-restriction + role-injection
+       code was correct in source but the installed build predated it.
+  Fixes (this session):
+    * Backend `internal/web/controller/client.go` + `access.go`: added
+      `resellerInboundSlice`, `filterClientsForRole`, `guardClientEmailScope`,
+      `guardInboundIdsScope`. `list`/`list/paged` now filter to the reseller's
+      AllowedInbounds (paging+summary computed on the scoped set via new
+      `ClientPageParams.Restricted/RestrictInbounds` + `filterClientsByInbounds`
+      in `client_paging.go`). `create` validates every `inboundIds` is in scope;
+      `update/del/attach/detach/resetTraffic/updateTraffic/get/traffic/ips/
+      clearIps/links/externalLinks` all 403 for out-of-scope clients; attach/
+      detach also validate target inbound ids. Panel-wide/bulk client ops
+      (`export/import/delOrphans/resetAllTraffics/delDepleted/bulkAdjust/
+      bulkDel/bulkCreate/bulkAttach/bulkDetach/bulkResetTraffic`) are rejected
+      for resellers via `rejectReseller`.
+    * Frontend `AppSidebar.tsx`: reseller menu reduced to **only `['/clients']`**
+      (was `['/','/inbounds']`). `routes.tsx`: new `IndexRoute` redirects a
+      reseller from the dashboard `/` to `/clients` (dashboard is hidden + shows
+      panel-wide stats). The client-create inbound picker already uses the
+      scoped `/inbounds/options`, so a reseller only sees their assigned inbounds.
+    * Verified end-to-end against a freshly-built running binary (curl flow):
+      super_admin shell role=super_admin; reseller shell role=reseller; reseller
+      inbound options = only assigned inbound; reseller clients list = only
+      clients on assigned inbound (total scoped); create on allowed inbound 200,
+      create on other inbound 403, delete out-of-scope client 403, delete
+      in-scope 200, /admin/list 403, bulkDel 403. `go vet` clean, frontend build
+      clean, amd64 binary cross-built (glibc, `-ldflags "-s -w"`, x86_64-linux-
+      gnu-gcc) and `offline/x-ui-linux-amd64.tar.gz` regenerated (75 MB, rest of
+      bundle — xray-core, geo .dat, service files — kept byte-identical).
 - 2026-06 — **Fork rebranding: remove donate button + point panel update-check at the fork**.
     * Removed the "Donate" (حمایت مالی) button from the dashboard sidebar:
       dropped `DonateButton`, `DONATE_URL`, the two usages and the now-unused

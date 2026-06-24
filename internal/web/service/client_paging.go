@@ -55,6 +55,13 @@ type ClientPageParams struct {
 	HasTgID    string `form:"hasTgId"`
 	HasComment string `form:"hasComment"`
 	Group      string `form:"group"`
+
+	// Restricted + RestrictInbounds scope the result to clients attached to at
+	// least one of the given inbound ids (reseller RBAC). Set by the controller,
+	// never bound from the query. When Restricted is true and RestrictInbounds is
+	// empty, the reseller sees no clients.
+	Restricted       bool  `form:"-"`
+	RestrictInbounds []int `form:"-"`
 }
 
 // ClientPageResponse is the shape returned by ListPaged. `Total` is the
@@ -99,6 +106,9 @@ func (s *ClientService) ListPaged(inboundSvc *InboundService, settingSvc *Settin
 	all, err := s.List()
 	if err != nil {
 		return nil, err
+	}
+	if params.Restricted {
+		all = filterClientsByInbounds(all, params.RestrictInbounds)
 	}
 	total := len(all)
 
@@ -260,6 +270,25 @@ func buildClientsSummary(all []ClientWithAttachments, onlineSet map[string]struc
 		}
 	}
 	return s
+}
+
+// filterClientsByInbounds keeps only clients attached to at least one of the
+// allowed inbound ids. Used to scope a reseller's view to their inbounds.
+func filterClientsByInbounds(in []ClientWithAttachments, allowed []int) []ClientWithAttachments {
+	set := make(map[int]struct{}, len(allowed))
+	for _, id := range allowed {
+		set[id] = struct{}{}
+	}
+	out := make([]ClientWithAttachments, 0, len(in))
+	for _, c := range in {
+		for _, id := range c.InboundIds {
+			if _, ok := set[id]; ok {
+				out = append(out, c)
+				break
+			}
+		}
+	}
+	return out
 }
 
 func toClientSlim(c ClientWithAttachments) ClientSlim {

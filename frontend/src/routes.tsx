@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, type RouteObject } from 'react-router-dom';
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom';
 
 import PanelLayout from '@/layouts/PanelLayout';
 
@@ -18,12 +18,22 @@ function withSuspense(node: React.ReactNode) {
   return <Suspense fallback={null}>{node}</Suspense>;
 }
 
+// Resellers are scoped to the Clients section only; send them there instead of
+// the dashboard (which is hidden from their sidebar and shows panel-wide stats).
+function IndexRoute() {
+  const role = (typeof window !== 'undefined' && window.X_UI_ROLE) || 'super_admin';
+  if (role === 'reseller') {
+    return <Navigate to="/clients" replace />;
+  }
+  return withSuspense(<IndexPage />);
+}
+
 const routes: RouteObject[] = [
   {
     path: '/',
     element: <PanelLayout />,
     children: [
-      { index: true, element: withSuspense(<IndexPage />) },
+      { index: true, element: <IndexRoute /> },
       { path: 'inbounds', element: withSuspense(<InboundsPage />) },
       { path: 'clients', element: withSuspense(<ClientsPage />) },
       { path: 'groups', element: withSuspense(<GroupsPage />) },
