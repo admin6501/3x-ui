@@ -192,7 +192,14 @@ and happier (paying) customers.
   was added so the bundle is tracked despite the `*.tar.gz` rule. The offline
   installer also surfaces the API token at the end (parity with install.sh) via
   `x-ui setting -getApiToken true` — shown in both the fresh-install summary box
-  and the upgrade/existing-DB branch. Verified: the
+  and the upgrade/existing-DB branch. SQLite→PostgreSQL migration (x-ui.sh menu
+  27 → 2, i.e. `x-ui migrate-db --dsn`) was made RBAC-complete by adding
+  `&model.AdminAuditLog{}` to `migrationModels()` in
+  `internal/database/migrate_data.go` (User.Role/AllowedInbounds already copy as
+  part of the User struct; the audit-log table+rows would otherwise be dropped).
+  Verified end-to-end: SQLite (2 admins incl. a reseller + 1 audit row + inbound
+  + migrated client) → PostgreSQL copied all rows, then a Postgres-backed panel
+  booted, login worked, and /panel/api/admin/list returned both roles. Verified: the
   amd64 binary cross-builds, runs under qemu (reports 3.4.0), boots the panel on
   :2053, login + /panel/api/admin/list + window.X_UI_ROLE all work.
   Verified end-to-end against a running binary on :2053: super_admin lists/
