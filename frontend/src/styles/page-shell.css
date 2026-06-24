@@ -177,6 +177,41 @@ body.dark .ant-dropdown-menu-item-divider {
   }
 }
 
+/* Admins page shares the standard panel page shell (background, transparent
+   layout, content padding) so it matches the dashboard / other pages' theme. */
+.admins-page {
+  --bg-page: #e6e8ec;
+  --bg-card: #ffffff;
+  min-height: 100vh;
+  background: var(--bg-page);
+}
+
+.admins-page.is-dark {
+  --bg-page: #1a1b1f;
+  --bg-card: #23252b;
+}
+
+.admins-page.is-dark.is-ultra {
+  --bg-page: #000;
+  --bg-card: #101013;
+}
+
+.admins-page .ant-layout,
+.admins-page .ant-layout-content,
+.admins-page .content-shell {
+  background: transparent;
+}
+
+.admins-page .content-area {
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .admins-page .content-area {
+    padding: 8px;
+  }
+}
+
 /* Hosts page shares the standard panel page shell (background, transparent
    layout, content padding, summary-card padding). */
 .hosts-page {

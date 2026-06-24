@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
+  ConfigProvider,
   Form,
   Input,
+  Layout,
   Modal,
   Popconfirm,
   Select,
@@ -24,6 +26,9 @@ import {
 } from '@ant-design/icons';
 
 import { HttpUtil } from '@/utils';
+import AppSidebar from '@/layouts/AppSidebar';
+import { useTheme } from '@/hooks/useTheme';
+import '@/styles/page-shell.css';
 
 const ROLES = ['super_admin', 'manager', 'reseller', 'readonly'] as const;
 type Role = (typeof ROLES)[number];
@@ -76,6 +81,14 @@ interface FormValues {
 export default function AdminsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { isDark, isUltra, antdThemeConfig } = useTheme();
+
+  const pageClass = useMemo(() => {
+    const classes = ['admins-page'];
+    if (isDark) classes.push('is-dark');
+    if (isUltra) classes.push('is-ultra');
+    return classes.join(' ');
+  }, [isDark, isUltra]);
 
   const adminsQ = useQuery({
     queryKey: ['admins'],
@@ -239,7 +252,12 @@ export default function AdminsPage() {
   ];
 
   return (
-    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <ConfigProvider theme={antdThemeConfig}>
+      <Layout className={pageClass}>
+        <AppSidebar />
+        <Layout className="content-shell">
+          <Layout.Content id="content-layout" className="content-area">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Card
         title={
           <div>
@@ -350,6 +368,10 @@ export default function AdminsPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+            </div>
+          </Layout.Content>
+        </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }
