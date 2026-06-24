@@ -630,6 +630,7 @@ export default function InboundsPage() {
                       onGeneralAction={onGeneralAction}
                       onRowAction={({ key, dbInbound }) => onRowAction({ key, dbInbound: dbInbound as unknown as DBInbound })}
                       onBulkDelete={confirmBulkDelete}
+                      readOnly={window.X_UI_ROLE === 'reseller'}
                     />
                   </Col>
                 </Row>

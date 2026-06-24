@@ -32,6 +32,7 @@ interface UseInboundColumnsParams {
   trafficDiff: number;
   onRowAction: (action: { key: RowAction; dbInbound: DBInboundRecord }) => void;
   onSwitchEnable: (dbInbound: DBInboundRecord, next: boolean) => void;
+  readOnly?: boolean;
 }
 
 export function useInboundColumns({
@@ -46,6 +47,7 @@ export function useInboundColumns({
   trafficDiff,
   onRowAction,
   onSwitchEnable,
+  readOnly = false,
 }: UseInboundColumnsParams): TableColumnType<DBInboundRecord>[] {
   const { t } = useTranslation();
   const { datepicker } = useDatepicker();
@@ -70,6 +72,7 @@ export function useInboundColumns({
             subEnable={subEnable}
             hasClients={(clientCount[record.id]?.clients || 0) > 0}
             onClick={(key) => onRowAction({ key, dbInbound: record })}
+            readOnly={readOnly}
           />
         ),
       },
@@ -79,10 +82,16 @@ export function useInboundColumns({
         align: 'center',
         width: 80,
         render: (_, record) => (
-          <Switch
-            checked={record.enable}
-            onChange={(next) => onSwitchEnable(record, next)}
-          />
+          readOnly ? (
+            <Tag color={record.enable ? 'green' : 'default'}>
+              {record.enable ? t('enabled') : t('disabled')}
+            </Tag>
+          ) : (
+            <Switch
+              checked={record.enable}
+              onChange={(next) => onSwitchEnable(record, next)}
+            />
+          )
         ),
       },
     ];
@@ -299,5 +308,5 @@ export function useInboundColumns({
     );
 
     return cols;
-  }, [t, hasAnyRemark, hasAnySubSortIndex, hasActiveNode, nodesById, clientCount, inboundSpeed, subEnable, expireDiff, trafficDiff, datepicker, onRowAction, onSwitchEnable]);
+  }, [t, hasAnyRemark, hasAnySubSortIndex, hasActiveNode, nodesById, clientCount, inboundSpeed, subEnable, expireDiff, trafficDiff, datepicker, onRowAction, onSwitchEnable, readOnly]);
 }

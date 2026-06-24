@@ -73,11 +73,11 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/bulkDel", rejectReseller, a.bulkDelInbounds)
 	g.POST("/update/:id", rejectReseller, scopeInboundParam, a.updateInbound)
 	g.POST("/setEnable/:id", rejectReseller, scopeInboundParam, a.setInboundEnable)
-	g.POST("/:id/resetTraffic", scopeInboundParam, a.resetInboundTraffic)
-	g.POST("/:id/delAllClients", scopeInboundParam, a.delAllInboundClients)
+	g.POST("/:id/resetTraffic", rejectReseller, scopeInboundParam, a.resetInboundTraffic)
+	g.POST("/:id/delAllClients", rejectReseller, scopeInboundParam, a.delAllInboundClients)
 	g.POST("/resetAllTraffics", rejectReseller, a.resetAllTraffics)
 	g.POST("/import", rejectReseller, a.importInbound)
-	g.POST("/:id/fallbacks", scopeInboundParam, a.setFallbacks)
+	g.POST("/:id/fallbacks", rejectReseller, scopeInboundParam, a.setFallbacks)
 	g.POST("/pushClientTraffics", a.pushClientTraffics)
 }
 

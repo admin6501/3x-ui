@@ -24,11 +24,12 @@ interface RowActionsMenuProps {
   hasClients: boolean;
   onClick: (key: RowAction) => void;
   isMobile?: boolean;
+  readOnly?: boolean;
 }
 
-export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients }: { record: DBInboundRecord; subEnable: boolean; t: (k: string) => string; isMobile?: boolean; hasClients?: boolean }): MenuProps['items'] {
+export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients, readOnly }: { record: DBInboundRecord; subEnable: boolean; t: (k: string) => string; isMobile?: boolean; hasClients?: boolean; readOnly?: boolean }): MenuProps['items'] {
   const items: MenuProps['items'] = [];
-  if (isMobile) {
+  if (isMobile && !readOnly) {
     items.push({ key: 'edit', icon: <EditOutlined />, label: t('edit') });
   }
   if (showQrCodeMenu(record)) {
@@ -47,6 +48,11 @@ export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients
     items.push({ key: 'showInfo', icon: <InfoCircleOutlined />, label: t('pages.inbounds.inboundInfo') });
   }
   items.push({ key: 'clipboard', icon: <CopyOutlined />, label: t('pages.inbounds.exportInbound') });
+  // Read-only roles (reseller) may view/export but cannot modify, reset,
+  // attach/detach, clone, or delete inbounds.
+  if (readOnly) {
+    return items;
+  }
   items.push({ key: 'resetTraffic', icon: <RetweetOutlined />, label: t('pages.inbounds.resetTraffic') });
   items.push({ key: 'clone', icon: <BlockOutlined />, label: t('pages.inbounds.clone') });
   if (isInboundMultiUser(record)) {
@@ -65,15 +71,17 @@ export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients
   return items;
 }
 
-export function RowActionsCell({ record, subEnable, hasClients, onClick }: RowActionsMenuProps) {
+export function RowActionsCell({ record, subEnable, hasClients, onClick, readOnly }: RowActionsMenuProps) {
   const { t } = useTranslation();
   return (
     <div className="action-buttons">
-      <Button type="text" size="small" style={{ fontSize: 16 }} icon={<EditOutlined />} onClick={() => onClick('edit')} />
+      {!readOnly && (
+        <Button type="text" size="small" style={{ fontSize: 16 }} icon={<EditOutlined />} onClick={() => onClick('edit')} />
+      )}
       <Dropdown
         trigger={['click']}
         menu={{
-          items: buildRowActionsMenu({ record, subEnable, t, hasClients }),
+          items: buildRowActionsMenu({ record, subEnable, t, hasClients, readOnly }),
           onClick: ({ key }) => onClick(key as RowAction),
         }}
       >

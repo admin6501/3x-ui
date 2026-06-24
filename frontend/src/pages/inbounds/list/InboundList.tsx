@@ -48,6 +48,7 @@ export default function InboundList({
   onGeneralAction,
   onRowAction,
   onBulkDelete,
+  readOnly = false,
 }: InboundListProps) {
   const { t } = useTranslation();
   const [statsRecord, setStatsRecord] = useState<DBInboundRecord | null>(null);
@@ -131,6 +132,7 @@ export default function InboundList({
     trafficDiff,
     onRowAction,
     onSwitchEnable,
+    readOnly,
   });
 
   const tableScrollX = useMemo(
@@ -160,14 +162,18 @@ export default function InboundList({
       hoverable
       title={(
         <Space>
-          <Button type="primary" onClick={onAddInbound} icon={<PlusOutlined />}>
-            {!isMobile && t('pages.inbounds.addInbound')}
-          </Button>
-          <Dropdown trigger={['click']} menu={generalActionsMenu}>
-            <Button type="primary" icon={<MenuOutlined />}>
-              {!isMobile && t('pages.inbounds.generalActions')}
-            </Button>
-          </Dropdown>
+          {!readOnly && (
+            <>
+              <Button type="primary" onClick={onAddInbound} icon={<PlusOutlined />}>
+                {!isMobile && t('pages.inbounds.addInbound')}
+              </Button>
+              <Dropdown trigger={['click']} menu={generalActionsMenu}>
+                <Button type="primary" icon={<MenuOutlined />}>
+                  {!isMobile && t('pages.inbounds.generalActions')}
+                </Button>
+              </Dropdown>
+            </>
+          )}
           {showNodeFilter && (
             <Select
               value={nodeFilter}
@@ -177,7 +183,7 @@ export default function InboundList({
               style={{ minWidth: isMobile ? 90 : 140 }}
             />
           )}
-          {selectedRowKeys.length > 0 && (
+          {!readOnly && selectedRowKeys.length > 0 && (
             <>
               <Tag color="blue" closable onClose={() => setSelectedRowKeys([])} style={{ marginInlineEnd: 0 }}>
                 {t('pages.inbounds.selectedCount', { count: selectedRowKeys.length })}
@@ -200,6 +206,7 @@ export default function InboundList({
               </div>
             ) : (
               <>
+              {!readOnly && (
               <div className="card-bulk-bar">
                 <Checkbox
                   checked={allSelected}
@@ -212,29 +219,38 @@ export default function InboundList({
                   <span className="bulk-count">{selectedRowKeys.length}</span>
                 )}
               </div>
+              )}
               {visibleInbounds.map((record) => (
                 <div key={record.id} className={`inbound-card${selectedRowKeys.includes(record.id) ? ' is-selected' : ''}`}>
                   <div className="card-head">
-                    <Checkbox
-                      checked={selectedRowKeys.includes(record.id)}
-                      onChange={(e) => toggleSelect(record.id, e.target.checked)}
-                    />
+                    {!readOnly && (
+                      <Checkbox
+                        checked={selectedRowKeys.includes(record.id)}
+                        onChange={(e) => toggleSelect(record.id, e.target.checked)}
+                      />
+                    )}
                     <span className="card-id">#{record.id}</span>
                     <span className="tag-name">{record.remark}</span>
                     <div className="card-actions" onClick={(e) => e.stopPropagation()}>
                       <Tooltip title={t('pages.inbounds.inboundInfo')}>
                         <InfoCircleOutlined className="row-action-trigger" onClick={() => setStatsRecord(record)} />
                       </Tooltip>
-                      <Switch
-                        checked={record.enable}
-                        size="small"
-                        onChange={(next) => onSwitchEnable(record, next)}
-                      />
+                      {readOnly ? (
+                        <Tag color={record.enable ? 'green' : 'default'} style={{ margin: 0 }}>
+                          {record.enable ? t('enabled') : t('disabled')}
+                        </Tag>
+                      ) : (
+                        <Switch
+                          checked={record.enable}
+                          size="small"
+                          onChange={(next) => onSwitchEnable(record, next)}
+                        />
+                      )}
                       <Dropdown
                         trigger={['click']}
                         placement="bottomRight"
                         menu={{
-                          items: buildRowActionsMenu({ record, subEnable, t, isMobile: true, hasClients: (clientCount[record.id]?.clients || 0) > 0 }),
+                          items: buildRowActionsMenu({ record, subEnable, t, isMobile: true, hasClients: (clientCount[record.id]?.clients || 0) > 0, readOnly }),
                           onClick: ({ key }) => onRowAction({ key: key as RowAction, dbInbound: record }),
                         }}
                       >
@@ -252,7 +268,7 @@ export default function InboundList({
             columns={columns}
             dataSource={visibleInbounds}
             rowKey={(r) => r.id}
-            rowSelection={{
+            rowSelection={readOnly ? undefined : {
               selectedRowKeys,
               onChange: (keys: Key[]) => setSelectedRowKeys(keys as number[]),
             }}
