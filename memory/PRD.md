@@ -183,14 +183,20 @@ and happier (paying) customers.
   Distribution (3b): `install.sh`, `update.sh`, `x-ui.sh` download/release URLs
   and the top-level install command in all 7 READMEs now point at
   `admin6501/3x-ui` (branch `main`); badges/wiki/attribution left upstream.
+  Offline installer (3b) rebuilt for v3.4.0: `install_offline.sh` (v3.4.0 CLI
+  compatible — `setting -username/-password/-port/-webBasePath`, `migrate`) +
+  `offline/README.md` + prebuilt `offline/x-ui-linux-amd64.tar.gz` (75 MB:
+  stripped amd64 x-ui binary that embeds the React SPA, Xray-core v26.6.22,
+  + 6 geo .dat files; mtg omitted to match the previous bundle / stay under
+  GitHub's 100 MB limit). A `.gitignore` exception (`!offline/x-ui-linux-amd64.tar.gz`)
+  was added so the bundle is tracked despite the `*.tar.gz` rule. Verified: the
+  amd64 binary cross-builds, runs under qemu (reports 3.4.0), boots the panel on
+  :2053, login + /panel/api/admin/list + window.X_UI_ROLE all work.
   Verified end-to-end against a running binary on :2053: super_admin lists/
   creates/audits admins (allowedInbounds normalized & deduped), reseller is
   403'd on admin + inbound-create and sees a filtered inbound list, readonly
   can GET but is 403'd on writes; `go vet` clean, frontend typecheck/lint/build
   clean, full Go binary builds (CGO sqlite) and boots.
-  PENDING: offline installer + prebuilt offline tarball (`install_offline.sh`
-  / `offline/*`) for air-gapped VPS were NOT rebuilt yet (arch-specific,
-  ~71 MB bundle incl. xray-core + geo). Needs target-arch confirmation.
 - 2026-02 — **Revert: reseller traffic-quota feature removed (per user request)**.
   All code introduced by commit `5986b201` (feat reseller-quota) and
   every follow-up patch on top of it was restored to the pre-feature
