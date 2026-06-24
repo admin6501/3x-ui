@@ -48,3 +48,9 @@ docker-compose.override.yml
 
 # Re-fork: ship the prebuilt offline bundle (large binary intentionally tracked)
 !offline/x-ui-linux-amd64.tar.gz
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
