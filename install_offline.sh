@@ -272,6 +272,11 @@ if [[ ! -f /etc/x-ui/x-ui.db ]]; then
         systemctl restart x-ui > /dev/null 2>&1 || true
     fi
 
+    # Retrieve (or create) an API token to display — mirrors install.sh so the
+    # offline installer surfaces the token too. Reads the DB directly via the
+    # x-ui CLI; prints a line like "apiToken: <token>".
+    api_token=$("${xui_folder}/x-ui" setting -getApiToken true 2>/dev/null | grep -Eo 'apiToken: .+' | awk '{print $2}')
+
     server_ip=$(ip -4 addr show scope global 2>/dev/null | awk '/inet /{split($2,a,"/"); print a[1]; exit}')
     [[ -z "$server_ip" ]] && server_ip="<server-ip>"
 
@@ -284,6 +289,7 @@ if [[ ! -f /etc/x-ui/x-ui.db ]]; then
     echo -e "${green}Port        :${plain} $port"
     echo -e "${green}WebBasePath :${plain} $webpath"
     echo -e "${green}Access URL  :${plain} http://${server_ip}:${port}/${webpath}"
+    [[ -n "$api_token" ]] && echo -e "${green}API Token   :${plain} $api_token"
     echo -e "${green}═══════════════════════════════════════════${plain}"
     echo -e "${yellow}⚠ Save these credentials somewhere safe.${plain}"
     echo -e "${yellow}⚠ SSL/acme was skipped (no internet). Configure HTTPS${plain}"
@@ -295,6 +301,13 @@ else
     echo -e "${green}═══════════════════════════════════════════${plain}"
     echo -e "${yellow}Existing /etc/x-ui/x-ui.db preserved — your previous"
     echo -e "${yellow}credentials, inbounds and clients are unchanged.${plain}"
+    # Surface an API token here too. Existing tokens are stored hashed and can't
+    # be shown again, so the CLI mints a fresh one for convenience.
+    api_token=$("${xui_folder}/x-ui" setting -getApiToken true 2>/dev/null | grep -Eo 'apiToken: .+' | awk '{print $2}')
+    if [[ -n "$api_token" ]]; then
+        echo -e "${green}API Token   :${plain} $api_token"
+        echo -e "${yellow}(a fresh token was generated; previous tokens are hashed and cannot be displayed)${plain}"
+    fi
 fi
 
 # Migrate DB schema in case this bundle is newer than the on-disk DB

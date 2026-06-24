@@ -189,7 +189,10 @@ and happier (paying) customers.
   stripped amd64 x-ui binary that embeds the React SPA, Xray-core v26.6.22,
   + 6 geo .dat files; mtg omitted to match the previous bundle / stay under
   GitHub's 100 MB limit). A `.gitignore` exception (`!offline/x-ui-linux-amd64.tar.gz`)
-  was added so the bundle is tracked despite the `*.tar.gz` rule. Verified: the
+  was added so the bundle is tracked despite the `*.tar.gz` rule. The offline
+  installer also surfaces the API token at the end (parity with install.sh) via
+  `x-ui setting -getApiToken true` — shown in both the fresh-install summary box
+  and the upgrade/existing-DB branch. Verified: the
   amd64 binary cross-builds, runs under qemu (reports 3.4.0), boots the panel on
   :2053, login + /panel/api/admin/list + window.X_UI_ROLE all work.
   Verified end-to-end against a running binary on :2053: super_admin lists/
