@@ -1,178 +1,104 @@
 [English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md) | [Türkçe](/README.tr_TR.md)
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./media/3x-ui-dark.png">
-    <img alt="3x-ui" src="./media/3x-ui-light.png">
-  </picture>
-</p>
+# 3X-UI — RBAC Fork'u (admin6501)
 
-<p align="center">
-  <a href="https://github.com/MHSanaei/3x-ui/releases"><img src="https://img.shields.io/github/v/release/mhsanaei/3x-ui" alt="Release"></a>
-  <a href="https://github.com/MHSanaei/3x-ui/actions"><img src="https://img.shields.io/github/actions/workflow/status/mhsanaei/3x-ui/release.yml.svg" alt="Build"></a>
-  <a href="#"><img src="https://img.shields.io/github/go-mod/go-version/mhsanaei/3x-ui.svg" alt="GO Version"></a>
-  <a href="https://github.com/MHSanaei/3x-ui/releases/latest"><img src="https://img.shields.io/github/downloads/mhsanaei/3x-ui/total.svg" alt="Downloads"></a>
-  <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
-  <a href="https://pkg.go.dev/github.com/mhsanaei/3x-ui/v3"><img src="https://pkg.go.dev/badge/github.com/mhsanaei/3x-ui/v3.svg" alt="Go Reference"></a>
-  <a href="https://goreportcard.com/report/github.com/mhsanaei/3x-ui/v3"><img src="https://goreportcard.com/badge/github.com/mhsanaei/3x-ui/v3" alt="Go Report Card"></a>
-</p>
-
-**3X-UI**, [Xray-core](https://github.com/XTLS/Xray-core) sunucularını yönetmek için geliştirilmiş profesyonel, açık kaynaklı bir web kontrol panelidir. Tek bir sanal sunucudan (VPS) çok düğümlü (multi-node) dağıtımlara kadar çok çeşitli proxy ve VPN protokollerini kurmak, yapılandırmak ve izlemek için temiz, çok dilli bir arayüz sağlar.
-
-Orijinal X-UI projesinin geliştirilmiş bir çatallaması (fork) olarak inşa edilen 3X-UI; çok daha geniş protokol desteği, artırılmış kararlılık, kullanıcı başına trafik hesaplama ve kullanım kolaylığı sağlayan birçok yeni özellik sunar.
+[MHSanaei/3X-UI](https://github.com/MHSanaei/3x-ui) projesinin özelleştirilmiş bir fork'u — [Xray-core](https://github.com/XTLS/Xray-core) sunucularını yönetmek için gelişmiş, açık kaynaklı bir web paneli — yerleşik bir **çok yöneticili RBAC sistemi**, **bayi (Reseller) kapsam sınırlaması** ve internetsiz/kısıtlı sunucular için **tamamen çevrimdışı kurulum aracı** ile genişletilmiştir.
 
 > [!IMPORTANT]
-> Bu proje yalnızca kişisel kullanım için tasarlanmıştır. Lütfen yasadışı amaçlar için veya üretim (production) ortamında kullanmayın.
+> Bu proje yalnızca kişisel kullanım içindir. Lütfen yasa dışı amaçlarla veya bir üretim ortamında kullanmayın.
 
-## Özellikler
+## Bu fork'un eklediği özellikler
 
-- **Çoklu protokol destekli gelen bağlantılar (Inbounds)** — VLESS, VMess, Trojan, Shadowsocks, WireGuard, Hysteria2, HTTP, SOCKS (Karma), Dokodemo-door / Tunnel ve TUN.
-- **Modern aktarımlar (transports) ve güvenlik** — TCP (Raw), mKCP, WebSocket, gRPC, HTTPUpgrade ve XHTTP; TLS, XTLS ve REALITY ile güvene alınmıştır.
-- **Geri Dönüş (Fallbacks)** — Xray'in fallback desteğini kullanarak tek bir port üzerinde birden fazla protokole (ör. 443 üzerinde hem VLESS hem Trojan) hizmet verin.
-- **Kullanıcı başına yönetim** — Trafik kotaları, bitiş tarihleri, IP sınırları, canlı çevrimiçi (online) durumu ve tek tıkla paylaşım bağlantıları, QR kodları ve abonelikler.
-- **Trafik istatistikleri** — Gelen bağlantı (Inbound), istemci ve giden bağlantı (Outbound) bazında istatistikler ve sıfırlama kontrolleri.
-- **Çoklu düğüm (Multi-node) desteği** — Tek bir panel üzerinden birden fazla sunucuyu yönetin ve ölçeklendirin.
-- **Giden bağlantı (Outbound) ve yönlendirme** — WARP, NordVPN, özel yönlendirme kuralları, yük dengeleyiciler (load balancers) ve giden bağlantı proxy zincirleme (proxy chaining).
-- **Dahili abonelik sunucusu** (Birden fazla çıktı formatı ile).
-- Uzaktan izleme ve yönetim için **Telegram botu**.
-- Panel içi Swagger dokümantasyonuna sahip **RESTful API**.
-- **Esnek depolama** — SQLite (varsayılan) veya PostgreSQL.
-- Koyu ve açık tema seçenekleriyle **13 farklı UI dili**.
-- Kullanıcı başına IP limitlerini zorunlu kılmak için **Fail2ban entegrasyonu**.
+- **Rol Tabanlı Erişim Denetimi (RBAC)** — **Yöneticiler** sayfasından, her biri dört rolden birine sahip birden çok panel yöneticisini yönetin:
+  - `super_admin` — her şeye tam erişim (ilk/varsayılan yönetici).
+  - `manager` — gelenleri ve istemcileri yönetir; panel ayarları, Xray şablonu veya yönetici yönetimi **yoktur**.
+  - `reseller` (bayi) — yalnızca atanan gelenlerle sınırlıdır; kendi istemcilerini yönetir ve gelenlerini salt okunur olarak **görüntüler** (gelen ekleyemez/düzenleyemez/etkin-pasif yapamaz/silemez).
+  - `readonly` — her şeyi görüntüleyebilir ancak hiçbir yazma işlemi yapamaz.
+- **Denetim günlüğü (Audit Log)** — her yönetici işlemi (yönetici oluşturma/düzenleme/silme, parola sıfırlama, …) işlemi yapan, hedef ve zaman damgasıyla kaydedilir.
+- **Çevrimdışı kurulum paketi** — kendi kendine yeten bir tarball (panel ikilisi + Xray-core + geo verileri) ile internetsiz bir sunucuya kurulum. Bkz. [`offline/`](offline/).
+- **Fork'a duyarlı güncelleyici** — panelin "güncellemeyi denetle" özelliği sürümleri bu fork'tan (`admin6501/3x-ui`) okur.
+- **PostgreSQL güvenli geçiş** — SQLite → PostgreSQL geçişi tüm RBAC verilerini (yöneticiler, roller, izin verilen gelenler, denetim günlükleri) kopyalar.
 
-## Ekran Görüntüleri
+## Temel özellikler (3X-UI'den)
 
-<details>
-<summary>Genişletmek için tıklayın</summary>
+- **Çok protokollü gelenler** — VLESS, VMess, Trojan, Shadowsocks, WireGuard, Hysteria2, HTTP, SOCKS (Mixed), Dokodemo-door / Tunnel ve TUN.
+- **Modern taşıma ve güvenlik** — TCP (Raw), mKCP, WebSocket, gRPC, HTTPUpgrade ve XHTTP; TLS, XTLS ve REALITY ile güvenli.
+- **İstemci bazında yönetim** — trafik kotaları, son kullanma tarihleri, IP limitleri, canlı çevrimiçi durumu, paylaşım bağlantıları, QR kodları ve abonelikler.
+- **Çok düğümlü (Multi-node) destek**, giden ve yönlendirme (WARP, özel kurallar, yük dengeleyiciler).
+- **Yerleşik abonelik sunucusu** ve [özel sayfa şablonları](docs/custom-subscription-templates.md).
+- **Telegram botu**, panel içi Swagger ile **RESTful API**, **SQLite veya PostgreSQL**, **13 arayüz dili**, koyu/açık temalar ve **Fail2ban** ile IP limiti uygulaması.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./media/01-overview-dark.png">
-  <img alt="Genel Bakış" src="./media/01-overview-light.png">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./media/02-add-inbound-dark.png">
-  <img alt="Gelen Bağlantılar (Inbounds)" src="./media/02-add-inbound-light.png">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./media/03-add-client-dark.png">
-  <img alt="Kullanıcı Ekle" src="./media/03-add-client-light.png">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./media/05-add-nodes-dark.png">
-  <img alt="Yapılandırmalar" src="./media/05-add-nodes-light.png">
-</picture>
-
-</details>
-
-## Hızlı Başlangıç
+## Hızlı Başlangıç (çevrimiçi)
 
 ```bash
 bash <(curl -Ls https://raw.githubusercontent.com/admin6501/3x-ui/main/install.sh)
 ```
 
-Kurulum sırasında rastgele bir kullanıcı adı, şifre ve erişim yolu oluşturulur. Kurulumdan sonra, hizmeti başlatabileceğiniz/durdurabileceğiniz, giriş bilgilerinizi görüntüleyebileceğiniz veya sıfırlayabileceğiniz, SSL sertifikalarını yönetebileceğiniz ve çok daha fazlasını yapabileceğiniz yönetim menüsünü açmak için terminalde `x-ui` komutunu çalıştırın.
+Kurulum sırasında rastgele bir kullanıcı adı, parola ve web yolu oluşturulur. Ardından yönetim menüsünü açmak için `x-ui` komutunu çalıştırın (başlat/durdur, kimlik bilgilerini sıfırla, SSL yönet vb.).
 
-Tam dokümantasyon için lütfen [proje Wiki sayfasını](https://github.com/MHSanaei/3x-ui/wiki) ziyaret edin.
+## Çevrimdışı kurulum (internetsiz)
 
-## Desteklenen Platformlar
+İnternet erişimi olmayan — veya GitHub indirmesinin engellendiği — sunucular için:
 
-**İşletim sistemleri:** Ubuntu, Debian, Armbian, Fedora, CentOS, RHEL, AlmaLinux, Rocky Linux, Oracle Linux, Amazon Linux, Virtuozzo, Arch, Manjaro, Parch, openSUSE (Tumbleweed / Leap), Alpine ve Windows.
+1. `offline/x-ui-linux-amd64.tar.gz` ve `install_offline.sh` dosyalarını sunucuya kopyalayın (herhangi bir klasöre).
+2. Çalıştırın:
 
-**Mimariler:** `amd64` · `386` · `arm64` (aarch64) · `armv7` · `armv6` · `armv5` · `s390x`.
-
-## Veritabanı Seçenekleri
-
-3X-UI kurulum sırasında seçilebilecek iki arka uç (backend) destekler:
-
-- **SQLite** (varsayılan) — `/etc/x-ui/x-ui.db` konumunda tek bir dosya. Kurulum gerektirmez, küçük ve orta ölçekli dağıtımlar için idealdir.
-- **PostgreSQL** — Yüksek kullanıcı sayıları veya çoklu düğüm (multi-node) kurulumları için önerilir. Yükleyici sizin için yerel olarak PostgreSQL kurabilir veya mevcut bir sunucuya DSN bağlantısı kabul edebilir.
-
-Çalışma anında veritabanı türü ortam değişkenleri (environment variables) ile seçilir (yükleyici bunları sizin için `/etc/default/x-ui` dosyasına yazar):
-
-```
-XUI_DB_TYPE=postgres
-XUI_DB_DSN=postgres://xui:password@127.0.0.1:5432/xui?sslmode=disable
+```bash
+chmod +x install_offline.sh
+sudo ./install_offline.sh                 # geçerli dizindeki .tar.gz dosyasını otomatik algılar
+# veya açıkça belirtin:
+sudo ./install_offline.sh /root/x-ui-linux-amd64.tar.gz
 ```
 
-### Mevcut bir SQLite Kurulumunu PostgreSQL'e Taşıma
+Kurulum aracı paket için **hiçbir ağ çağrısı yapmaz** (ikili + Xray + geo'nun tümü tarball'dan gelir), oluşturulan kimlik bilgilerini **ve API belirtecini** yazdırır ve yükseltmede mevcut `/etc/x-ui/x-ui.db` dosyanızı **korurken** geçişleri (RBAC tabloları dahil) çalıştırır. Ayrıntılar için [`offline/README.md`](offline/README.md) dosyasına bakın.
+
+> Önceden derlenmiş çevrimdışı paket **yalnızca amd64 / x86_64**'tür. Diğer mimariler için o mimariye yönelik bir paketi kaynaktan derleyin.
+
+## Desteklenen platformlar
+
+**İşletim sistemleri:** Ubuntu, Debian, Armbian, Fedora, CentOS, RHEL, AlmaLinux, Rocky Linux, Oracle Linux, Amazon Linux, Arch, Manjaro, openSUSE, Alpine ve Windows.
+
+**Mimariler:** `amd64` · `arm64` (aarch64) · `armv7` · `armv6` · `386` · `s390x`.
+
+## Veritabanı
+
+- **SQLite** (varsayılan) — `/etc/x-ui/x-ui.db` konumunda tek bir dosya. Kurulum gerektirmez, küçük/orta dağıtımlar için idealdir.
+- **PostgreSQL** — yüksek istemci sayıları veya çok düğümlü kurulumlar için önerilir.
+
+Mevcut bir SQLite kurulumunu PostgreSQL'e taşıma (tüm RBAC verileri dahil):
 
 ```bash
 x-ui migrate-db --dsn "postgres://xui:password@127.0.0.1:5432/xui?sslmode=disable"
-# ardından /etc/default/x-ui içindeki XUI_DB_TYPE ve XUI_DB_DSN değerlerini ayarlayıp yeniden başlatın:
+# ardından /etc/default/x-ui içinde XUI_DB_TYPE ve XUI_DB_DSN'i ayarlayıp yeniden başlatın:
 systemctl restart x-ui
 ```
 
-Kaynak SQLite dosyasına dokunulmaz; yeni veritabanının düzgün çalıştığını doğruladıktan sonra eski SQLite dosyasını manuel olarak silebilirsiniz.
+Kaynak SQLite dosyası dokunulmadan kalır; yeni arka ucu doğruladıktan sonra silin.
 
-### Docker
-
-Varsayılan `docker compose up -d` komutu SQLite kullanmaya devam eder. Birlikte paketlenmiş PostgreSQL servisi ile çalıştırmak için, `docker-compose.yml` dosyasındaki iki `XUI_DB_*` değişken satırının yorumunu kaldırın ve profille başlatın:
-
-```bash
-docker compose --profile postgres up -d
-```
-
-Docker imajı, kullanıcı başına **IP limitlerini** zorunlu kılmak için Fail2ban ile (varsayılan olarak etkindir) paketlenmiştir. Fail2ban, ihlalcileri `iptables` ile engeller ve bunun için `NET_ADMIN` yetkisine ihtiyaç duyar. `docker-compose.yml` bunu zaten `cap_add` üzerinden vermektedir; ancak konteyneri bunun yerine `docker run` ile başlatırsanız bu yetkileri kendiniz eklemelisiniz, aksi takdirde yasaklamalar günlüğe kaydedilir ancak uygulanmaz:
-
-```bash
-docker run -d --cap-add=NET_ADMIN --cap-add=NET_RAW ... ghcr.io/mhsanaei/3x-ui
-```
-
-## Ortam Değişkenleri (Environment Variables)
+## Ortam değişkenleri
 
 | Değişken | Açıklama | Varsayılan |
 | --- | --- | --- |
-| `XUI_DB_TYPE` | Veritabanı türü: `sqlite` veya `postgres` | `sqlite` |
-| `XUI_DB_DSN` | PostgreSQL bağlantı dizesi (eğer `XUI_DB_TYPE=postgres` ise) | — |
-| `XUI_DB_FOLDER` | SQLite veritabanı dizini | `/etc/x-ui` |
-| `XUI_DB_MAX_OPEN_CONNS` | Maksimum açık bağlantı sayısı (PostgreSQL havuzu) | — |
-| `XUI_DB_MAX_IDLE_CONNS` | Maksimum boşta bekleme bağlantısı (PostgreSQL havuzu) | — |
-| `XUI_INIT_WEB_BASE_PATH` | Web paneli için başlangıç URI yolu | `/` |
-| `XUI_ENABLE_FAIL2BAN` | Fail2ban tabanlı IP limit uygulamasını etkinleştir | `true` |
-| `XUI_LOG_LEVEL` | Günlük (Log) ayrıntı seviyesi (`debug`, `info`, `warning`, `error`) | `info` |
-| `XUI_DEBUG` | Hata ayıklama (debug) modunu etkinleştir | `false` |
+| `XUI_DB_TYPE` | Veritabanı arka ucu: `sqlite` veya `postgres` | `sqlite` |
+| `XUI_DB_DSN` | PostgreSQL bağlantı dizesi (`XUI_DB_TYPE=postgres` olduğunda) | — |
+| `XUI_DB_FOLDER` | SQLite veritabanı dosyası dizini | `/etc/x-ui` |
+| `XUI_INIT_WEB_BASE_PATH` | Web panelinin başlangıç URI yolu | `/` |
+| `XUI_ENABLE_FAIL2BAN` | Fail2ban tabanlı IP limiti uygulamasını etkinleştir | `true` |
+| `XUI_LOG_LEVEL` | Günlük ayrıntısı (`debug`, `info`, `warning`, `error`) | `info` |
 
-## Desteklenen Diller
+## Desteklenen diller
 
-Panel arayüzü 13 farklı dilde mevcuttur:
+Panel arayüzü 13 dilde mevcuttur:
 
-İngilizce · Farsça · Arapça · Çince (Basitleştirilmiş) · Çince (Geleneksel) · İspanyolca · Rusça · Ukraynaca · Türkçe · Vietnamca · Japonca · Endonezce · Portekizce (Brezilya)
+English · فارسی · العربية · 中文（简体） · 中文（繁體） · Español · Русский · Українська · Türkçe · Tiếng Việt · 日本語 · Bahasa Indonesia · Português (Brasil)
 
-## Katkıda Bulunma
+## Belgeler
 
-Katkılarınızı her zaman bekliyoruz. Bir sorun (issue) açmadan veya pull request (PR) göndermeden önce lütfen [Katkıda Bulunma Kılavuzunu](/CONTRIBUTING.md) okuyun.
+- [Gerçek istemci IP'sini yakalama](docs/real-client-ip.md) (Cloudflare / L4 rölelerin arkasında).
+- [Özel abonelik şablonları](docs/custom-subscription-templates.md).
 
-## Özel Teşekkürler
+## Teşekkürler ve lisans
 
-- [alireza0](https://github.com/alireza0/)
+Bu proje **[MHSanaei/3X-UI](https://github.com/MHSanaei/3x-ui)** projesinin bir fork'udur ve [Xray-core](https://github.com/XTLS/Xray-core) ile [alireza0](https://github.com/alireza0/) tarafından yazılan orijinal X-UI üzerine kuruludur. Coğrafi yönlendirme kuralları: [Iran v2ray rules](https://github.com/chocolate4u/Iran-v2ray-rules) ve [Russia v2ray rules](https://github.com/runetfreedom/russia-v2ray-rules-dat).
 
-## Teşekkür & Atıf
-
-- [Iran v2ray rules](https://github.com/chocolate4u/Iran-v2ray-rules) (Lisans: **GPL-3.0**): _Geliştirilmiş v2ray/xray ve v2ray/xray-clients yönlendirme (routing) kuralları; yerleşik İran alan adları ile güvenlik ve reklam engelleme odaklıdır._
-- [Russia v2ray rules](https://github.com/runetfreedom/russia-v2ray-rules-dat) (Lisans: **GPL-3.0**): _Bu depo, Rusya'daki engellenen alan adları ve adreslere dayalı otomatik olarak güncellenen V2Ray yönlendirme kurallarını içerir._
-
-## Topluluk Araçları
-
-3x-ui çevresindeki topluluk tarafından oluşturulmuş araçlar ve entegrasyonlar.
-
-- [terraform-provider-3x-ui](https://github.com/batonogov/terraform-provider-threexui) (Lisans: **MIT**): _Gelen bağlantılarnı, kullanıcıları, panel ayarlarını ve Xray yapılandırmasını Terraform / OpenTofu ile kod olarak (as code) yönetin._
-
-## Projeyi Destekleyin
-
-**Eğer bu proje size faydalı olduysa, bir yıldız verebilirsiniz**:star2:
-
-<a href="https://www.buymeacoffee.com/MHSanaei" target="_blank">
-<img src="./media/default-yellow.png" alt="Bana Bir Kahve Ismarla" style="height: 70px !important;width: 277px !important;" >
-</a>
-
-</br>
-<a href="https://nowpayments.io/donation/hsanaei" target="_blank" rel="noreferrer noopener">
-   <img src="./media/donation-button-black.svg" alt="NOWPayments üzerinden Kripto Bağış Butonu">
-</a>
-
-## Yıldız Tablosu
-
-[![Zaman içerisindeki yıldız sayısı](https://starchart.cc/MHSanaei/3x-ui.svg?variant=adaptive)](https://starchart.cc/MHSanaei/3x-ui)
+Üst proje ile aynı şekilde **GPL-3.0** altında lisanslanmıştır.
