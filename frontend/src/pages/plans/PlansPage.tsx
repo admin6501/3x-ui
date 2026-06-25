@@ -59,7 +59,7 @@ export default function PlansPage() {
 
   const plansQuery = useQuery({
     queryKey: ['plans'],
-    queryFn: async () => (await HttpUtil.get('/panel/api/plans/list')) as Plan[],
+    queryFn: async () => (await HttpUtil.get<Plan[]>('/panel/api/plans/list', undefined, { silent: true })).obj ?? [],
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['plans'] });

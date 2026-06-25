@@ -202,8 +202,8 @@ export default function ClientFormModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    HttpUtil.get('/panel/api/plans/list')
-      .then((rows) => { if (!cancelled) setPlans(((rows as PlanOption[]) || []).filter((p) => p.enable)); })
+    HttpUtil.get<PlanOption[]>('/panel/api/plans/list', undefined, { silent: true })
+      .then((res) => { if (!cancelled) setPlans((res.obj || []).filter((p) => p.enable)); })
       .catch(() => { if (!cancelled) setPlans([]); });
     return () => { cancelled = true; };
   }, [open]);
