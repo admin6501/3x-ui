@@ -1840,6 +1840,43 @@
         "badTag": "無效的標籤",
         "badVlessRoute": "請使用連接埠／範圍，例如 53,443,1000-2000"
       }
+    },
+    "admins": {
+      "title": "管理員管理",
+      "subtitle": "管理面板管理員帳戶及其權限",
+      "addAdmin": "新增管理員",
+      "editAdmin": "編輯管理員",
+      "resetPassword": "重設密碼",
+      "newPassword": "新密碼",
+      "confirmDelete": "刪除此管理員？",
+      "username": "使用者名稱",
+      "password": "密碼",
+      "role": "角色",
+      "allowedInbounds": "允許的入站",
+      "allowedInboundsDesc": "僅限經銷商。留空 = 不顯示任何入站。選擇此經銷商可管理的入站。",
+      "selectInbounds": "選擇入站…",
+      "noInbound": "未指派入站",
+      "auditLog": "稽核日誌",
+      "actor": "操作者",
+      "action": "操作",
+      "target": "目標",
+      "details": "詳情",
+      "when": "時間",
+      "actions": "操作",
+      "refresh": "重新整理",
+      "roles": {
+        "super_admin": "超級管理員",
+        "manager": "管理者",
+        "reseller": "經銷商",
+        "readonly": "唯讀"
+      },
+      "toasts": {
+        "created": "已建立管理員",
+        "updated": "已更新管理員",
+        "deleted": "已刪除管理員",
+        "passwordReset": "已重設密碼",
+        "loadFailed": "載入管理員失敗"
+      }
     }
   },
   "tgbot": {

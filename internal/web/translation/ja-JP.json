@@ -1840,6 +1840,43 @@
         "badTag": "無効なタグ",
         "badVlessRoute": "53,443,1000-2000 のようにポート/範囲を指定してください"
       }
+    },
+    "admins": {
+      "title": "管理者管理",
+      "subtitle": "パネルの管理者アカウントと権限を管理します",
+      "addAdmin": "管理者を追加",
+      "editAdmin": "管理者を編集",
+      "resetPassword": "パスワードをリセット",
+      "newPassword": "新しいパスワード",
+      "confirmDelete": "この管理者を削除しますか？",
+      "username": "ユーザー名",
+      "password": "パスワード",
+      "role": "役割",
+      "allowedInbounds": "許可されたインバウンド",
+      "allowedInboundsDesc": "リセラー専用。空 = インバウンドは表示されません。このリセラーが管理できるインバウンドを選択します。",
+      "selectInbounds": "インバウンドを選択…",
+      "noInbound": "割り当てられたインバウンドがありません",
+      "auditLog": "監査ログ",
+      "actor": "実行者",
+      "action": "操作",
+      "target": "対象",
+      "details": "詳細",
+      "when": "日時",
+      "actions": "操作",
+      "refresh": "更新",
+      "roles": {
+        "super_admin": "スーパー管理者",
+        "manager": "マネージャー",
+        "reseller": "リセラー",
+        "readonly": "読み取り専用"
+      },
+      "toasts": {
+        "created": "管理者を作成しました",
+        "updated": "管理者を更新しました",
+        "deleted": "管理者を削除しました",
+        "passwordReset": "パスワードをリセットしました",
+        "loadFailed": "管理者の読み込みに失敗しました"
+      }
     }
   },
   "tgbot": {

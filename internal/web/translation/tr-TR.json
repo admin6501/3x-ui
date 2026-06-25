@@ -1840,6 +1840,43 @@
         "badTag": "Geçersiz etiket",
         "badVlessRoute": "53,443,1000-2000 gibi portlar/aralıklar kullanın"
       }
+    },
+    "admins": {
+      "title": "Yönetici Yönetimi",
+      "subtitle": "Panel yönetici hesaplarını ve izinlerini yönetin",
+      "addAdmin": "Yönetici Ekle",
+      "editAdmin": "Yöneticiyi Düzenle",
+      "resetPassword": "Parolayı Sıfırla",
+      "newPassword": "Yeni parola",
+      "confirmDelete": "Bu yönetici silinsin mi?",
+      "username": "Kullanıcı adı",
+      "password": "Parola",
+      "role": "Rol",
+      "allowedInbounds": "İzin Verilen Gelenler",
+      "allowedInboundsDesc": "Yalnızca bayi. Boş = hiçbir gelen görünmez. Bu bayinin yönetebileceği gelenleri seçin.",
+      "selectInbounds": "Gelenleri seçin…",
+      "noInbound": "Atanmış gelen yok",
+      "auditLog": "Denetim Günlüğü",
+      "actor": "İşlemi yapan",
+      "action": "İşlem",
+      "target": "Hedef",
+      "details": "Ayrıntılar",
+      "when": "Ne zaman",
+      "actions": "İşlemler",
+      "refresh": "Yenile",
+      "roles": {
+        "super_admin": "Süper Yönetici",
+        "manager": "Yönetici",
+        "reseller": "Bayi",
+        "readonly": "Salt okunur"
+      },
+      "toasts": {
+        "created": "Yönetici oluşturuldu",
+        "updated": "Yönetici güncellendi",
+        "deleted": "Yönetici silindi",
+        "passwordReset": "Parola sıfırlandı",
+        "loadFailed": "Yöneticiler yüklenemedi"
+      }
     }
   },
   "tgbot": {

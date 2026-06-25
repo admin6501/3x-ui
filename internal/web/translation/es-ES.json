@@ -1840,6 +1840,43 @@
         "badTag": "Etiqueta no válida",
         "badVlessRoute": "Usa puertos/rangos como 53,443,1000-2000"
       }
+    },
+    "admins": {
+      "title": "Gestión de administradores",
+      "subtitle": "Gestiona las cuentas de administrador del panel y sus permisos",
+      "addAdmin": "Añadir administrador",
+      "editAdmin": "Editar administrador",
+      "resetPassword": "Restablecer contraseña",
+      "newPassword": "Nueva contraseña",
+      "confirmDelete": "¿Eliminar este administrador?",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "role": "Rol",
+      "allowedInbounds": "Entradas permitidas",
+      "allowedInboundsDesc": "Solo para revendedores. Vacío = no se muestran entradas. Elige las entradas que este revendedor puede gestionar.",
+      "selectInbounds": "Seleccionar entradas…",
+      "noInbound": "Sin entradas asignadas",
+      "auditLog": "Registro de auditoría",
+      "actor": "Actor",
+      "action": "Acción",
+      "target": "Objetivo",
+      "details": "Detalles",
+      "when": "Cuándo",
+      "actions": "Acciones",
+      "refresh": "Actualizar",
+      "roles": {
+        "super_admin": "Superadministrador",
+        "manager": "Gestor",
+        "reseller": "Revendedor",
+        "readonly": "Solo lectura"
+      },
+      "toasts": {
+        "created": "Administrador creado",
+        "updated": "Administrador actualizado",
+        "deleted": "Administrador eliminado",
+        "passwordReset": "Contraseña restablecida",
+        "loadFailed": "Error al cargar administradores"
+      }
     }
   },
   "tgbot": {

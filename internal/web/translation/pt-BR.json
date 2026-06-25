@@ -1840,6 +1840,43 @@
         "badTag": "Tag inválida",
         "badVlessRoute": "Use portas/intervalos como 53,443,1000-2000"
       }
+    },
+    "admins": {
+      "title": "Gerenciamento de administradores",
+      "subtitle": "Gerencie as contas de administrador do painel e suas permissões",
+      "addAdmin": "Adicionar administrador",
+      "editAdmin": "Editar administrador",
+      "resetPassword": "Redefinir senha",
+      "newPassword": "Nova senha",
+      "confirmDelete": "Excluir este administrador?",
+      "username": "Usuário",
+      "password": "Senha",
+      "role": "Função",
+      "allowedInbounds": "Entradas permitidas",
+      "allowedInboundsDesc": "Somente revendedor. Vazio = nenhuma entrada visível. Escolha as entradas que este revendedor pode gerenciar.",
+      "selectInbounds": "Selecionar entradas…",
+      "noInbound": "Nenhuma entrada atribuída",
+      "auditLog": "Registro de auditoria",
+      "actor": "Autor",
+      "action": "Ação",
+      "target": "Alvo",
+      "details": "Detalhes",
+      "when": "Quando",
+      "actions": "Ações",
+      "refresh": "Atualizar",
+      "roles": {
+        "super_admin": "Superadministrador",
+        "manager": "Gerente",
+        "reseller": "Revendedor",
+        "readonly": "Somente leitura"
+      },
+      "toasts": {
+        "created": "Administrador criado",
+        "updated": "Administrador atualizado",
+        "deleted": "Administrador excluído",
+        "passwordReset": "Senha redefinida",
+        "loadFailed": "Falha ao carregar administradores"
+      }
     }
   },
   "tgbot": {

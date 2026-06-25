@@ -1840,6 +1840,43 @@
         "badTag": "无效的标签",
         "badVlessRoute": "请使用端口/范围格式，如 53,443,1000-2000"
       }
+    },
+    "admins": {
+      "title": "管理员管理",
+      "subtitle": "管理面板管理员账户及其权限",
+      "addAdmin": "添加管理员",
+      "editAdmin": "编辑管理员",
+      "resetPassword": "重置密码",
+      "newPassword": "新密码",
+      "confirmDelete": "删除该管理员？",
+      "username": "用户名",
+      "password": "密码",
+      "role": "角色",
+      "allowedInbounds": "允许的入站",
+      "allowedInboundsDesc": "仅限分销商。留空 = 不显示任何入站。选择该分销商可管理的入站。",
+      "selectInbounds": "选择入站…",
+      "noInbound": "未分配入站",
+      "auditLog": "审计日志",
+      "actor": "操作者",
+      "action": "操作",
+      "target": "目标",
+      "details": "详情",
+      "when": "时间",
+      "actions": "操作",
+      "refresh": "刷新",
+      "roles": {
+        "super_admin": "超级管理员",
+        "manager": "管理者",
+        "reseller": "分销商",
+        "readonly": "只读"
+      },
+      "toasts": {
+        "created": "管理员已创建",
+        "updated": "管理员已更新",
+        "deleted": "管理员已删除",
+        "passwordReset": "密码已重置",
+        "loadFailed": "加载管理员失败"
+      }
     }
   },
   "tgbot": {

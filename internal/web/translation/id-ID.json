@@ -1840,6 +1840,43 @@
         "badTag": "Tag tidak valid",
         "badVlessRoute": "Gunakan port/rentang seperti 53,443,1000-2000"
       }
+    },
+    "admins": {
+      "title": "Manajemen Admin",
+      "subtitle": "Kelola akun administrator panel dan izinnya",
+      "addAdmin": "Tambah Admin",
+      "editAdmin": "Edit Admin",
+      "resetPassword": "Atur Ulang Kata Sandi",
+      "newPassword": "Kata sandi baru",
+      "confirmDelete": "Hapus admin ini?",
+      "username": "Nama pengguna",
+      "password": "Kata sandi",
+      "role": "Peran",
+      "allowedInbounds": "Inbound yang Diizinkan",
+      "allowedInboundsDesc": "Khusus reseller. Kosong = tidak ada inbound yang terlihat. Pilih inbound yang dapat dikelola reseller ini.",
+      "selectInbounds": "Pilih inbound…",
+      "noInbound": "Tidak ada inbound yang ditetapkan",
+      "auditLog": "Log Audit",
+      "actor": "Pelaku",
+      "action": "Aksi",
+      "target": "Target",
+      "details": "Detail",
+      "when": "Waktu",
+      "actions": "Aksi",
+      "refresh": "Segarkan",
+      "roles": {
+        "super_admin": "Super Admin",
+        "manager": "Manajer",
+        "reseller": "Reseller",
+        "readonly": "Hanya-baca"
+      },
+      "toasts": {
+        "created": "Admin dibuat",
+        "updated": "Admin diperbarui",
+        "deleted": "Admin dihapus",
+        "passwordReset": "Kata sandi diatur ulang",
+        "loadFailed": "Gagal memuat admin"
+      }
     }
   },
   "tgbot": {

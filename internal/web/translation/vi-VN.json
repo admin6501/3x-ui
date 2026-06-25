@@ -1840,6 +1840,43 @@
         "badTag": "Tag không hợp lệ",
         "badVlessRoute": "Dùng cổng/dải cổng như 53,443,1000-2000"
       }
+    },
+    "admins": {
+      "title": "Quản lý quản trị viên",
+      "subtitle": "Quản lý tài khoản quản trị viên của bảng điều khiển và quyền của họ",
+      "addAdmin": "Thêm quản trị viên",
+      "editAdmin": "Sửa quản trị viên",
+      "resetPassword": "Đặt lại mật khẩu",
+      "newPassword": "Mật khẩu mới",
+      "confirmDelete": "Xóa quản trị viên này?",
+      "username": "Tên đăng nhập",
+      "password": "Mật khẩu",
+      "role": "Vai trò",
+      "allowedInbounds": "Inbound được phép",
+      "allowedInboundsDesc": "Chỉ dành cho đại lý. Trống = không hiển thị inbound nào. Chọn các inbound mà đại lý này có thể quản lý.",
+      "selectInbounds": "Chọn inbound…",
+      "noInbound": "Chưa gán inbound nào",
+      "auditLog": "Nhật ký kiểm tra",
+      "actor": "Người thực hiện",
+      "action": "Hành động",
+      "target": "Mục tiêu",
+      "details": "Chi tiết",
+      "when": "Thời điểm",
+      "actions": "Hành động",
+      "refresh": "Làm mới",
+      "roles": {
+        "super_admin": "Quản trị tối cao",
+        "manager": "Quản lý",
+        "reseller": "Đại lý",
+        "readonly": "Chỉ đọc"
+      },
+      "toasts": {
+        "created": "Đã tạo quản trị viên",
+        "updated": "Đã cập nhật quản trị viên",
+        "deleted": "Đã xóa quản trị viên",
+        "passwordReset": "Đã đặt lại mật khẩu",
+        "loadFailed": "Không tải được quản trị viên"
+      }
     }
   },
   "tgbot": {
