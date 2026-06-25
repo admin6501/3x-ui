@@ -117,7 +117,8 @@
     "logout": "Sair",
     "link": "Gerenciar",
     "donate": "Doar",
-    "hosts": "Hosts"
+    "hosts": "Hosts",
+    "plans": "Planos"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "{count} clientes sem inbound excluídos",
         "imported": "{count} clientes importados",
         "importedMixed": "{ok} importados, {failed} ignorados"
-      }
+      },
+      "plan": "Plano",
+      "planDesc": "Escolha um plano para preencher tráfego, validade e limite de IP",
+      "planPlaceholder": "Aplicar um plano…"
     },
     "groups": {
       "title": "Grupos",
@@ -1877,6 +1881,28 @@
         "passwordReset": "Senha redefinida",
         "loadFailed": "Falha ao carregar administradores"
       }
+    },
+    "plans": {
+      "title": "Planos / Pacotes",
+      "subtitle": "Modelos de cliente reutilizáveis — preencha tráfego, validade e limite de IP com um clique",
+      "addPlan": "Adicionar plano",
+      "editPlan": "Editar plano",
+      "name": "Nome",
+      "duration": "Duração (dias)",
+      "days": "dias",
+      "totalGB": "Tráfego total (GB)",
+      "limitIp": "Limite de IP",
+      "reset": "Ciclo de redefinição (dias)",
+      "enable": "Ativado",
+      "remark": "Observação",
+      "actions": "Ações",
+      "confirmDelete": "Excluir este plano?",
+      "refresh": "Atualizar",
+      "noExpiry": "Sem validade",
+      "unlimited": "Ilimitado",
+      "unlimitedHint": "0 = ilimitado",
+      "durationDesc": "Dias somados à criação; 0 = nunca expira",
+      "resetDesc": "Ciclo de redefinição de tráfego em dias; 0 = sem redefinição"
     }
   },
   "tgbot": {

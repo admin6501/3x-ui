@@ -117,7 +117,8 @@
     "logout": "退出登录",
     "link": "管理",
     "donate": "捐赠",
-    "hosts": "主机"
+    "hosts": "主机",
+    "plans": "套餐"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "已删除 {count} 个未关联的客户端",
         "imported": "已导入 {count} 个客户端",
         "importedMixed": "已导入 {ok} 个，跳过 {failed} 个"
-      }
+      },
+      "plan": "套餐",
+      "planDesc": "选择套餐以填充流量、到期和 IP 限制",
+      "planPlaceholder": "应用套餐…"
     },
     "groups": {
       "title": "分组",
@@ -1877,6 +1881,28 @@
         "passwordReset": "密码已重置",
         "loadFailed": "加载管理员失败"
       }
+    },
+    "plans": {
+      "title": "套餐 / 计划",
+      "subtitle": "可复用的客户端模板——一键填充流量、到期和 IP 限制",
+      "addPlan": "添加套餐",
+      "editPlan": "编辑套餐",
+      "name": "名称",
+      "duration": "时长（天）",
+      "days": "天",
+      "totalGB": "总流量 (GB)",
+      "limitIp": "IP 限制",
+      "reset": "重置周期（天）",
+      "enable": "已启用",
+      "remark": "备注",
+      "actions": "操作",
+      "confirmDelete": "删除该套餐？",
+      "refresh": "刷新",
+      "noExpiry": "永不过期",
+      "unlimited": "无限制",
+      "unlimitedHint": "0 = 无限制",
+      "durationDesc": "从创建时起增加的天数；0 = 永不过期",
+      "resetDesc": "流量重置周期（天）；0 = 不重置"
     }
   },
   "tgbot": {

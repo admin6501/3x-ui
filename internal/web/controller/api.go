@@ -121,6 +121,12 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	adminGroup.Use(requireSuperAdmin())
 	NewAdminController(adminGroup)
 
+	// Plans/packages — reusable client templates. Listing is open to any admin
+	// (the client form offers them); mutating routes are gated to
+	// super_admin/manager inside the controller. Paths are /panel/api/plans/*.
+	plans := api.Group("/plans")
+	NewPlanController(plans)
+
 	// Extra routes
 	api.POST("/backuptotgbot", a.BackuptoTgbot)
 }

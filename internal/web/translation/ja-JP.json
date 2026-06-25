@@ -117,7 +117,8 @@
     "logout": "ログアウト",
     "link": "リンク管理",
     "donate": "寄付",
-    "hosts": "ホスト"
+    "hosts": "ホスト",
+    "plans": "プラン"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "未アタッチの {count} 件のクライアントを削除しました",
         "imported": "{count} 件のクライアントをインポートしました",
         "importedMixed": "{ok} 件インポート、{failed} 件スキップ"
-      }
+      },
+      "plan": "プラン",
+      "planDesc": "プランを選ぶとトラフィック・期限・IP制限が入力されます",
+      "planPlaceholder": "プランを適用…"
     },
     "groups": {
       "title": "グループ",
@@ -1877,6 +1881,28 @@
         "passwordReset": "パスワードをリセットしました",
         "loadFailed": "管理者の読み込みに失敗しました"
       }
+    },
+    "plans": {
+      "title": "プラン / パッケージ",
+      "subtitle": "再利用可能なクライアントテンプレート — トラフィック・期限・IP制限をワンクリックで入力",
+      "addPlan": "プランを追加",
+      "editPlan": "プランを編集",
+      "name": "名前",
+      "duration": "期間（日）",
+      "days": "日",
+      "totalGB": "総トラフィック (GB)",
+      "limitIp": "IP制限",
+      "reset": "リセット周期（日）",
+      "enable": "有効",
+      "remark": "備考",
+      "actions": "操作",
+      "confirmDelete": "このプランを削除しますか？",
+      "refresh": "更新",
+      "noExpiry": "無期限",
+      "unlimited": "無制限",
+      "unlimitedHint": "0 = 無制限",
+      "durationDesc": "作成時からの日数；0 = 無期限",
+      "resetDesc": "トラフィックのリセット周期（日）；0 = リセットなし"
     }
   },
   "tgbot": {

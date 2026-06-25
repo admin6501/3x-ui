@@ -117,7 +117,8 @@
     "logout": "Çıkış Yap",
     "link": "Yönet",
     "donate": "Bağış Yap",
-    "hosts": "Host'lar"
+    "hosts": "Host'lar",
+    "plans": "Planlar"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "{count} bağsız kullanıcı silindi",
         "imported": "{count} kullanıcı içe aktarıldı",
         "importedMixed": "{ok} içe aktarıldı, {failed} atlandı"
-      }
+      },
+      "plan": "Plan",
+      "planDesc": "Trafik, son kullanma ve IP limitini doldurmak için bir plan seçin",
+      "planPlaceholder": "Bir plan uygula…"
     },
     "groups": {
       "title": "Gruplar",
@@ -1877,6 +1881,28 @@
         "passwordReset": "Parola sıfırlandı",
         "loadFailed": "Yöneticiler yüklenemedi"
       }
+    },
+    "plans": {
+      "title": "Planlar / Paketler",
+      "subtitle": "Yeniden kullanılabilir istemci şablonları — trafik, son kullanma ve IP limitini tek tıkla doldurun",
+      "addPlan": "Plan Ekle",
+      "editPlan": "Planı Düzenle",
+      "name": "Ad",
+      "duration": "Süre (gün)",
+      "days": "gün",
+      "totalGB": "Toplam trafik (GB)",
+      "limitIp": "IP limiti",
+      "reset": "Sıfırlama döngüsü (gün)",
+      "enable": "Etkin",
+      "remark": "Açıklama",
+      "actions": "İşlemler",
+      "confirmDelete": "Bu plan silinsin mi?",
+      "refresh": "Yenile",
+      "noExpiry": "Süresiz",
+      "unlimited": "Sınırsız",
+      "unlimitedHint": "0 = sınırsız",
+      "durationDesc": "Oluşturmadan itibaren eklenen gün; 0 = süresiz",
+      "resetDesc": "Trafik sıfırlama döngüsü (gün); 0 = sıfırlama yok"
     }
   },
   "tgbot": {

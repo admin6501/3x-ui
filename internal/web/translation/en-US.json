@@ -118,7 +118,8 @@
     "logout": "Log Out",
     "link": "Manage",
     "donate": "Donate",
-    "admins": "Admins"
+    "admins": "Admins",
+    "plans": "Plans"
   },
   "pages": {
     "login": {
@@ -870,7 +871,10 @@
         "delOrphans": "{count} unattached clients deleted",
         "imported": "{count} clients imported",
         "importedMixed": "{ok} imported, {failed} skipped"
-      }
+      },
+      "plan": "Plan",
+      "planDesc": "Pick a plan to prefill traffic, expiry and IP limit",
+      "planPlaceholder": "Apply a plan…"
     },
     "groups": {
       "title": "Groups",
@@ -1878,6 +1882,28 @@
         "passwordReset": "Password reset",
         "loadFailed": "Failed to load admins"
       }
+    },
+    "plans": {
+      "title": "Plans / Packages",
+      "subtitle": "Reusable client templates — prefill traffic, expiry and IP limit in one click",
+      "addPlan": "Add Plan",
+      "editPlan": "Edit Plan",
+      "name": "Name",
+      "duration": "Duration (days)",
+      "days": "days",
+      "totalGB": "Total traffic (GB)",
+      "limitIp": "IP limit",
+      "reset": "Reset cycle (days)",
+      "enable": "Enabled",
+      "remark": "Remark",
+      "actions": "Actions",
+      "confirmDelete": "Delete this plan?",
+      "refresh": "Refresh",
+      "noExpiry": "No expiry",
+      "unlimited": "Unlimited",
+      "unlimitedHint": "0 = unlimited",
+      "durationDesc": "Days added from creation time; 0 = never expires",
+      "resetDesc": "Traffic reset cycle in days; 0 = no reset"
     }
   },
   "tgbot": {

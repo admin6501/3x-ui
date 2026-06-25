@@ -117,7 +117,8 @@
     "logout": "Cerrar Sesión",
     "link": "Gestionar",
     "donate": "Donar",
-    "hosts": "Hosts"
+    "hosts": "Hosts",
+    "plans": "Planes"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "{count} clientes sin entrante eliminados",
         "imported": "{count} clientes importados",
         "importedMixed": "{ok} importados, {failed} omitidos"
-      }
+      },
+      "plan": "Plan",
+      "planDesc": "Elige un plan para rellenar tráfico, caducidad y límite de IP",
+      "planPlaceholder": "Aplicar un plan…"
     },
     "groups": {
       "title": "Grupos",
@@ -1877,6 +1881,28 @@
         "passwordReset": "Contraseña restablecida",
         "loadFailed": "Error al cargar administradores"
       }
+    },
+    "plans": {
+      "title": "Planes / Paquetes",
+      "subtitle": "Plantillas de cliente reutilizables — rellena tráfico, caducidad y límite de IP con un clic",
+      "addPlan": "Añadir plan",
+      "editPlan": "Editar plan",
+      "name": "Nombre",
+      "duration": "Duración (días)",
+      "days": "días",
+      "totalGB": "Tráfico total (GB)",
+      "limitIp": "Límite de IP",
+      "reset": "Ciclo de reinicio (días)",
+      "enable": "Activado",
+      "remark": "Nota",
+      "actions": "Acciones",
+      "confirmDelete": "¿Eliminar este plan?",
+      "refresh": "Actualizar",
+      "noExpiry": "Sin caducidad",
+      "unlimited": "Ilimitado",
+      "unlimitedHint": "0 = ilimitado",
+      "durationDesc": "Días añadidos desde la creación; 0 = nunca caduca",
+      "resetDesc": "Ciclo de reinicio de tráfico en días; 0 = sin reinicio"
     }
   },
   "tgbot": {

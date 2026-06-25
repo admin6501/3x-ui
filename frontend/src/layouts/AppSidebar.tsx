@@ -22,6 +22,7 @@ import {
   MessageOutlined,
   MoonFilled,
   MoonOutlined,
+  ProfileOutlined,
   SafetyOutlined,
   SettingOutlined,
   SunOutlined,
@@ -40,7 +41,7 @@ const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
 const REPO_URL = 'https://github.com/admin6501/3x-ui';
 const LOGOUT_KEY = '__logout__';
 
-type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins';
+type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans';
 
 const iconByName: Record<IconName, ComponentType> = {
   dashboard: DashboardOutlined,
@@ -56,6 +57,7 @@ const iconByName: Record<IconName, ComponentType> = {
   outbound: ExportOutlined,
   routing: SwapOutlined,
   admins: SafetyOutlined,
+  plans: ProfileOutlined,
 };
 
 function readCollapsed(): boolean {
@@ -127,6 +129,7 @@ export default function AppSidebar() {
       { key: '/', icon: 'dashboard', title: t('menu.dashboard') },
       { key: '/inbounds', icon: 'inbound', title: t('menu.inbounds') },
       { key: '/clients', icon: 'team', title: t('menu.clients') },
+      { key: '/plans', icon: 'plans', title: t('menu.plans') },
       { key: '/groups', icon: 'groups', title: t('menu.groups') },
       { key: '/nodes', icon: 'cluster', title: t('menu.nodes') },
       { key: '/hosts', icon: 'hosts', title: t('menu.hosts') },
@@ -144,8 +147,8 @@ export default function AppSidebar() {
     // down to just their assigned inbounds.
     if (isSuperAdmin) return all;
     const allowedByRole: Record<string, string[]> = {
-      manager: ['/', '/inbounds', '/clients', '/groups', '/hosts', '/api-docs'],
-      readonly: ['/', '/inbounds', '/clients', '/groups', '/hosts', '/api-docs'],
+      manager: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
+      readonly: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
       reseller: ['/clients', '/inbounds'],
     };
     const allowed = allowedByRole[role] ?? ['/'];

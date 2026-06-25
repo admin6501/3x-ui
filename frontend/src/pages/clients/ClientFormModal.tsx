@@ -54,6 +54,16 @@ interface ApiMsg<T = unknown> {
   obj?: T;
 }
 
+interface PlanOption {
+  id: number;
+  name: string;
+  durationDays: number;
+  totalGB: number;
+  limitIp: number;
+  reset: number;
+  enable: boolean;
+}
+
 type Mode = 'add' | 'edit';
 
 interface SaveMetaEdit {
@@ -186,6 +196,30 @@ export default function ClientFormModal({
   const fail2ban = useFail2banStatusQuery();
   const limitIpDisabled = !fail2ban.usable;
   const limitIpNotice = getLimitIpNotice(fail2ban, t);
+
+  // Plan/package templates — picking one prefills traffic/expiry/IP-limit.
+  const [plans, setPlans] = useState<PlanOption[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    HttpUtil.get('/panel/api/plans/list')
+      .then((rows) => { if (!cancelled) setPlans(((rows as PlanOption[]) || []).filter((p) => p.enable)); })
+      .catch(() => { if (!cancelled) setPlans([]); });
+    return () => { cancelled = true; };
+  }, [open]);
+
+  function applyPlan(planId: number) {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+    setForm((prev) => ({
+      ...prev,
+      totalGB: plan.totalGB || 0,
+      limitIp: plan.limitIp || 0,
+      reset: plan.reset || 0,
+      delayedStart: false,
+      expiryDate: plan.durationDays > 0 ? dayjs().add(plan.durationDays, 'day') : null,
+    }));
+  }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -530,6 +564,20 @@ export default function ClientFormModal({
                 label: t('pages.clients.tabBasics'),
                 children: (
                   <>
+                    {plans.length > 0 && (
+                      <Form.Item label={t('pages.clients.plan')} tooltip={t('pages.clients.planDesc')}>
+                        <Select
+                          data-testid="client-plan-select"
+                          allowClear
+                          placeholder={t('pages.clients.planPlaceholder')}
+                          onChange={(v) => applyPlan(Number(v))}
+                          options={plans.map((p) => ({
+                            value: p.id,
+                            label: `${p.name}${p.totalGB > 0 ? ` · ${p.totalGB}GB` : ''}${p.durationDays > 0 ? ` · ${p.durationDays}d` : ''}`,
+                          }))}
+                        />
+                      </Form.Item>
+                    )}
                     <Row gutter={16}>
                       <Col xs={24} md={12}>
                         <Form.Item label={t('pages.clients.email')} required>

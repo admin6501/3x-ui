@@ -117,7 +117,8 @@
     "logout": "Đăng xuất",
     "link": "Quản lý",
     "donate": "Quyên góp",
-    "hosts": "Hosts"
+    "hosts": "Hosts",
+    "plans": "Gói"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "Đã xóa {count} khách hàng không gắn inbound",
         "imported": "Đã nhập {count} khách hàng",
         "importedMixed": "Đã nhập {ok}, bỏ qua {failed}"
-      }
+      },
+      "plan": "Gói",
+      "planDesc": "Chọn gói để điền lưu lượng, hết hạn và giới hạn IP",
+      "planPlaceholder": "Áp dụng gói…"
     },
     "groups": {
       "title": "Nhóm",
@@ -1877,6 +1881,28 @@
         "passwordReset": "Đã đặt lại mật khẩu",
         "loadFailed": "Không tải được quản trị viên"
       }
+    },
+    "plans": {
+      "title": "Gói / Gói cước",
+      "subtitle": "Mẫu khách hàng tái sử dụng — điền lưu lượng, hết hạn và giới hạn IP bằng một cú nhấp",
+      "addPlan": "Thêm gói",
+      "editPlan": "Sửa gói",
+      "name": "Tên",
+      "duration": "Thời hạn (ngày)",
+      "days": "ngày",
+      "totalGB": "Tổng lưu lượng (GB)",
+      "limitIp": "Giới hạn IP",
+      "reset": "Chu kỳ đặt lại (ngày)",
+      "enable": "Đã bật",
+      "remark": "Ghi chú",
+      "actions": "Hành động",
+      "confirmDelete": "Xóa gói này?",
+      "refresh": "Làm mới",
+      "noExpiry": "Không hết hạn",
+      "unlimited": "Không giới hạn",
+      "unlimitedHint": "0 = không giới hạn",
+      "durationDesc": "Số ngày tính từ lúc tạo; 0 = không hết hạn",
+      "resetDesc": "Chu kỳ đặt lại lưu lượng theo ngày; 0 = không đặt lại"
     }
   },
   "tgbot": {

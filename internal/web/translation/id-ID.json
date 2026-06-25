@@ -117,7 +117,8 @@
     "logout": "Keluar",
     "link": "Kelola",
     "donate": "Donasi",
-    "hosts": "Host"
+    "hosts": "Host",
+    "plans": "Paket"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "{count} klien tanpa inbound dihapus",
         "imported": "{count} klien diimpor",
         "importedMixed": "{ok} diimpor, {failed} dilewati"
-      }
+      },
+      "plan": "Paket",
+      "planDesc": "Pilih paket untuk mengisi trafik, kedaluwarsa, dan batas IP",
+      "planPlaceholder": "Terapkan paket…"
     },
     "groups": {
       "title": "Grup",
@@ -1877,6 +1881,28 @@
         "passwordReset": "Kata sandi diatur ulang",
         "loadFailed": "Gagal memuat admin"
       }
+    },
+    "plans": {
+      "title": "Paket / Plan",
+      "subtitle": "Templat klien yang dapat dipakai ulang — isi trafik, kedaluwarsa, dan batas IP sekali klik",
+      "addPlan": "Tambah Paket",
+      "editPlan": "Edit Paket",
+      "name": "Nama",
+      "duration": "Durasi (hari)",
+      "days": "hari",
+      "totalGB": "Total trafik (GB)",
+      "limitIp": "Batas IP",
+      "reset": "Siklus reset (hari)",
+      "enable": "Aktif",
+      "remark": "Keterangan",
+      "actions": "Aksi",
+      "confirmDelete": "Hapus paket ini?",
+      "refresh": "Segarkan",
+      "noExpiry": "Tanpa kedaluwarsa",
+      "unlimited": "Tak terbatas",
+      "unlimitedHint": "0 = tak terbatas",
+      "durationDesc": "Hari ditambahkan sejak dibuat; 0 = tidak kedaluwarsa",
+      "resetDesc": "Siklus reset trafik dalam hari; 0 = tanpa reset"
     }
   },
   "tgbot": {

@@ -63,6 +63,7 @@ func initModels() error {
 	models := []any{
 		&model.User{},
 		&model.AdminAuditLog{},
+		&model.Plan{},
 		&model.Inbound{},
 		&model.OutboundTraffics{},
 		&model.Setting{},

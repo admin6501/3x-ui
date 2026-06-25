@@ -117,7 +117,8 @@
     "logout": "退出登入",
     "link": "管理",
     "donate": "捐贈",
-    "hosts": "Hosts"
+    "hosts": "Hosts",
+    "plans": "方案"
   },
   "pages": {
     "login": {
@@ -869,7 +870,10 @@
         "delOrphans": "已刪除 {count} 個未關聯的客戶端",
         "imported": "已匯入 {count} 個客戶端",
         "importedMixed": "已匯入 {ok} 個，跳過 {failed} 個"
-      }
+      },
+      "plan": "方案",
+      "planDesc": "選擇方案以填入流量、到期與 IP 限制",
+      "planPlaceholder": "套用方案…"
     },
     "groups": {
       "title": "群組",
@@ -1877,6 +1881,28 @@
         "passwordReset": "已重設密碼",
         "loadFailed": "載入管理員失敗"
       }
+    },
+    "plans": {
+      "title": "方案 / 套餐",
+      "subtitle": "可重複使用的用戶端範本——一鍵填入流量、到期與 IP 限制",
+      "addPlan": "新增方案",
+      "editPlan": "編輯方案",
+      "name": "名稱",
+      "duration": "時長（天）",
+      "days": "天",
+      "totalGB": "總流量 (GB)",
+      "limitIp": "IP 限制",
+      "reset": "重設週期（天）",
+      "enable": "已啟用",
+      "remark": "備註",
+      "actions": "操作",
+      "confirmDelete": "刪除此方案？",
+      "refresh": "重新整理",
+      "noExpiry": "永不過期",
+      "unlimited": "無限制",
+      "unlimitedHint": "0 = 無限制",
+      "durationDesc": "自建立起增加的天數；0 = 永不過期",
+      "resetDesc": "流量重設週期（天）；0 = 不重設"
     }
   },
   "tgbot": {
