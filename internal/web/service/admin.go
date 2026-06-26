@@ -176,6 +176,65 @@ func (s *AdminService) GetAllResellerStats() (map[int]ResellerStats, error) {
 	return out, nil
 }
 
+const resellerBytesPerGB = int64(1024 * 1024 * 1024)
+
+// EnforceResellerQuotas disables every assigned inbound of any reseller whose
+// total consumption has reached their traffic quota, and re-enables inbounds it
+// previously auto-disabled once the reseller recovers (quota raised / reset).
+// Over-selling is intentionally allowed — only real consumption matters.
+// Returns true if any inbound enable flag flipped (caller should restart xray).
+func (s *AdminService) EnforceResellerQuotas(inboundSvc *InboundService) bool {
+	db := database.GetDB()
+	var resellers []model.User
+	if err := db.Where("role = ? AND traffic_quota_gb > 0", model.RoleReseller).Find(&resellers).Error; err != nil {
+		return false
+	}
+	changed := false
+	for i := range resellers {
+		r := &resellers[i]
+		ids := AllowedInboundIDs(r)
+		if len(ids) == 0 {
+			continue
+		}
+		var used int64
+		db.Model(&model.Inbound{}).Where("id IN ?", ids).
+			Select("COALESCE(SUM(up + down), 0)").Scan(&used)
+		exhausted := used >= r.TrafficQuotaGB*resellerBytesPerGB
+
+		if exhausted {
+			for _, id := range ids {
+				ib, err := inboundSvc.GetInbound(id)
+				if err != nil || !ib.Enable {
+					continue
+				}
+				if nr, err := inboundSvc.SetInboundEnable(id, false); err == nil {
+					changed = changed || nr
+					_ = db.Where("inbound_id = ?", id).
+						Delete(&model.ResellerQuotaDisabledInbound{}).Error
+					_ = db.Create(&model.ResellerQuotaDisabledInbound{InboundId: id, ResellerId: r.Id}).Error
+					changed = true
+				}
+			}
+			continue
+		}
+
+		// Recovered: re-enable only inbounds WE auto-disabled for this reseller.
+		var tracked []model.ResellerQuotaDisabledInbound
+		if err := db.Where("reseller_id = ?", r.Id).Find(&tracked).Error; err != nil {
+			continue
+		}
+		for _, row := range tracked {
+			if nr, err := inboundSvc.SetInboundEnable(row.InboundId, true); err == nil {
+				changed = changed || nr
+			}
+			_ = db.Where("inbound_id = ?", row.InboundId).
+				Delete(&model.ResellerQuotaDisabledInbound{}).Error
+			changed = true
+		}
+	}
+	return changed
+}
+
 // GetAdmin returns a single admin row (without password).
 func (s *AdminService) GetAdmin(id int) (*model.User, error) {
 	db := database.GetDB()

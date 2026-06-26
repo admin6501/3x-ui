@@ -153,7 +153,7 @@ export default function AppSidebar() {
     const allowedByRole: Record<string, string[]> = {
       manager: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
       readonly: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
-      reseller: ['/usage', '/clients', '/inbounds'],
+      reseller: ['/usage', '/clients'],
     };
     const allowed = allowedByRole[role] ?? ['/'];
     return all.filter((tab) => tab.key === LOGOUT_KEY || allowed.includes(tab.key));

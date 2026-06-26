@@ -18,6 +18,7 @@ type XrayTrafficJob struct {
 	xrayService     service.XrayService
 	inboundService  service.InboundService
 	outboundService outbound.OutboundService
+	adminService    service.AdminService
 }
 
 // NewXrayTrafficJob creates a new traffic collection job instance.
@@ -74,6 +75,13 @@ func (j *XrayTrafficJob) Run() {
 	}
 	if needRestart0 || needRestart1 {
 		j.xrayService.SetToNeedRestart()
+	}
+
+	// Reseller traffic-quota enforcement: disable a reseller's assigned inbounds
+	// once their total consumption hits their quota (and re-enable on recovery).
+	if j.adminService.EnforceResellerQuotas(&j.inboundService) {
+		j.xrayService.SetToNeedRestart()
+		websocket.BroadcastInvalidate(websocket.MessageTypeInbounds)
 	}
 
 	// Derive the local online set from this poll's per-email deltas rather

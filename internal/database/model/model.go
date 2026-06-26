@@ -100,6 +100,19 @@ type Plan struct {
 }
 
 
+// ResellerQuotaDisabledInbound tracks inbounds that the reseller-quota
+// enforcer auto-disabled because the owning reseller exhausted their traffic
+// quota. Only inbounds recorded here are auto-re-enabled when the reseller
+// recovers (quota raised / traffic reset) — so an admin's manual disable is
+// never clobbered.
+type ResellerQuotaDisabledInbound struct {
+	InboundId  int   `json:"inboundId" gorm:"primaryKey;column:inbound_id"`
+	ResellerId int   `json:"resellerId" gorm:"index;column:reseller_id"`
+	DisabledAt int64 `json:"disabledAt" gorm:"autoCreateTime:milli"`
+}
+
+func (ResellerQuotaDisabledInbound) TableName() string { return "reseller_quota_disabled_inbounds" }
+
 // Inbound represents an Xray inbound configuration with traffic statistics and settings.
 type Inbound struct {
         Id                   int                  `json:"id" form:"id" gorm:"primaryKey;autoIncrement" example:"1"`                                                                                                     // Unique identifier
