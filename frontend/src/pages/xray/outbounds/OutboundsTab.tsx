@@ -106,7 +106,7 @@ export default function OutboundsTab({
   const { t } = useTranslation();
   const [modal, modalContextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
-  const [testMode, setTestMode] = useState<'tcp' | 'http'>('tcp');
+  const [testMode, setTestMode] = useState<'tcp' | 'http'>('http');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOutbound, setEditingOutbound] = useState<Record<string, unknown> | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
