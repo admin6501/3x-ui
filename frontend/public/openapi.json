@@ -2224,6 +2224,14 @@
     {
       "name": "WebSocket",
       "description": "Real-time status updates via WebSocket. Connect once at <code>ws://<panel>/ws</code> to receive a stream of JSON messages without polling. Requires an authenticated session cookie (Bearer token auth is not supported). Each message has a <code>type</code> field that identifies the payload shape."
+    },
+    {
+      "name": "Admins (RBAC)",
+      "description": "Manage panel administrator accounts and view the audit trail. All endpoints live under /panel/api/admin and require an authenticated <strong>super_admin</strong> session — other roles (manager, reseller) get 403. Roles: <code>super_admin</code> (full control), <code>manager</code> (full panel access except admin management), <code>reseller</code> (scoped to assigned inbounds/clients). The <code>allowedInbounds</code> field is a comma-separated list of inbound IDs used to scope a reseller."
+    },
+    {
+      "name": "Plans",
+      "description": "Reusable client package/template definitions (e.g. \"1 month / 30GB / 1 IP\"). Picking a plan in the client form prefills traffic quota, expiry and IP limit — plans never auto-mutate existing clients. All endpoints live under /panel/api/plans. <strong>Listing is open to any authenticated admin</strong> (so the client form can offer plans, including for resellers); creating, updating and deleting are restricted to super_admin / manager (resellers are rejected)."
     }
   ],
   "paths": {
@@ -9914,6 +9922,477 @@
                 "example": {
                   "type": "invalidate",
                   "resource": "inbounds"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/list": {
+      "get": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "List every administrator account. Password hashes are never returned.",
+        "operationId": "get_panel_api_admin_list",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "id": 1,
+                      "username": "admin",
+                      "role": "super_admin",
+                      "allowedInbounds": ""
+                    },
+                    {
+                      "id": 2,
+                      "username": "reseller1",
+                      "role": "reseller",
+                      "allowedInbounds": "3,4"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/add": {
+      "post": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Create a new administrator account. The created user is returned without its password hash.",
+        "operationId": "post_panel_api_admin_add",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 3,
+                    "username": "reseller2",
+                    "role": "reseller",
+                    "allowedInbounds": "5"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/update/{id}": {
+      "post": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Update an administrator’s username, role, and allowed inbounds. Use resetPassword to change the password.",
+        "operationId": "post_panel_api_admin_update_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Admin user ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/delete/{id}": {
+      "post": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Delete an administrator account. The last remaining super_admin cannot be deleted.",
+        "operationId": "post_panel_api_admin_delete_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Admin user ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/resetPassword/{id}": {
+      "post": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Reset an administrator’s password to a new plaintext value (hashed server-side).",
+        "operationId": "post_panel_api_admin_resetPassword_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Admin user ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/auditLog": {
+      "get": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Return the most recent admin audit-log entries (account creation, updates, deletions, password resets), newest first.",
+        "operationId": "get_panel_api_admin_auditLog",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Max rows to return (1–1000).",
+            "schema": {
+              "type": "integer",
+              "default": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "id": 12,
+                      "userId": 1,
+                      "action": "create_admin",
+                      "details": "created reseller2 (reseller)"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/plans/list": {
+      "get": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "List every plan template. durationDays of 0 means \"never expires\"; totalGB / limitIp / reset of 0 mean \"unlimited / no limit / no reset\".",
+        "operationId": "get_panel_api_plans_list",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "id": 1,
+                      "name": "1 Month / 30GB",
+                      "durationDays": 30,
+                      "totalGB": 30,
+                      "limitIp": 1,
+                      "reset": 0,
+                      "enable": true,
+                      "remark": "",
+                      "sortOrder": 0,
+                      "createdAt": 1717000000000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/plans/add": {
+      "post": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Create a new plan template. Send a JSON body (Content-Type: application/json). The created plan is returned with its assigned id.",
+        "operationId": "post_panel_api_plans_add",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "name": "1 Month / 30GB",
+                "durationDays": 30,
+                "totalGB": 30,
+                "limitIp": 1,
+                "reset": 0,
+                "enable": true,
+                "remark": "",
+                "sortOrder": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/plans/update/{id}": {
+      "post": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Update an existing plan template. Send a JSON body (Content-Type: application/json) with the same shape as /add.",
+        "operationId": "post_panel_api_plans_update_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Plan ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "name": "1 Month / 50GB",
+                "durationDays": 30,
+                "totalGB": 50,
+                "limitIp": 2,
+                "reset": 30,
+                "enable": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/plans/del/{id}": {
+      "post": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Delete a plan template by ID. Existing clients created from it are unaffected.",
+        "operationId": "post_panel_api_plans_del_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Plan ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 1
+                  }
                 }
               }
             }

@@ -1439,4 +1439,124 @@ export const sections: readonly Section[] = [
       },
     ],
   },
+
+  {
+    id: 'admins',
+    title: 'Admins (RBAC)',
+    description:
+      'Manage panel administrator accounts and view the audit trail. All endpoints live under /panel/api/admin and require an authenticated <strong>super_admin</strong> session — other roles (manager, reseller) get 403. Roles: <code>super_admin</code> (full control), <code>manager</code> (full panel access except admin management), <code>reseller</code> (scoped to assigned inbounds/clients). The <code>allowedInbounds</code> field is a comma-separated list of inbound IDs used to scope a reseller.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/admin/list',
+        summary: 'List every administrator account. Password hashes are never returned.',
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 1,\n      "username": "admin",\n      "role": "super_admin",\n      "allowedInbounds": ""\n    },\n    {\n      "id": 2,\n      "username": "reseller1",\n      "role": "reseller",\n      "allowedInbounds": "3,4"\n    }\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/admin/add',
+        summary: 'Create a new administrator account. The created user is returned without its password hash.',
+        params: [
+          { name: 'username', in: 'body (form)', type: 'string', desc: 'Login username (must be unique).' },
+          { name: 'password', in: 'body (form)', type: 'string', desc: 'Initial plaintext password (hashed server-side).' },
+          { name: 'role', in: 'body (form)', type: 'string', desc: 'One of super_admin, manager, reseller.' },
+          { name: 'allowedInbounds', in: 'body (form)', type: 'string', desc: 'Comma-separated inbound IDs to scope a reseller. Ignored for non-reseller roles.', optional: true },
+        ],
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "id": 3,\n    "username": "reseller2",\n    "role": "reseller",\n    "allowedInbounds": "5"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/admin/update/:id',
+        summary: 'Update an administrator’s username, role, and allowed inbounds. Use resetPassword to change the password.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Admin user ID.' },
+          { name: 'username', in: 'body (form)', type: 'string', desc: 'New username.' },
+          { name: 'role', in: 'body (form)', type: 'string', desc: 'One of super_admin, manager, reseller.' },
+          { name: 'allowedInbounds', in: 'body (form)', type: 'string', desc: 'Comma-separated inbound IDs (reseller only).', optional: true },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/admin/delete/:id',
+        summary: 'Delete an administrator account. The last remaining super_admin cannot be deleted.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Admin user ID.' },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/admin/resetPassword/:id',
+        summary: 'Reset an administrator’s password to a new plaintext value (hashed server-side).',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Admin user ID.' },
+          { name: 'password', in: 'body (form)', type: 'string', desc: 'New plaintext password.' },
+        ],
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/admin/auditLog',
+        summary: 'Return the most recent admin audit-log entries (account creation, updates, deletions, password resets), newest first.',
+        params: [
+          { name: 'limit', in: 'query', type: 'integer', desc: 'Max rows to return (1–1000).', optional: true, defaultValue: 200 },
+        ],
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 12,\n      "userId": 1,\n      "action": "create_admin",\n      "details": "created reseller2 (reseller)"\n    }\n  ]\n}',
+      },
+    ],
+  },
+
+  {
+    id: 'plans',
+    title: 'Plans',
+    description:
+      'Reusable client package/template definitions (e.g. "1 month / 30GB / 1 IP"). Picking a plan in the client form prefills traffic quota, expiry and IP limit — plans never auto-mutate existing clients. All endpoints live under /panel/api/plans. <strong>Listing is open to any authenticated admin</strong> (so the client form can offer plans, including for resellers); creating, updating and deleting are restricted to super_admin / manager (resellers are rejected).',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/plans/list',
+        summary: 'List every plan template. durationDays of 0 means "never expires"; totalGB / limitIp / reset of 0 mean "unlimited / no limit / no reset".',
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 1,\n      "name": "1 Month / 30GB",\n      "durationDays": 30,\n      "totalGB": 30,\n      "limitIp": 1,\n      "reset": 0,\n      "enable": true,\n      "remark": "",\n      "sortOrder": 0,\n      "createdAt": 1717000000000\n    }\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/plans/add',
+        summary: 'Create a new plan template. Send a JSON body (Content-Type: application/json). The created plan is returned with its assigned id.',
+        params: [
+          { name: 'name', in: 'body (json)', type: 'string', desc: 'Display name of the plan.' },
+          { name: 'durationDays', in: 'body (json)', type: 'integer', desc: 'Days added to "now" for client expiry. 0 = never.', optional: true, defaultValue: 0 },
+          { name: 'totalGB', in: 'body (json)', type: 'integer', desc: 'Data quota in GB. 0 = unlimited.', optional: true, defaultValue: 0 },
+          { name: 'limitIp', in: 'body (json)', type: 'integer', desc: 'Max concurrent IPs. 0 = unlimited.', optional: true, defaultValue: 0 },
+          { name: 'reset', in: 'body (json)', type: 'integer', desc: 'Traffic reset cycle in days. 0 = no reset.', optional: true, defaultValue: 0 },
+          { name: 'enable', in: 'body (json)', type: 'boolean', desc: 'Whether the plan is selectable in the client form.', optional: true, defaultValue: true },
+          { name: 'remark', in: 'body (json)', type: 'string', desc: 'Optional note.', optional: true },
+          { name: 'sortOrder', in: 'body (json)', type: 'integer', desc: 'Display sort order (lower first).', optional: true, defaultValue: 0 },
+        ],
+        body:
+          '{\n  "name": "1 Month / 30GB",\n  "durationDays": 30,\n  "totalGB": 30,\n  "limitIp": 1,\n  "reset": 0,\n  "enable": true,\n  "remark": "",\n  "sortOrder": 0\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/plans/update/:id',
+        summary: 'Update an existing plan template. Send a JSON body (Content-Type: application/json) with the same shape as /add.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Plan ID.' },
+        ],
+        body:
+          '{\n  "name": "1 Month / 50GB",\n  "durationDays": 30,\n  "totalGB": 50,\n  "limitIp": 2,\n  "reset": 30,\n  "enable": true\n}',
+        response: '{\n  "success": true,\n  "obj": { "id": 1 }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/plans/del/:id',
+        summary: 'Delete a plan template by ID. Existing clients created from it are unaffected.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Plan ID.' },
+        ],
+        response: '{\n  "success": true,\n  "obj": { "id": 1 }\n}',
+      },
+    ],
+  },
 ];
