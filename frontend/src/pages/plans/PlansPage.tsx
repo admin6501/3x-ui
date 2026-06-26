@@ -67,7 +67,7 @@ export default function PlansPage() {
   const saveMutation = useMutation({
     mutationFn: async (p: Plan) => {
       const path = p.id ? `/panel/api/plans/update/${p.id}` : '/panel/api/plans/add';
-      return HttpUtil.post(path, p);
+      return HttpUtil.post(path, p, { headers: { 'Content-Type': 'application/json' } });
     },
     onSuccess: () => { setModalOpen(false); invalidate(); },
   });
