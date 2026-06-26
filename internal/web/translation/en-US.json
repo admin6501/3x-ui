@@ -119,7 +119,8 @@
     "link": "Manage",
     "donate": "Donate",
     "admins": "Admins",
-    "plans": "Plans"
+    "plans": "Plans",
+    "usage": "My Usage"
   },
   "pages": {
     "login": {
@@ -1881,7 +1882,15 @@
         "deleted": "Admin deleted",
         "passwordReset": "Password reset",
         "loadFailed": "Failed to load admins"
-      }
+      },
+      "trafficQuota": "Traffic Quota (GB)",
+      "clientQuota": "Client Limit",
+      "quotaDesc": "0 = unlimited",
+      "unlimited": "Unlimited",
+      "usage": "Usage",
+      "trafficUsed": "Traffic",
+      "currentClients": "Clients",
+      "totalCreated": "Total created"
     },
     "plans": {
       "title": "Plans / Packages",
@@ -1904,6 +1913,20 @@
       "unlimitedHint": "0 = unlimited",
       "durationDesc": "Days added from creation time; 0 = never expires",
       "resetDesc": "Traffic reset cycle in days; 0 = no reset"
+    },
+    "reseller": {
+      "title": "My Usage",
+      "subtitle": "Your traffic consumption and client quota",
+      "trafficUsed": "Traffic Used",
+      "currentClients": "Current Clients",
+      "totalCreated": "Total Clients Created",
+      "trafficQuota": "Traffic Quota",
+      "clientQuota": "Client Limit",
+      "unlimited": "Unlimited",
+      "remaining": "Remaining",
+      "of": "of",
+      "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
+      "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     }
   },
   "tgbot": {

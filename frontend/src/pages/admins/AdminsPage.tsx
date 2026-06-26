@@ -7,6 +7,7 @@ import {
   ConfigProvider,
   Form,
   Input,
+  InputNumber,
   Layout,
   Modal,
   Popconfirm,
@@ -25,7 +26,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 
-import { HttpUtil } from '@/utils';
+import { HttpUtil, SizeFormatter } from '@/utils';
 import AppSidebar from '@/layouts/AppSidebar';
 import { useTheme } from '@/hooks/useTheme';
 import '@/styles/page-shell.css';
@@ -38,6 +39,17 @@ interface AdminRow {
   username: string;
   role: string;
   allowedInbounds: string;
+  trafficQuotaGB: number;
+  clientQuota: number;
+  clientsCreatedTotal: number;
+}
+
+interface ResellerStat {
+  trafficUsedBytes: number;
+  currentClients: number;
+  clientsCreatedTotal: number;
+  trafficQuotaGB: number;
+  clientQuota: number;
 }
 
 interface AuditRow {
@@ -76,6 +88,8 @@ interface FormValues {
   password?: string;
   role: Role;
   allowedInbounds: number[];
+  trafficQuotaGB?: number;
+  clientQuota?: number;
 }
 
 export default function AdminsPage() {
@@ -102,6 +116,12 @@ export default function AdminsPage() {
     queryKey: ['inboundOptions'],
     queryFn: async () => (await HttpUtil.get<InboundOption[]>('/panel/api/inbounds/options', undefined, { silent: true })).obj ?? [],
   });
+  const statsQ = useQuery({
+    queryKey: ['resellerStats'],
+    queryFn: async () =>
+      (await HttpUtil.get<Record<string, ResellerStat>>('/panel/api/admin/resellerStats', undefined, { silent: true })).obj ?? {},
+    refetchInterval: 30000,
+  });
 
   const inboundOptions = useMemo(
     () =>
@@ -115,6 +135,7 @@ export default function AdminsPage() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['admins'] });
     qc.invalidateQueries({ queryKey: ['adminAudit'] });
+    qc.invalidateQueries({ queryKey: ['resellerStats'] });
   };
 
   // ---- create / edit modal state ----
@@ -126,7 +147,7 @@ export default function AdminsPage() {
   const openAdd = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ role: 'manager', allowedInbounds: [] });
+    form.setFieldsValue({ role: 'manager', allowedInbounds: [], trafficQuotaGB: 0, clientQuota: 0 });
     setModalOpen(true);
   };
   const openEdit = (row: AdminRow) => {
@@ -135,18 +156,25 @@ export default function AdminsPage() {
       username: row.username,
       role: row.role as Role,
       allowedInbounds: csvToIds(row.allowedInbounds),
+      trafficQuotaGB: row.trafficQuotaGB ?? 0,
+      clientQuota: row.clientQuota ?? 0,
     });
     setModalOpen(true);
   };
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      const allowed = values.role === 'reseller' ? (values.allowedInbounds ?? []).join(',') : '';
+      const isReseller = values.role === 'reseller';
+      const allowed = isReseller ? (values.allowedInbounds ?? []).join(',') : '';
+      const trafficQuotaGB = isReseller ? (values.trafficQuotaGB ?? 0) : 0;
+      const clientQuota = isReseller ? (values.clientQuota ?? 0) : 0;
       if (editing) {
         return HttpUtil.post(`/panel/api/admin/update/${editing.id}`, {
           username: values.username,
           role: values.role,
           allowedInbounds: allowed,
+          trafficQuotaGB,
+          clientQuota,
         });
       }
       return HttpUtil.post('/panel/api/admin/add', {
@@ -154,6 +182,8 @@ export default function AdminsPage() {
         password: values.password,
         role: values.role,
         allowedInbounds: allowed,
+        trafficQuotaGB,
+        clientQuota,
       });
     },
     onSuccess: (res) => {
@@ -210,6 +240,35 @@ export default function AdminsPage() {
             ? csvToIds(csv).map((id) => <Tag key={id}>#{id}</Tag>)
             : <Typography.Text type="secondary">{t('pages.admins.noInbound')}</Typography.Text>
           : <Typography.Text type="secondary">—</Typography.Text>,
+    },
+    {
+      title: t('pages.admins.usage'),
+      key: 'usage',
+      width: 260,
+      render: (_: unknown, row: AdminRow) => {
+        if (row.role !== 'reseller') return <Typography.Text type="secondary">—</Typography.Text>;
+        const st = statsQ.data?.[String(row.id)];
+        const used = st?.trafficUsedBytes ?? 0;
+        const quotaGB = row.trafficQuotaGB ?? 0;
+        const current = st?.currentClients ?? 0;
+        const clientQuota = row.clientQuota ?? 0;
+        const total = st?.clientsCreatedTotal ?? row.clientsCreatedTotal ?? 0;
+        return (
+          <Space direction="vertical" size={2} data-testid={`reseller-usage-${row.id}`}>
+            <Typography.Text>
+              {t('pages.admins.trafficUsed')}: <b>{SizeFormatter.sizeFormat(used)}</b>
+              {quotaGB > 0 ? ` / ${quotaGB} GB` : ` / ${t('pages.admins.unlimited')}`}
+            </Typography.Text>
+            <Typography.Text>
+              {t('pages.admins.currentClients')}: <b>{current}</b>
+              {clientQuota > 0 ? ` / ${clientQuota}` : ` / ${t('pages.admins.unlimited')}`}
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              {t('pages.admins.totalCreated')}: {total}
+            </Typography.Text>
+          </Space>
+        );
+      },
     },
     {
       title: t('pages.admins.actions'),
@@ -348,6 +407,26 @@ export default function AdminsPage() {
                 optionFilterProp="label"
               />
             </Form.Item>
+          )}
+          {watchRole === 'reseller' && (
+            <Space size="large" style={{ display: 'flex' }}>
+              <Form.Item
+                name="trafficQuotaGB"
+                label={t('pages.admins.trafficQuota')}
+                extra={t('pages.admins.quotaDesc')}
+                style={{ flex: 1 }}
+              >
+                <InputNumber min={0} style={{ width: '100%' }} data-testid="admin-traffic-quota-input" />
+              </Form.Item>
+              <Form.Item
+                name="clientQuota"
+                label={t('pages.admins.clientQuota')}
+                extra={t('pages.admins.quotaDesc')}
+                style={{ flex: 1 }}
+              >
+                <InputNumber min={0} style={{ width: '100%' }} data-testid="admin-client-quota-input" />
+              </Form.Item>
+            </Space>
           )}
         </Form>
       </Modal>

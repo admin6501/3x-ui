@@ -484,7 +484,60 @@ func runSeeders(isUsersEmpty bool) error {
 	if err := resetIpLimitsWithoutFail2ban(); err != nil {
 		return err
 	}
+
+	// Self-gated on the "ResellerClientsCreatedInit" row.
+	if err := seedResellerClientsCreated(); err != nil {
+		return err
+	}
 	return nil
+}
+
+// seedResellerClientsCreated initialises each reseller's cumulative
+// clients_created_total to their current distinct client count (clients in the
+// inbounds assigned to them). One-time, self-gated, so a later restart never
+// re-resets a counter that has since grown. New installs with no resellers are
+// a no-op (still records the seeder).
+func seedResellerClientsCreated() error {
+	var history []string
+	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
+		return err
+	}
+	if slices.Contains(history, "ResellerClientsCreatedInit") {
+		return nil
+	}
+
+	var resellers []model.User
+	if err := db.Where("role = ?", model.RoleReseller).Find(&resellers).Error; err != nil {
+		return err
+	}
+	for i := range resellers {
+		ids := parseInboundCSV(resellers[i].AllowedInbounds)
+		var current int64
+		if len(ids) > 0 {
+			db.Model(&model.ClientInbound{}).Where("inbound_id IN ?", ids).
+				Distinct("client_id").Count(&current)
+		}
+		if err := db.Model(&model.User{}).Where("id = ?", resellers[i].Id).
+			Update("clients_created_total", int(current)).Error; err != nil {
+			return err
+		}
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "ResellerClientsCreatedInit"}).Error
+}
+
+// parseInboundCSV parses a "3,7,12" CSV into a slice of positive ints.
+func parseInboundCSV(csv string) []int {
+	csv = strings.TrimSpace(csv)
+	if csv == "" {
+		return nil
+	}
+	var ids []int
+	for _, part := range strings.Split(csv, ",") {
+		if n, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && n > 0 {
+			ids = append(ids, n)
+		}
+	}
+	return ids
 }
 
 // resetIpLimitsWithoutFail2ban zeroes every client's IP limit on hosts where

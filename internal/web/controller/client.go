@@ -7,6 +7,7 @@ import (
 
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/session"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/websocket"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,43 @@ import (
 
 func notifyClientsChanged() {
 	websocket.BroadcastInvalidate(websocket.MessageTypeClients)
+}
+
+const bytesPerGB = 1024 * 1024 * 1024
+
+// enforceResellerQuota blocks a reseller from creating a client when they have
+// hit their client-count limit or exhausted their traffic quota. No-op for
+// every other role. Returns true to continue handling.
+func (a *ClientController) enforceResellerQuota(c *gin.Context) bool {
+	actor := session.GetLoginUser(c)
+	if actor == nil || actor.Role != model.RoleReseller {
+		return true
+	}
+	// Reload fresh quota + counters from DB; the session copy may predate them.
+	fresh, err := a.adminService.GetUserByID(actor.Id)
+	if err != nil {
+		return true
+	}
+	stats := a.adminService.GetResellerStats(fresh)
+	if stats.ClientQuota > 0 && stats.CurrentClients+1 > stats.ClientQuota {
+		jsonMsg(c, I18nWeb(c, "pages.reseller.errClientQuota"), nil)
+		c.Abort()
+		return false
+	}
+	if stats.TrafficQuotaGB > 0 && stats.TrafficUsedBytes >= stats.TrafficQuotaGB*bytesPerGB {
+		jsonMsg(c, I18nWeb(c, "pages.reseller.errTrafficQuota"), nil)
+		c.Abort()
+		return false
+	}
+	return true
+}
+
+// incrementResellerCreated bumps the reseller's cumulative created-clients
+// counter after a successful create. No-op for other roles.
+func (a *ClientController) incrementResellerCreated(c *gin.Context, n int) {
+	if actor := session.GetLoginUser(c); actor != nil && actor.Role == model.RoleReseller {
+		a.adminService.IncrementClientsCreated(actor.Id, n)
+	}
 }
 
 func parseInboundIdsQuery(raw string) []int {
@@ -36,6 +74,7 @@ type ClientController struct {
 	inboundService service.InboundService
 	xrayService    service.XrayService
 	settingService service.SettingService
+	adminService   service.AdminService
 }
 
 func NewClientController(g *gin.RouterGroup) *ClientController {
@@ -152,11 +191,15 @@ func (a *ClientController) create(c *gin.Context) {
 	if !guardInboundIdsScope(c, payload.InboundIds) {
 		return
 	}
+	if !a.enforceResellerQuota(c) {
+		return
+	}
 	needRestart, err := a.clientService.Create(&a.inboundService, &payload)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	a.incrementResellerCreated(c, 1)
 	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientAddSuccess"), pendingNodeObj(a.inboundService.AnyNodePending(payload.InboundIds)), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()

@@ -11,6 +11,8 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/database"
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/util/crypto"
+
+	"gorm.io/gorm"
 )
 
 // AdminService provides CRUD + audit-log helpers for admin user accounts.
@@ -70,6 +72,14 @@ func NormalizeAllowedInbounds(s string) string {
 	return strings.Join(parts, ",")
 }
 
+// normalizeQuota clamps a negative quota to 0 (unlimited).
+func normalizeQuota(v int64) int64 {
+	if v < 0 {
+		return 0
+	}
+	return v
+}
+
 // AllowedInboundIDs parses a User.AllowedInbounds CSV into a slice of ids.
 func AllowedInboundIDs(u *model.User) []int {
 	if u == nil || strings.TrimSpace(u.AllowedInbounds) == "" {
@@ -89,11 +99,81 @@ func (s *AdminService) ListAdmins() ([]model.User, error) {
 	db := database.GetDB()
 	var users []model.User
 	if err := db.Model(&model.User{}).
-		Select("id", "username", "role", "allowed_inbounds").
+		Select("id", "username", "role", "allowed_inbounds", "traffic_quota_gb", "client_quota", "clients_created_total").
 		Order("id ASC").Find(&users).Error; err != nil {
 		return nil, err
 	}
 	return users, nil
+}
+
+// GetUserByID returns the full user row (including password) by id. Used for
+// reseller quota checks where fresh quota/counter values are required.
+func (s *AdminService) GetUserByID(id int) (*model.User, error) {
+	db := database.GetDB()
+	var u model.User
+	if err := db.First(&u, id).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// IncrementClientsCreated bumps the reseller's cumulative created-clients
+// counter by n. Best-effort: a failure here must not break client creation.
+func (s *AdminService) IncrementClientsCreated(userID, n int) {
+	if userID <= 0 || n <= 0 {
+		return
+	}
+	db := database.GetDB()
+	_ = db.Model(&model.User{}).Where("id = ?", userID).
+		UpdateColumn("clients_created_total", gorm.Expr("clients_created_total + ?", n)).Error
+}
+
+// ResellerStats is the aggregated usage snapshot for one reseller.
+type ResellerStats struct {
+	TrafficUsedBytes    int64 `json:"trafficUsedBytes"`
+	CurrentClients      int   `json:"currentClients"`
+	ClientsCreatedTotal int   `json:"clientsCreatedTotal"`
+	TrafficQuotaGB      int64 `json:"trafficQuotaGB"`
+	ClientQuota         int   `json:"clientQuota"`
+}
+
+// GetResellerStats computes a reseller's total traffic (summed across ALL
+// assigned inbounds as a single number) and current distinct client count.
+func (s *AdminService) GetResellerStats(u *model.User) ResellerStats {
+	stats := ResellerStats{
+		ClientsCreatedTotal: u.ClientsCreatedTotal,
+		TrafficQuotaGB:      u.TrafficQuotaGB,
+		ClientQuota:         u.ClientQuota,
+	}
+	ids := AllowedInboundIDs(u)
+	if len(ids) == 0 {
+		return stats
+	}
+	db := database.GetDB()
+	var traffic int64
+	db.Model(&model.Inbound{}).Where("id IN ?", ids).
+		Select("COALESCE(SUM(up + down), 0)").Scan(&traffic)
+	stats.TrafficUsedBytes = traffic
+	var current int64
+	db.Model(&model.ClientInbound{}).Where("inbound_id IN ?", ids).
+		Distinct("client_id").Count(&current)
+	stats.CurrentClients = int(current)
+	return stats
+}
+
+// GetAllResellerStats returns a map of reseller user id -> usage stats, for the
+// super-admin admins page.
+func (s *AdminService) GetAllResellerStats() (map[int]ResellerStats, error) {
+	db := database.GetDB()
+	var resellers []model.User
+	if err := db.Where("role = ?", model.RoleReseller).Find(&resellers).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[int]ResellerStats, len(resellers))
+	for i := range resellers {
+		out[resellers[i].Id] = s.GetResellerStats(&resellers[i])
+	}
+	return out, nil
 }
 
 // GetAdmin returns a single admin row (without password).
@@ -110,7 +190,7 @@ func (s *AdminService) GetAdmin(id int) (*model.User, error) {
 
 // CreateAdmin inserts a new admin row. Caller is expected to have already
 // verified actor is a super admin via middleware.
-func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, allowedInbounds string) (*model.User, error) {
+func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, allowedInbounds string, trafficQuotaGB int64, clientQuota int) (*model.User, error) {
 	if strings.TrimSpace(username) == "" {
 		return nil, errors.New("username is required")
 	}
@@ -142,6 +222,8 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 		Password:        hashed,
 		Role:            role,
 		AllowedInbounds: NormalizeAllowedInbounds(allowedInbounds),
+		TrafficQuotaGB:  normalizeQuota(trafficQuotaGB),
+		ClientQuota:     int(normalizeQuota(int64(clientQuota))),
 	}
 	if err := db.Create(u).Error; err != nil {
 		return nil, err
@@ -154,7 +236,7 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 // UpdateAdmin updates role / allowedInbounds / username for the given admin.
 // Password changes go through ResetAdminPassword to keep the audit trail
 // honest.
-func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, allowedInbounds string) error {
+func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, allowedInbounds string, trafficQuotaGB int64, clientQuota int) error {
 	if !IsValidRole(role) {
 		return fmt.Errorf("unknown role %q", role)
 	}
@@ -177,6 +259,8 @@ func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, al
 	updates := map[string]any{
 		"role":             role,
 		"allowed_inbounds": NormalizeAllowedInbounds(allowedInbounds),
+		"traffic_quota_gb": normalizeQuota(trafficQuotaGB),
+		"client_quota":     int(normalizeQuota(int64(clientQuota))),
 	}
 	if strings.TrimSpace(username) != "" && username != u.Username {
 		var dup model.User

@@ -127,6 +127,11 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	plans := api.Group("/plans")
 	NewPlanController(plans)
 
+	// Reseller self-service — own usage/quota snapshot. Open to any
+	// authenticated user. Paths are /panel/api/reseller/*.
+	reseller := api.Group("/reseller")
+	NewResellerController(reseller)
+
 	// Extra routes
 	api.POST("/backuptotgbot", a.BackuptoTgbot)
 }

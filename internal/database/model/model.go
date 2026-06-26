@@ -59,6 +59,14 @@ type User struct {
         // by RoleReseller. Empty = no inbounds visible (intentionally restrictive
         // — admins must explicitly grant access). Other roles ignore this field.
         AllowedInbounds string `json:"allowedInbounds" gorm:"type:varchar(1024);default:''"`
+        // TrafficQuotaGB caps the total traffic a reseller may consume across all
+        // assigned inbounds, in GB. 0 = unlimited. Reseller-only.
+        TrafficQuotaGB int64 `json:"trafficQuotaGB" gorm:"default:0"`
+        // ClientQuota caps how many clients a reseller may have at once. 0 = unlimited.
+        ClientQuota int `json:"clientQuota" gorm:"default:0"`
+        // ClientsCreatedTotal is a cumulative counter of clients ever created by this
+        // reseller. Increments on every create, never decrements on delete.
+        ClientsCreatedTotal int `json:"clientsCreatedTotal" gorm:"default:0"`
 }
 
 // AdminAuditLog records mutations performed by admin users — admin CRUD,

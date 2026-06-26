@@ -35,6 +35,7 @@ func (a *AdminController) initRouter(g *gin.RouterGroup) {
 	g.POST("/delete/:id", a.delete)
 	g.POST("/resetPassword/:id", a.resetPassword)
 	g.GET("/auditLog", a.auditLog)
+	g.GET("/resellerStats", a.resellerStats)
 }
 
 func (a *AdminController) list(c *gin.Context) {
@@ -51,6 +52,8 @@ type adminCreateForm struct {
 	Password        string `form:"password" json:"password"`
 	Role            string `form:"role" json:"role"`
 	AllowedInbounds string `form:"allowedInbounds" json:"allowedInbounds"`
+	TrafficQuotaGB  int64  `form:"trafficQuotaGB" json:"trafficQuotaGB"`
+	ClientQuota     int    `form:"clientQuota" json:"clientQuota"`
 }
 
 func (a *AdminController) add(c *gin.Context) {
@@ -60,7 +63,7 @@ func (a *AdminController) add(c *gin.Context) {
 		return
 	}
 	actor := session.GetLoginUser(c)
-	u, err := a.adminService.CreateAdmin(actor, f.Username, f.Password, f.Role, f.AllowedInbounds)
+	u, err := a.adminService.CreateAdmin(actor, f.Username, f.Password, f.Role, f.AllowedInbounds, f.TrafficQuotaGB, f.ClientQuota)
 	if err != nil {
 		jsonMsg(c, "create admin", err)
 		return
@@ -74,6 +77,8 @@ type adminUpdateForm struct {
 	Username        string `form:"username" json:"username"`
 	Role            string `form:"role" json:"role"`
 	AllowedInbounds string `form:"allowedInbounds" json:"allowedInbounds"`
+	TrafficQuotaGB  int64  `form:"trafficQuotaGB" json:"trafficQuotaGB"`
+	ClientQuota     int    `form:"clientQuota" json:"clientQuota"`
 }
 
 func (a *AdminController) update(c *gin.Context) {
@@ -88,7 +93,7 @@ func (a *AdminController) update(c *gin.Context) {
 		return
 	}
 	actor := session.GetLoginUser(c)
-	if err := a.adminService.UpdateAdmin(actor, id, f.Username, f.Role, f.AllowedInbounds); err != nil {
+	if err := a.adminService.UpdateAdmin(actor, id, f.Username, f.Role, f.AllowedInbounds, f.TrafficQuotaGB, f.ClientQuota); err != nil {
 		jsonMsg(c, "update admin", err)
 		return
 	}
@@ -145,4 +150,16 @@ func (a *AdminController) auditLog(c *gin.Context) {
 		return
 	}
 	jsonObj(c, rows, nil)
+}
+
+// resellerStats returns a map of reseller user id -> aggregated usage stats
+// (total traffic across all assigned inbounds, current + cumulative client
+// counts, and quota caps). super_admin only.
+func (a *AdminController) resellerStats(c *gin.Context) {
+	stats, err := a.adminService.GetAllResellerStats()
+	if err != nil {
+		jsonMsg(c, "reseller stats", err)
+		return
+	}
+	jsonObj(c, stats, nil)
 }

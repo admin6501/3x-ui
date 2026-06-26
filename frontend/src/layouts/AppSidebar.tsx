@@ -13,6 +13,7 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   ExportOutlined,
+  FundOutlined,
   GithubOutlined,
   GlobalOutlined,
   ImportOutlined,
@@ -41,7 +42,7 @@ const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
 const REPO_URL = 'https://github.com/admin6501/3x-ui';
 const LOGOUT_KEY = '__logout__';
 
-type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans';
+type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans' | 'usage';
 
 const iconByName: Record<IconName, ComponentType> = {
   dashboard: DashboardOutlined,
@@ -58,6 +59,7 @@ const iconByName: Record<IconName, ComponentType> = {
   routing: SwapOutlined,
   admins: SafetyOutlined,
   plans: ProfileOutlined,
+  usage: FundOutlined,
 };
 
 function readCollapsed(): boolean {
@@ -127,6 +129,7 @@ export default function AppSidebar() {
   const tabs = useMemo<{ key: string; icon: IconName; title: string }[]>(() => {
     const all: { key: string; icon: IconName; title: string }[] = [
       { key: '/', icon: 'dashboard', title: t('menu.dashboard') },
+      { key: '/usage', icon: 'usage', title: t('menu.usage') },
       { key: '/inbounds', icon: 'inbound', title: t('menu.inbounds') },
       { key: '/clients', icon: 'team', title: t('menu.clients') },
       { key: '/plans', icon: 'plans', title: t('menu.plans') },
@@ -141,15 +144,16 @@ export default function AppSidebar() {
       { key: '/api-docs', icon: 'apidocs', title: t('menu.apiDocs') },
       { key: LOGOUT_KEY, icon: 'logout', title: t('logout') },
     ];
-    // super_admin sees everything. Other roles see only a role-appropriate
-    // subset (logout is always available). settings / xray / nodes / admins are
-    // super_admin-only and are also gated on the backend; a reseller is scoped
-    // down to just their assigned inbounds.
-    if (isSuperAdmin) return all;
+    // super_admin sees everything except the reseller-only "My Usage" page.
+    // Other roles see only a role-appropriate subset (logout is always
+    // available). settings / xray / nodes / admins are super_admin-only and are
+    // also gated on the backend; a reseller is scoped down to just their
+    // assigned inbounds plus their own usage dashboard.
+    if (isSuperAdmin) return all.filter((tab) => tab.key !== '/usage');
     const allowedByRole: Record<string, string[]> = {
       manager: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
       readonly: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
-      reseller: ['/clients', '/inbounds'],
+      reseller: ['/usage', '/clients', '/inbounds'],
     };
     const allowed = allowedByRole[role] ?? ['/'];
     return all.filter((tab) => tab.key === LOGOUT_KEY || allowed.includes(tab.key));

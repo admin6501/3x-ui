@@ -118,7 +118,8 @@
     "link": "管理",
     "donate": "捐贈",
     "hosts": "Hosts",
-    "plans": "方案"
+    "plans": "方案",
+    "usage": "My Usage"
   },
   "pages": {
     "login": {
@@ -1880,7 +1881,15 @@
         "deleted": "已刪除管理員",
         "passwordReset": "已重設密碼",
         "loadFailed": "載入管理員失敗"
-      }
+      },
+      "trafficQuota": "Traffic Quota (GB)",
+      "clientQuota": "Client Limit",
+      "quotaDesc": "0 = unlimited",
+      "unlimited": "Unlimited",
+      "usage": "Usage",
+      "trafficUsed": "Traffic",
+      "currentClients": "Clients",
+      "totalCreated": "Total created"
     },
     "plans": {
       "title": "方案 / 套餐",
@@ -1903,6 +1912,20 @@
       "unlimitedHint": "0 = 無限制",
       "durationDesc": "自建立起增加的天數；0 = 永不過期",
       "resetDesc": "流量重設週期（天）；0 = 不重設"
+    },
+    "reseller": {
+      "title": "My Usage",
+      "subtitle": "Your traffic consumption and client quota",
+      "trafficUsed": "Traffic Used",
+      "currentClients": "Current Clients",
+      "totalCreated": "Total Clients Created",
+      "trafficQuota": "Traffic Quota",
+      "clientQuota": "Client Limit",
+      "unlimited": "Unlimited",
+      "remaining": "Remaining",
+      "of": "of",
+      "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
+      "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     }
   },
   "tgbot": {

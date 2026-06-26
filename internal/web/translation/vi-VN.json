@@ -118,7 +118,8 @@
     "link": "Quản lý",
     "donate": "Quyên góp",
     "hosts": "Hosts",
-    "plans": "Gói"
+    "plans": "Gói",
+    "usage": "My Usage"
   },
   "pages": {
     "login": {
@@ -1880,7 +1881,15 @@
         "deleted": "Đã xóa quản trị viên",
         "passwordReset": "Đã đặt lại mật khẩu",
         "loadFailed": "Không tải được quản trị viên"
-      }
+      },
+      "trafficQuota": "Traffic Quota (GB)",
+      "clientQuota": "Client Limit",
+      "quotaDesc": "0 = unlimited",
+      "unlimited": "Unlimited",
+      "usage": "Usage",
+      "trafficUsed": "Traffic",
+      "currentClients": "Clients",
+      "totalCreated": "Total created"
     },
     "plans": {
       "title": "Gói / Gói cước",
@@ -1903,6 +1912,20 @@
       "unlimitedHint": "0 = không giới hạn",
       "durationDesc": "Số ngày tính từ lúc tạo; 0 = không hết hạn",
       "resetDesc": "Chu kỳ đặt lại lưu lượng theo ngày; 0 = không đặt lại"
+    },
+    "reseller": {
+      "title": "My Usage",
+      "subtitle": "Your traffic consumption and client quota",
+      "trafficUsed": "Traffic Used",
+      "currentClients": "Current Clients",
+      "totalCreated": "Total Clients Created",
+      "trafficQuota": "Traffic Quota",
+      "clientQuota": "Client Limit",
+      "unlimited": "Unlimited",
+      "remaining": "Remaining",
+      "of": "of",
+      "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
+      "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     }
   },
   "tgbot": {
