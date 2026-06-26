@@ -490,7 +490,41 @@ func runSeeders(isUsersEmpty bool) error {
 	if err := seedResellerClientsCreated(); err != nil {
 		return err
 	}
+
+	// Self-gated on the "RemarkTemplateEmailToken" row.
+	if err := seedRemarkTemplateEmail(); err != nil {
+		return err
+	}
 	return nil
+}
+
+// seedRemarkTemplateEmail ensures the subscription Remark Template contains the
+// {{EMAIL}} token, so config names carry the client identity (3.4 dropped the
+// client name from the default, which broke name-based listing in sales bots).
+// One-time, self-gated. If the admin already has the token (any brace style) or
+// the setting is unset (the new default already includes it), it's left alone.
+func seedRemarkTemplateEmail() error {
+	var history []string
+	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
+		return err
+	}
+	if slices.Contains(history, "RemarkTemplateEmailToken") {
+		return nil
+	}
+
+	var setting model.Setting
+	err := db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").First(&setting).Error
+	if err == nil {
+		if setting.Value != "" && !strings.Contains(strings.ToUpper(setting.Value), "EMAIL") {
+			if e := db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").
+				Update("value", "{{EMAIL}}|"+setting.Value).Error; e != nil {
+				return e
+			}
+		}
+	} else if !IsNotFound(err) {
+		return err
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "RemarkTemplateEmailToken"}).Error
 }
 
 // seedResellerClientsCreated initialises each reseller's cumulative
