@@ -555,11 +555,53 @@ func (a *ClientController) clearIps(c *gin.Context) {
 }
 
 func (a *ClientController) onlines(c *gin.Context) {
-	jsonObj(c, a.inboundService.GetOnlineClients(), nil)
+	list := a.inboundService.GetOnlineClients()
+	if set, ok := a.resellerEmailSet(c); ok {
+		filtered := make([]string, 0, len(list))
+		for _, e := range list {
+			if _, in := set[e]; in {
+				filtered = append(filtered, e)
+			}
+		}
+		list = filtered
+	}
+	jsonObj(c, list, nil)
 }
 
 func (a *ClientController) onlinesByGuid(c *gin.Context) {
-	jsonObj(c, a.inboundService.GetOnlineClientsByGuid(), nil)
+	byGuid := a.inboundService.GetOnlineClientsByGuid()
+	if set, ok := a.resellerEmailSet(c); ok {
+		for guid, emails := range byGuid {
+			filtered := make([]string, 0, len(emails))
+			for _, e := range emails {
+				if _, in := set[e]; in {
+					filtered = append(filtered, e)
+				}
+			}
+			byGuid[guid] = filtered
+		}
+	}
+	jsonObj(c, byGuid, nil)
+}
+
+// resellerEmailSet returns the set of client emails the logged-in reseller is
+// allowed to see (clients attached to one of their inbounds). ok=false for
+// non-reseller roles, which must see panel-wide data unchanged.
+func (a *ClientController) resellerEmailSet(c *gin.Context) (map[string]struct{}, bool) {
+	if _, isReseller := resellerAllowedSet(c); !isReseller {
+		return nil, false
+	}
+	set := map[string]struct{}{}
+	all, err := a.clientService.List()
+	if err != nil {
+		return set, true
+	}
+	for _, r := range filterClientsForRole(c, all) {
+		if r.Email != "" {
+			set[r.Email] = struct{}{}
+		}
+	}
+	return set, true
 }
 
 func (a *ClientController) activeInbounds(c *gin.Context) {

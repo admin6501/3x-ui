@@ -260,7 +260,12 @@ export function useClients() {
   const [allClientStats, setAllClientStats] = useState<ClientStatRow[]>([]);
   const summary = useMemo<ClientsSummary>(() => {
     const serverSummary = listQuery.data?.summary ?? DEFAULT_SUMMARY;
-    if (allClientStats.length === 0) return serverSummary;
+    // Resellers must only ever see their own clients. The live recompute path
+    // aggregates the panel-wide client_stats WS broadcast, so for resellers we
+    // always trust the server summary, which is already scoped to their
+    // assigned inbounds (and refreshed every few seconds via list/paged).
+    const isReseller = typeof window !== 'undefined' && window.X_UI_ROLE === 'reseller';
+    if (isReseller || allClientStats.length === 0) return serverSummary;
     const live = computeClientsSummary(allClientStats, new Set(onlines), expireDiff, trafficDiff);
     return { ...live, total: serverSummary.total || live.total };
   }, [allClientStats, onlines, expireDiff, trafficDiff, listQuery.data?.summary]);
