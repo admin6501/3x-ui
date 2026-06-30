@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>متن معرفی کانال — 3X-UI</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      font-family: "Segoe UI", Tahoma, "Vazirmatn", system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 24px 12px;
+    }
+    .wrap { width: 100%; max-width: 720px; }
+    .bar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .bar h1 { font-size: 18px; margin: 0; color: #f8fafc; }
+    .copy-btn {
+      background: #6366f1; color: #fff; border: none; cursor: pointer;
+      padding: 10px 18px; border-radius: 10px; font-size: 15px; font-weight: 600;
+      transition: transform .08s ease, background .2s ease;
+      box-shadow: 0 6px 18px rgba(99,102,241,.35);
+    }
+    .copy-btn:hover { background: #4f46e5; }
+    .copy-btn:active { transform: scale(.97); }
+    .copy-btn.done { background: #16a34a; box-shadow: 0 6px 18px rgba(22,163,74,.35); }
+    .card {
+      background: #0b1220; border: 1px solid #1f2a44; border-radius: 16px;
+      padding: 22px 22px; line-height: 2; font-size: 15.5px;
+      white-space: pre-wrap; word-break: break-word;
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    }
+    .hint { color: #94a3b8; font-size: 13px; margin-top: 12px; text-align: center; }
+    a { color: #818cf8; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>📣 متن معرفی کانال تلگرام</h1>
+      <button class="copy-btn" id="copyBtn">📋 کپی متن</button>
+    </div>
+    <div class="card" id="content"></div>
+    <div class="hint">روی «کپی متن» بزن، بعد مستقیم توی تلگرام پیست کن.</div>
+  </div>
+
+  <script>
+    const TEXT = `🚀 پنل مدیریت 3X-UI — نسخه‌ی حرفه‌ای و چند-سطحی
+
+نسخه‌ای کاملاً ارتقایافته از پنل محبوب 3x-ui که از یک پنل تک‌ادمینی، به یک سامانه‌ی مدیریت چند-سطحی، نمایندگی‌محور و تجاری تبدیل شده. اگر فروشنده‌ی کانفیگ هستی یا نماینده داری، این دقیقاً همان چیزی است که می‌خواستی 👇
+
+━━━━━━━━━━━━━━━
+
+👥 مدیریت چند-ادمینی (RBAC)
+سیستم نقش‌محور با ۴ سطح دسترسی مجزا:
+• 👑 سوپر ادمین — دسترسی کامل (مدیریت ادمین‌ها، تنظیمات پنل، Xray)
+• 🛠 مدیر — مدیریت همه‌ی inboundها و کلاینت‌ها، بدون دسترسی به تنظیمات حساس
+• 🤝 نماینده (ریسلر) — فقط inboundهای تخصیص‌داده‌شده به او
+• 👁 فقط‌خواندنی — مشاهده‌ی همه‌چیز، بدون امکان تغییر
+🧾 همراه با لاگ ممیزی (Audit Log): ثبت کامل تغییرات ادمین‌ها، تغییر نقش‌ها و ریست رمزها.
+
+━━━━━━━━━━━━━━━
+
+🏪 سیستم نمایندگی (Reseller) — حرفه‌ای و خودکار
+• 🔐 تخصیص inboundهای مشخص به هر نماینده
+• 📊 سقف ترافیک برای هر نماینده — با اعمال خودکار: به‌محض پر شدن سهمیه، inboundهای آن نماینده خودکار غیرفعال و با افزایش/ریست سهمیه دوباره خودکار فعال می‌شوند (و غیرفعال‌سازی دستی ادمین هیچ‌وقت بازنویسی نمی‌شود)
+• 👤 محدودیت تعداد کلاینت برای هر نماینده — کنترل سقف کاربران هر فروشنده
+• 📈 داشبورد اختصاصی نماینده: مشاهده‌ی لحظه‌ای ترافیک مصرفی، تعداد کلاینت فعلی، مجموع کلاینت‌های ساخته‌شده و سهمیه‌ها
+
+━━━━━━━━━━━━━━━
+
+📦 پلن‌ها (Plans) — ساخت کلاینت با یک کلیک
+تعریف پکیج‌های آماده مثل «۱ ماهه / ۳۰ گیگ / ۱ آی‌پی» 🎯
+• ⏳ مدت اعتبار (روز) • 📊 حجم • 🔢 محدودیت IP • 🔄 دوره‌ی ریست ترافیک
+هنگام ساخت کلاینت کافی است پلن را انتخاب کنی تا حجم، انقضا و محدودیت IP خودکار پر شوند — سریع، یکدست و بدون خطا.
+
+━━━━━━━━━━━━━━━
+
+✨ سایر امکانات و بهبودها
+• 🤖 سازگاری کامل با ربات‌های فروش (نمایش درست نام کانفیگ‌ها)
+• 🌐 سوییچر زبان در همه‌ی صفحات + پشتیبانی از فارسی
+• 🛡 محافظت CSRF، سخت‌سازی WARP و امنیت بیشتر
+• 🚫 محدودیت IP با fail2ban
+• 🗺 دیتای جغرافیایی ایران و روسیه (geoip_IR / geosite_IR / RU)
+
+🔜 به‌زودی: ویرایشگر گرافیکی برندینگ صفحه‌ی Subscription هم در حال افزوده‌شدن به پنل است.
+
+━━━━━━━━━━━━━━━
+
+⚡️ نصب فوق‌العاده آسان
+• 🌍 نصب آنلاین با یک دستور
+• 📴 نصب کاملاً آفلاین (بدون نیاز به اینترنت روی سرور!) — مناسب سرورهای فیلترشده، با نصبگر تعاملی و باینری از پیش‌کامپایل‌شده
+
+━━━━━━━━━━━━━━━
+
+💎 یک پنل، چند نماینده، کنترل کامل.
+
+🔗 لینک پروژه (گیت‌هاب): https://github.com/admin6501/3x-ui
+💬 ارتباط با توسعه‌دهنده (پیشنهاد، انتقاد و گزارش باگ): @asangozar_support
+
+📲 همین حالا امتحان کن!`;
+
+    document.getElementById('content').textContent = TEXT;
+
+    const btn = document.getElementById('copyBtn');
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(TEXT);
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = TEXT;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      btn.textContent = '✅ کپی شد';
+      btn.classList.add('done');
+      setTimeout(() => { btn.textContent = '📋 کپی متن'; btn.classList.remove('done'); }, 2000);
+    });
+  </script>
+</body>
+</html>
