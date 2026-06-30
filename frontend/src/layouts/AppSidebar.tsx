@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Drawer, Layout, Menu } from 'antd';
+import { Drawer, Layout, Menu, Popover, Space } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   ApiOutlined,
@@ -31,9 +31,10 @@ import {
   TagsOutlined,
   TeamOutlined,
   ToolOutlined,
+  TranslationOutlined,
 } from '@ant-design/icons';
 
-import { HttpUtil } from '@/utils';
+import { HttpUtil, LanguageManager } from '@/utils';
 import { pauseAnimationsUntilLeave, useTheme } from '@/hooks/useTheme';
 import { useAllSettings } from '@/api/queries/useAllSettings';
 import './AppSidebar.css';
@@ -107,6 +108,53 @@ function ThemeCycleButton({ id, isDark, isUltra, onCycle, ariaLabel }: {
     >
       {icon}
     </button>
+  );
+}
+
+// Language switcher shown next to the theme button in the panel (parity with the
+// login page, which already offers it). Reuses the same circular button styling
+// as ThemeCycleButton. LanguageManager.setLanguage persists the choice in a
+// cookie and reloads, so the whole panel re-renders in the chosen language.
+function LanguageButton({ isDark, ariaLabel }: { isDark: boolean; ariaLabel: string }) {
+  const current = LanguageManager.getLanguage();
+  const items = useMemo(
+    () => (LanguageManager.supportedLanguages as { value: string; name: string; icon: string }[]).map((l) => ({
+      key: l.value,
+      label: (
+        <Space size={8}>
+          <span aria-hidden="true">{l.icon}</span>
+          <span>{l.name}</span>
+        </Space>
+      ),
+    })),
+    [],
+  );
+  return (
+    <Popover
+      rootClassName={isDark ? 'dark' : 'light'}
+      placement="bottomRight"
+      trigger="click"
+      styles={{ content: { padding: 4 } }}
+      content={
+        <Menu
+          mode="vertical"
+          selectable
+          selectedKeys={[current]}
+          items={items}
+          onClick={({ key }) => LanguageManager.setLanguage(key)}
+          style={{ border: 'none', minWidth: 160 }}
+        />
+      }
+    >
+      <button
+        type="button"
+        className="sidebar-theme-cycle"
+        aria-label={ariaLabel}
+        title={ariaLabel}
+      >
+        <TranslationOutlined />
+      </button>
+    </Popover>
   );
 }
 
@@ -268,6 +316,7 @@ export default function AppSidebar() {
                 onCycle={() => cycleTheme('theme-cycle')}
                 ariaLabel={t('menu.theme')}
               />
+              <LanguageButton isDark={isDark} ariaLabel={t('pages.settings.language')} />
             </div>
           )}
         </div>
@@ -319,6 +368,7 @@ export default function AppSidebar() {
               onCycle={() => cycleTheme('theme-cycle-drawer')}
               ariaLabel={t('menu.theme')}
             />
+            <LanguageButton isDark={isDark} ariaLabel={t('pages.settings.language')} />
             <button
               className="drawer-close"
               type="button"
