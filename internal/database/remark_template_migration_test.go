@@ -19,8 +19,9 @@ func TestSeedRemarkTemplateEmail(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = CloseDB() })
 
+	const defaultTemplate = "{{EMAIL}}|{{INBOUND}}|📊{{TRAFFIC_LEFT}}|⏳{{DAYS_LEFT}}D"
 	rerun := func() {
-		db.Where("seeder_name = ?", "RemarkTemplateEmailToken").Delete(&model.HistoryOfSeeders{})
+		db.Where("seeder_name = ?", "RemarkTemplateEmailTokenV2").Delete(&model.HistoryOfSeeders{})
 		if err := seedRemarkTemplateEmail(); err != nil {
 			t.Fatalf("seedRemarkTemplateEmail: %v", err)
 		}
@@ -50,5 +51,26 @@ func TestSeedRemarkTemplateEmail(t *testing.T) {
 	rerun()
 	if read() != "{EMAIL}" {
 		t.Errorf("existing email template must be left alone, got %q", read())
+	}
+
+	// Cleared field (empty value) -> restored to the identity-carrying default.
+	db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").Update("value", "")
+	rerun()
+	if read() != defaultTemplate {
+		t.Errorf("empty template must be restored to default, got %q", read())
+	}
+
+	// Whitespace-only value is treated as empty -> restored to default.
+	db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").Update("value", "   ")
+	rerun()
+	if read() != defaultTemplate {
+		t.Errorf("blank template must be restored to default, got %q", read())
+	}
+
+	// Missing row -> persisted with the default so the bot listing works.
+	db.Where("key = ?", "remarkTemplate").Delete(&model.Setting{})
+	rerun()
+	if read() != defaultTemplate {
+		t.Errorf("missing template must be created with default, got %q", read())
 	}
 }

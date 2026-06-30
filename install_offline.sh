@@ -105,6 +105,37 @@ install_base() {
     return 0
 }
 
+# -------- Fail2ban auto-setup for the IP Limit feature (mirrors install.sh) -------- #
+# IP Limit is load-bearing on fail2ban: without it the panel disables the
+# limitIp field and zeroes existing limits. install.sh wires this up on every
+# install via `x-ui setup-fail2ban`; the offline installer must do the same so a
+# fresh offline install behaves identically. The x-ui CLI pulls fail2ban +
+# nftables from the system package manager, so this is gated on OFFLINE_SKIP_DEPS
+# (no point trying without a package mirror) and is strictly NON-FATAL — a
+# fail2ban hiccup must never abort the panel install.
+setup_fail2ban() {
+    if [[ -n "${XUI_ENABLE_FAIL2BAN+x}" && "${XUI_ENABLE_FAIL2BAN}" != "true" ]]; then
+        echo -e "${yellow}[offline]${plain} XUI_ENABLE_FAIL2BAN=${XUI_ENABLE_FAIL2BAN}, skipping Fail2ban auto-setup."
+        return 0
+    fi
+    if [[ "${OFFLINE_SKIP_DEPS:-0}" == "1" ]]; then
+        echo -e "${yellow}[offline]${plain} OFFLINE_SKIP_DEPS=1 set; skipping Fail2ban auto-setup (needs a package mirror)."
+        echo -e "${yellow}[offline]${plain} Run ${blue}x-ui setup-fail2ban${plain} later to enable the IP Limit feature."
+        return 0
+    fi
+    if [[ ! -x /usr/bin/x-ui ]]; then
+        echo -e "${yellow}[offline]${plain} x-ui CLI not found; skipping Fail2ban auto-setup."
+        return 0
+    fi
+    echo -e "${green}[offline]${plain} Setting up Fail2ban for the IP Limit feature..."
+    if /usr/bin/x-ui setup-fail2ban; then
+        echo -e "${green}[offline]${plain} Fail2ban setup complete."
+    else
+        echo -e "${yellow}[offline]${plain} Fail2ban setup did not finish; IP Limit stays disabled until you run 'x-ui' and open the IP Limit menu. Continuing."
+    fi
+    return 0
+}
+
 install_base
 
 arch() {
@@ -312,6 +343,9 @@ fi
 
 # Migrate DB schema in case this bundle is newer than the on-disk DB
 "${xui_folder}/x-ui" migrate > /dev/null 2>&1 || true
+
+# Wire up fail2ban for the IP Limit feature, exactly like the online install.sh.
+setup_fail2ban
 
 echo -e ""
 echo -e "Run ${blue}x-ui${plain} for the admin menu, or ${blue}x-ui status${plain} to verify the service."

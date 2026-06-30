@@ -47,6 +47,13 @@ truly has no package mirror, skip that step:
 sudo OFFLINE_SKIP_DEPS=1 ./install_offline.sh
 ```
 
+Like the online `install.sh`, the offline installer also runs
+`x-ui setup-fail2ban` at the end to wire up **fail2ban + nftables** for the
+**IP Limit** feature (without it the panel disables the `limitIp` field). This
+needs the system package manager, so it is skipped when `OFFLINE_SKIP_DEPS=1`
+or `XUI_ENABLE_FAIL2BAN=false`, and it is **non-fatal** — a fail2ban failure
+never aborts the install. You can run `x-ui setup-fail2ban` later to enable it.
+
 On first install it prints randomly-generated **username / password / port /
 webBasePath** and the access URL. On re-install/upgrade it **preserves the
 existing `/etc/x-ui/x-ui.db`** (your admins, inbounds and clients are kept) and

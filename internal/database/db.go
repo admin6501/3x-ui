@@ -504,27 +504,53 @@ func runSeeders(isUsersEmpty bool) error {
 // One-time, self-gated. If the admin already has the token (any brace style) or
 // the setting is unset (the new default already includes it), it's left alone.
 func seedRemarkTemplateEmail() error {
+	// Bumped to V2: the original one-shot seeder could leave installs without the
+	// {{EMAIL}} token in two real-world cases — (a) the admin cleared the field
+	// to empty (the old guard skipped empty values, and an empty template makes
+	// the sub fall back to the 3.4 remark model that has no client identity), and
+	// (b) the row was absent on first run so nothing was persisted. V2 re-runs
+	// once for everyone and heals all three states: empty, missing, and
+	// custom-without-EMAIL.
+	const seederName = "RemarkTemplateEmailTokenV2"
+	const defaultTemplate = "{{EMAIL}}|{{INBOUND}}|📊{{TRAFFIC_LEFT}}|⏳{{DAYS_LEFT}}D"
+
 	var history []string
 	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
 		return err
 	}
-	if slices.Contains(history, "RemarkTemplateEmailToken") {
+	if slices.Contains(history, seederName) {
 		return nil
 	}
 
 	var setting model.Setting
 	err := db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").First(&setting).Error
-	if err == nil {
-		if setting.Value != "" && !strings.Contains(strings.ToUpper(setting.Value), "EMAIL") {
+	switch {
+	case err == nil:
+		val := strings.TrimSpace(setting.Value)
+		if val == "" {
+			// Field was cleared -> restore the identity-carrying default so the
+			// subscription/bot listing shows the client name again.
+			if e := db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").
+				Update("value", defaultTemplate).Error; e != nil {
+				return e
+			}
+		} else if !strings.Contains(strings.ToUpper(val), "EMAIL") {
+			// Custom template missing the identity token -> prepend it.
 			if e := db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").
 				Update("value", "{{EMAIL}}|"+setting.Value).Error; e != nil {
 				return e
 			}
 		}
-	} else if !IsNotFound(err) {
+	case IsNotFound(err):
+		// No stored row: persist the default explicitly so the token is present
+		// regardless of what the in-code default happens to be on this binary.
+		if e := db.Create(&model.Setting{Key: "remarkTemplate", Value: defaultTemplate}).Error; e != nil {
+			return e
+		}
+	default:
 		return err
 	}
-	return db.Create(&model.HistoryOfSeeders{SeederName: "RemarkTemplateEmailToken"}).Error
+	return db.Create(&model.HistoryOfSeeders{SeederName: seederName}).Error
 }
 
 // seedResellerClientsCreated initialises each reseller's cumulative
