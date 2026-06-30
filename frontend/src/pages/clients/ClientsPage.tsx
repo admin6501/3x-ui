@@ -1007,7 +1007,7 @@ export default function ClientsPage() {
                         <div className="card-toolbar">
                           {selectedRowKeys.length === 0 ? (
                             <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                              {!isMobile && t('pages.clients.addClients')}
+                              {!isMobile && t('pages.clients.addClient')}
                             </Button>
                           ) : (
                             <>
