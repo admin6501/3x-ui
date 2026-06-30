@@ -40,19 +40,29 @@ sudo ./install_offline.sh /root/x-ui-linux-amd64.tar.gz
 The installer makes **zero network calls for the x-ui bundle** (binary + xray +
 geo all come from the tarball). It *does* try to install base OS packages
 (curl, tar, cron, socat, openssl, ca-certificates, tzdata) via the system
-package manager so a fresh minimal image isn't left half-working. If the target
-truly has no package mirror, skip that step:
+package manager so a fresh minimal image isn't left half-working.
+
+During the run it now **asks you interactively** (Y/n) before two optional,
+network-dependent steps:
+
+1. **Install base prerequisites?** — answer `y` to install them, `n` to skip
+   (use this if they're already present or the host has no package mirror).
+2. **Set up fail2ban + nftables for the IP Limit feature?** — mirrors the online
+   `install.sh`. Answer `y` to enable the **IP Limit** feature (without it the
+   panel disables the `limitIp` field), `n` to skip. Either way it's
+   **non-fatal** — you can run `x-ui setup-fail2ban` later.
+
+For **unattended / scripted** installs the prompts are bypassed by env vars
+(and a run with no terminal falls back to the safe default = yes):
 
 ```bash
+# Skip ALL package-manager steps (base deps + fail2ban):
 sudo OFFLINE_SKIP_DEPS=1 ./install_offline.sh
-```
 
-Like the online `install.sh`, the offline installer also runs
-`x-ui setup-fail2ban` at the end to wire up **fail2ban + nftables** for the
-**IP Limit** feature (without it the panel disables the `limitIp` field). This
-needs the system package manager, so it is skipped when `OFFLINE_SKIP_DEPS=1`
-or `XUI_ENABLE_FAIL2BAN=false`, and it is **non-fatal** — a fail2ban failure
-never aborts the install. You can run `x-ui setup-fail2ban` later to enable it.
+# Force-enable or force-disable just the fail2ban step (no prompt):
+sudo XUI_ENABLE_FAIL2BAN=true  ./install_offline.sh
+sudo XUI_ENABLE_FAIL2BAN=false ./install_offline.sh
+```
 
 On first install it prints randomly-generated **username / password / port /
 webBasePath** and the access URL. On re-install/upgrade it **preserves the

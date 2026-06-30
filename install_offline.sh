@@ -55,6 +55,47 @@ else
 fi
 echo -e "${blue}[offline]${plain} OS release: ${release}"
 
+# -------- Interactive Y/N prompt helper -------- #
+# Asks the operator a yes/no question and returns 0 for yes, 1 for no.
+#   $1 = question text, $2 = default answer when the user just presses Enter
+#        ("Y" or "N", defaults to "Y").
+# Reads from the controlling terminal (/dev/tty) so it still works when the
+# script itself is fed on stdin. If there is genuinely no terminal attached
+# (fully unattended run) it falls back to the default without blocking.
+prompt_yes_no() {
+    local q="$1" def="${2:-Y}" ans hint="[Y/n]"
+    [[ "$def" =~ ^[Nn]$ ]] && hint="[y/N]"
+
+    # Pick a usable input source: the current stdin if it's a terminal,
+    # otherwise the controlling terminal (so it works under `curl ... | bash`).
+    local src=""
+    if [[ -t 0 ]]; then
+        src="stdin"
+    elif ( exec < /dev/tty ) 2>/dev/null; then
+        src="tty"
+    fi
+
+    # Fully unattended (no terminal at all): fall back to the default, no block.
+    if [[ -z "$src" ]]; then
+        echo -e "${yellow}[offline]${plain} No terminal attached; using default (${def}) for: ${q}"
+        [[ "$def" =~ ^[Yy]$ ]] && return 0 || return 1
+    fi
+
+    while true; do
+        if [[ "$src" == "tty" ]]; then
+            read -r -p "$(echo -e "${blue}[offline]${plain} ${q} ${hint} ")" ans < /dev/tty
+        else
+            read -r -p "$(echo -e "${blue}[offline]${plain} ${q} ${hint} ")" ans
+        fi
+        ans="${ans:-$def}"
+        case "$ans" in
+            [Yy] | [Yy][Ee][Ss]) return 0 ;;
+            [Nn] | [Nn][Oo])     return 1 ;;
+            *) echo -e "${yellow}Please answer y or n.${plain}" ;;
+        esac
+    done
+}
+
 # -------- Install base prerequisites (mirrors install.sh::install_base) -------- #
 # These are the same packages the online installer (install.sh) pulls in:
 # cron/cronie/dcron, curl, tar, tzdata/timezone, socat, ca-certificates,
@@ -64,6 +105,11 @@ echo -e "${blue}[offline]${plain} OS release: ${release}"
 install_base() {
     if [[ "${OFFLINE_SKIP_DEPS:-0}" == "1" ]]; then
         echo -e "${yellow}[offline]${plain} OFFLINE_SKIP_DEPS=1 set; skipping base package install."
+        return 0
+    fi
+    if ! prompt_yes_no "Install base prerequisites (cron, curl, tar, tzdata, socat, ca-certificates, openssl) now?" "Y"; then
+        echo -e "${yellow}[offline]${plain} Skipping base prerequisites at your request."
+        echo -e "${yellow}[offline]${plain} Make sure they are already present, or install them from your offline mirror."
         return 0
     fi
     echo -e "${blue}[offline]${plain} Installing base prerequisites via the system package manager..."
@@ -126,6 +172,14 @@ setup_fail2ban() {
     if [[ ! -x /usr/bin/x-ui ]]; then
         echo -e "${yellow}[offline]${plain} x-ui CLI not found; skipping Fail2ban auto-setup."
         return 0
+    fi
+    # Unless an env var force-enables it (XUI_ENABLE_FAIL2BAN=true), ask first.
+    if [[ -z "${XUI_ENABLE_FAIL2BAN+x}" ]]; then
+        if ! prompt_yes_no "Set up fail2ban + nftables for the IP Limit feature now?" "Y"; then
+            echo -e "${yellow}[offline]${plain} Skipping Fail2ban setup at your request."
+            echo -e "${yellow}[offline]${plain} IP Limit stays disabled until you run ${blue}x-ui setup-fail2ban${plain}."
+            return 0
+        fi
     fi
     echo -e "${green}[offline]${plain} Setting up Fail2ban for the IP Limit feature..."
     if /usr/bin/x-ui setup-fail2ban; then
