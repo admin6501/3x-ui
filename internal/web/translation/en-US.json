@@ -132,6 +132,7 @@
         "emptyUsername": "Username is required",
         "emptyPassword": "Password is required",
         "wrongUsernameOrPassword": "Invalid username or password or two-factor code.",
+        "accountDisabled": "Your account is disabled. Please contact the administrator to reactivate it.",
         "successLogin": "You have successfully logged into your account."
       }
     },
@@ -1855,6 +1856,13 @@
       "resetPassword": "Reset Password",
       "newPassword": "New password",
       "confirmDelete": "Delete this admin?",
+      "enable": "Enable",
+      "disable": "Disable",
+      "disabled": "Disabled",
+      "confirmDisable": "Disable this account? The user will no longer be able to log in.",
+      "resetTraffic": "Reset traffic",
+      "confirmResetTraffic": "Reset this reseller's used traffic to zero and re-enable any inbounds disabled for hitting the quota?",
+      "resetTrafficSuccess": "Reseller traffic reset.",
       "username": "Username",
       "password": "Password",
       "role": "Role",

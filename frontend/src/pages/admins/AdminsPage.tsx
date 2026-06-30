@@ -24,6 +24,8 @@ import {
   KeyOutlined,
   PlusOutlined,
   ReloadOutlined,
+  StopOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 
 import { HttpUtil, SizeFormatter } from '@/utils';
@@ -42,6 +44,7 @@ interface AdminRow {
   trafficQuotaGB: number;
   clientQuota: number;
   clientsCreatedTotal: number;
+  disabled?: boolean;
 }
 
 interface ResellerStat {
@@ -221,11 +224,31 @@ export default function AdminsPage() {
     onSuccess: () => refresh(),
   });
 
+  const setEnabledMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: number; enabled: boolean }) =>
+      HttpUtil.post(`/panel/api/admin/setEnabled/${id}`, { enabled }),
+    onSuccess: () => refresh(),
+  });
+
+  const resetTrafficMutation = useMutation({
+    mutationFn: async (id: number) => HttpUtil.post(`/panel/api/admin/resetResellerTraffic/${id}`),
+    onSuccess: () => refresh(),
+  });
+
   const roleLabel = (r: string) => t(`pages.admins.roles.${r}`, r);
 
   const columns: ColumnsType<AdminRow> = [
     { title: 'ID', dataIndex: 'id', width: 70 },
-    { title: t('pages.admins.username'), dataIndex: 'username' },
+    {
+      title: t('pages.admins.username'),
+      dataIndex: 'username',
+      render: (username: string, row: AdminRow) => (
+        <Space size={6}>
+          <span>{username}</span>
+          {row.disabled && <Tag color="red">{t('pages.admins.disabled')}</Tag>}
+        </Space>
+      ),
+    },
     {
       title: t('pages.admins.role'),
       dataIndex: 'role',
@@ -273,7 +296,7 @@ export default function AdminsPage() {
     {
       title: t('pages.admins.actions'),
       key: 'actions',
-      width: 220,
+      width: 320,
       render: (_: unknown, row: AdminRow) => (
         <Space wrap>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
@@ -282,6 +305,39 @@ export default function AdminsPage() {
           <Button size="small" icon={<KeyOutlined />} onClick={() => openResetPw(row)}>
             {t('pages.admins.resetPassword')}
           </Button>
+          {row.role === 'reseller' && (
+            <Popconfirm
+              title={t('pages.admins.confirmResetTraffic')}
+              onConfirm={() => resetTrafficMutation.mutate(row.id)}
+              okText={t('confirm')}
+              cancelText={t('cancel')}
+            >
+              <Button size="small" icon={<ReloadOutlined />} loading={resetTrafficMutation.isPending}>
+                {t('pages.admins.resetTraffic')}
+              </Button>
+            </Popconfirm>
+          )}
+          {row.disabled ? (
+            <Button
+              size="small"
+              icon={<CheckCircleOutlined />}
+              onClick={() => setEnabledMutation.mutate({ id: row.id, enabled: true })}
+              loading={setEnabledMutation.isPending}
+            >
+              {t('pages.admins.enable')}
+            </Button>
+          ) : (
+            <Popconfirm
+              title={t('pages.admins.confirmDisable')}
+              onConfirm={() => setEnabledMutation.mutate({ id: row.id, enabled: false })}
+              okText={t('confirm')}
+              cancelText={t('cancel')}
+            >
+              <Button size="small" danger icon={<StopOutlined />} loading={setEnabledMutation.isPending}>
+                {t('pages.admins.disable')}
+              </Button>
+            </Popconfirm>
+          )}
           <Popconfirm
             title={t('pages.admins.confirmDelete')}
             onConfirm={() => deleteMutation.mutate(row.id)}

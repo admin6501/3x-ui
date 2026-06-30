@@ -11,6 +11,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/database"
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/util/crypto"
+	"github.com/mhsanaei/3x-ui/v3/internal/logger"
 
 	"gorm.io/gorm"
 )
@@ -99,7 +100,7 @@ func (s *AdminService) ListAdmins() ([]model.User, error) {
 	db := database.GetDB()
 	var users []model.User
 	if err := db.Model(&model.User{}).
-		Select("id", "username", "role", "allowed_inbounds", "traffic_quota_gb", "client_quota", "clients_created_total").
+		Select("id", "username", "role", "allowed_inbounds", "traffic_quota_gb", "client_quota", "clients_created_total", "disabled").
 		Order("id ASC").Find(&users).Error; err != nil {
 		return nil, err
 	}
@@ -384,6 +385,82 @@ func (s *AdminService) DeleteAdmin(actor *model.User, id int) error {
 		return err
 	}
 	s.logAction(actor, "delete_admin", u.Id, u.Username, fmt.Sprintf("role=%s", u.Role))
+	return nil
+}
+
+// SetAdminEnabled toggles the Disabled flag on any admin account (any role).
+// A disabled account can no longer log in. Guards against locking yourself out
+// and against disabling the last enabled super_admin.
+func (s *AdminService) SetAdminEnabled(actor *model.User, id int, enabled bool) error {
+	if !enabled && actor != nil && actor.Id == id {
+		return errors.New("cannot disable your own account; ask another super_admin")
+	}
+	db := database.GetDB()
+	var u model.User
+	if err := db.First(&u, id).Error; err != nil {
+		return err
+	}
+	if !enabled && u.Role == model.RoleSuperAdmin {
+		var enabledSupers int64
+		if err := db.Model(&model.User{}).
+			Where("role = ? AND disabled = ?", model.RoleSuperAdmin, false).
+			Count(&enabledSupers).Error; err != nil {
+			return err
+		}
+		if enabledSupers <= 1 {
+			return errors.New("cannot disable the last enabled super_admin")
+		}
+	}
+	if err := db.Model(&model.User{}).Where("id = ?", id).
+		Update("disabled", !enabled).Error; err != nil {
+		return err
+	}
+	action := "enable_admin"
+	if !enabled {
+		action = "disable_admin"
+	}
+	s.logAction(actor, action, u.Id, u.Username, fmt.Sprintf("role=%s", u.Role))
+	return nil
+}
+
+// ResetResellerTraffic zeroes a reseller's measured traffic (the up+down
+// counters on every inbound assigned to them, which is exactly what the quota
+// is measured against) so consumption starts over from zero. It also re-enables
+// every inbound that the quota enforcer had auto-disabled for this reseller and
+// asks xray to restart so the changes take effect immediately.
+func (s *AdminService) ResetResellerTraffic(actor *model.User, id int, inboundSvc *InboundService, xrayService *XrayService) error {
+	db := database.GetDB()
+	var u model.User
+	if err := db.First(&u, id).Error; err != nil {
+		return err
+	}
+	if u.Role != model.RoleReseller {
+		return errors.New("traffic reset is only available for reseller accounts")
+	}
+
+	ids := AllowedInboundIDs(&u)
+	for _, inboundID := range ids {
+		if err := inboundSvc.ResetInboundTraffic(inboundID); err != nil {
+			logger.Warning("ResetResellerTraffic: reset inbound", inboundID, "failed:", err)
+		}
+	}
+
+	// Re-enable inbounds WE auto-disabled for this reseller, then forget the rows.
+	var tracked []model.ResellerQuotaDisabledInbound
+	if err := db.Where("reseller_id = ?", u.Id).Find(&tracked).Error; err == nil {
+		for _, row := range tracked {
+			if _, err := inboundSvc.SetInboundEnable(row.InboundId, true); err != nil {
+				logger.Warning("ResetResellerTraffic: re-enable inbound", row.InboundId, "failed:", err)
+			}
+		}
+		_ = db.Where("reseller_id = ?", u.Id).Delete(&model.ResellerQuotaDisabledInbound{}).Error
+	}
+
+	if xrayService != nil {
+		xrayService.SetToNeedRestart()
+	}
+	s.logAction(actor, "reset_reseller_traffic", u.Id, u.Username,
+		fmt.Sprintf("inbounds=%v", ids))
 	return nil
 }
 

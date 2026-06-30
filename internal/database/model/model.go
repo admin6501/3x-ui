@@ -67,6 +67,10 @@ type User struct {
         // ClientsCreatedTotal is a cumulative counter of clients ever created by this
         // reseller. Increments on every create, never decrements on delete.
         ClientsCreatedTotal int `json:"clientsCreatedTotal" gorm:"default:0"`
+        // Disabled, when true, blocks this account from logging in regardless of its
+        // role. New column defaults to false so every existing account stays enabled
+        // after an upgrade. Super-admins toggle it from the Admins page.
+        Disabled bool `json:"disabled" gorm:"default:false"`
 }
 
 // AdminAuditLog records mutations performed by admin users — admin CRUD,
@@ -106,9 +110,9 @@ type Plan struct {
 // recovers (quota raised / traffic reset) — so an admin's manual disable is
 // never clobbered.
 type ResellerQuotaDisabledInbound struct {
-	InboundId  int   `json:"inboundId" gorm:"primaryKey;column:inbound_id"`
-	ResellerId int   `json:"resellerId" gorm:"index;column:reseller_id"`
-	DisabledAt int64 `json:"disabledAt" gorm:"autoCreateTime:milli"`
+        InboundId  int   `json:"inboundId" gorm:"primaryKey;column:inbound_id"`
+        ResellerId int   `json:"resellerId" gorm:"index;column:reseller_id"`
+        DisabledAt int64 `json:"disabledAt" gorm:"autoCreateTime:milli"`
 }
 
 func (ResellerQuotaDisabledInbound) TableName() string { return "reseller_quota_disabled_inbounds" }

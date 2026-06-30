@@ -18,7 +18,9 @@ import (
 // audit log.
 type AdminController struct {
 	BaseController
-	adminService service.AdminService
+	adminService   service.AdminService
+	inboundService service.InboundService
+	xrayService    service.XrayService
 }
 
 // NewAdminController wires the admin routes onto the given group.
@@ -34,6 +36,8 @@ func (a *AdminController) initRouter(g *gin.RouterGroup) {
 	g.POST("/update/:id", a.update)
 	g.POST("/delete/:id", a.delete)
 	g.POST("/resetPassword/:id", a.resetPassword)
+	g.POST("/setEnabled/:id", a.setEnabled)
+	g.POST("/resetResellerTraffic/:id", a.resetResellerTraffic)
 	g.GET("/auditLog", a.auditLog)
 	g.GET("/resellerStats", a.resellerStats)
 }
@@ -135,6 +139,46 @@ func (a *AdminController) resetPassword(c *gin.Context) {
 		return
 	}
 	jsonMsg(c, "reset password", nil)
+}
+
+type setEnabledForm struct {
+	Enabled bool `form:"enabled" json:"enabled"`
+}
+
+// setEnabled toggles whether an admin account (any role) can log in.
+func (a *AdminController) setEnabled(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	var f setEnabledForm
+	if err := c.ShouldBind(&f); err != nil {
+		jsonMsg(c, "set enabled", err)
+		return
+	}
+	actor := session.GetLoginUser(c)
+	if err := a.adminService.SetAdminEnabled(actor, id, f.Enabled); err != nil {
+		jsonMsg(c, "set enabled", err)
+		return
+	}
+	jsonMsg(c, "set enabled", nil)
+}
+
+// resetResellerTraffic zeroes a reseller's consumed traffic and re-enables any
+// inbounds the quota enforcer auto-disabled for them.
+func (a *AdminController) resetResellerTraffic(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	actor := session.GetLoginUser(c)
+	if err := a.adminService.ResetResellerTraffic(actor, id, &a.inboundService, &a.xrayService); err != nil {
+		jsonMsg(c, "reset reseller traffic", err)
+		return
+	}
+	jsonMsg(c, "reset reseller traffic", nil)
 }
 
 func (a *AdminController) auditLog(c *gin.Context) {
