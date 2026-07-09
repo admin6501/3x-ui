@@ -108,14 +108,24 @@ func diffInbounds(oldCfg, newCfg *Config, diff *HotDiff) bool {
 		if oldIb.Tag == apiTag || oldIb.Tag == "api" {
 			return false
 		}
-		diff.RemovedInboundTags = append(diff.RemovedInboundTags, oldIb.Tag)
-		if exists {
-			raw, err := json.Marshal(newIb)
-			if err != nil {
-				return false
-			}
-			diff.AddedInbounds = append(diff.AddedInbounds, raw)
+		if !exists {
+			// Pure removal (an inbound disabled or deleted, with no replacement
+			// carrying the same tag). Xray's runtime DelInbound only stops the
+			// listener from accepting NEW connections; sessions already
+			// established on that inbound keep flowing until they close on their
+			// own. The only way to actually cut a disabled inbound's clients off
+			// is a full process restart, so an inbound removal is deliberately
+			// NOT hot-appliable (reported bug: disabling an inbound didn't
+			// disconnect its users, even across a panel restart).
+			logger.Debug("hot diff: inbound [", oldIb.Tag, "] removed; forcing full restart to drop live sessions")
+			return false
 		}
+		diff.RemovedInboundTags = append(diff.RemovedInboundTags, oldIb.Tag)
+		raw, err := json.Marshal(newIb)
+		if err != nil {
+			return false
+		}
+		diff.AddedInbounds = append(diff.AddedInbounds, raw)
 	}
 	for i := range newCfg.InboundConfigs {
 		newIb := &newCfg.InboundConfigs[i]
