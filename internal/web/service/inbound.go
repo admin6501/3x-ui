@@ -777,6 +777,11 @@ func (s *InboundService) DelInbound(id int) (bool, error) {
 			} else if push {
 				if err1 := rt.DelInbound(context.Background(), &ib); err1 == nil {
 					logger.Debug("Inbound deleted on", rt.Name(), ":", ib.Tag)
+					// The API del only closes the listener; restart so live
+					// connections on a deleted local inbound are dropped too.
+					if ib.NodeID == nil && ib.Enable {
+						needRestart = true
+					}
 				} else {
 					logger.Warning("DelInbound on", rt.Name(), "failed, deleting central row anyway:", err1)
 					if ib.NodeID == nil {
@@ -946,7 +951,10 @@ func (s *InboundService) SetInboundEnable(id int, enable bool) (bool, error) {
 		needRestart = true
 	}
 	if !enable {
-		return needRestart, nil
+		// The runtime API DelInbound only closes the listener; connections that
+		// are already established keep flowing until xray restarts. Force a full
+		// restart so a disabled inbound's clients are actually cut off.
+		return true, nil
 	}
 
 	runtimeInbound, err := s.buildRuntimeInboundForAPI(db, inbound)
@@ -980,6 +988,10 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 		return inbound, false, err
 	}
 	inbound.NodeID = oldInbound.NodeID
+	// Remember the pre-edit enable state: disabling via this path must force a
+	// full xray restart (see below), since oldInbound.Enable is overwritten
+	// inside the transaction.
+	wasEnabled := oldInbound.Enable
 	// Capture the pre-edit routing state before oldInbound.Settings is replaced
 	// with the new settings further down, then ensure a routed inbound keeps a
 	// stable egress port (reusing the one already stored).
@@ -1183,6 +1195,12 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 	})
 	if txErr != nil {
 		return inbound, false, txErr
+	}
+	// Disabling an inbound must fully restart xray: the runtime API DelInbound
+	// only closes the listener, and already-established client connections stay
+	// alive until the process restarts.
+	if wasEnabled && !inbound.Enable && oldInbound.NodeID == nil {
+		needRestart = true
 	}
 	// After the rename is committed, point any routing rules / loopback outbounds
 	// in xrayTemplateConfig at the new tag (oldInbound.Tag now holds the resolved

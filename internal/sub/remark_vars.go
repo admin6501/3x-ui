@@ -524,12 +524,40 @@ func (s *SubService) genTemplatedRemark(inbound *model.Inbound, client model.Cli
 	return ctx.configName()
 }
 
+// genDisplayRemark builds the remark for display contexts (the sub info page's
+// per-config copy rows and the panel's client link/QR views): the name-only
+// form of the remark template, so client-identity tokens such as {{EMAIL}}
+// still resolve while the volatile usage/expiry info is stripped. Returns ""
+// when no template is set or it expands to nothing, letting callers fall back
+// to the config name.
+func (s *SubService) genDisplayRemark(inbound *model.Inbound, client model.Client, hostRemark string, transport string) string {
+	if s.remarkTemplate == "" {
+		return ""
+	}
+	tmpl := nameOnlyTemplate(translateUISingleBrackets(s.remarkTemplate))
+	if strings.TrimSpace(tmpl) == "" {
+		return ""
+	}
+	ctx := remarkContext{
+		client:     client,
+		stats:      s.statsForClient(inbound, client),
+		inbound:    inbound,
+		hostRemark: hostRemark,
+		transport:  transport,
+	}
+	return strings.TrimSpace(expandRemarkVars(tmpl, ctx))
+}
+
 // genHostRemark builds one host endpoint's remark for a specific client. The
 // config name is always the inbound's own remark; the host's remark is surfaced
-// only through the {{HOST}} token. In the subscription body the rest of the
-// remark template still applies; displays show just the config name.
+// only through the {{HOST}} token. In the subscription body the full remark
+// template applies; displays render the name-only template (so {{EMAIL}} still
+// shows), falling back to the config name when no template is set.
 func (s *SubService) genHostRemark(inbound *model.Inbound, client model.Client, hostRemark string, transport string) string {
 	if !s.subscriptionBody {
+		if out := s.genDisplayRemark(inbound, client, hostRemark, transport); out != "" {
+			return out
+		}
 		return remarkContext{inbound: inbound, hostRemark: hostRemark}.configName()
 	}
 	return s.genTemplatedRemark(inbound, client, hostRemark, transport)

@@ -1634,15 +1634,21 @@ func cloneStringMap(source map[string]string) map[string]string {
 }
 
 // genRemark builds the remark for a non-host link (raw default / legacy
-// externalProxy / synthetic JSON-Clash entry). In the subscription body a set
-// remark template takes over; otherwise (and in every display context) the
-// remark is just the config name (inbound remark, then extra).
+// externalProxy / synthetic JSON-Clash entry). In the subscription body the
+// full remark template takes over; display contexts (sub info page, panel
+// link/QR/copy views) render the name-only template so {{EMAIL}} still shows,
+// falling back to the config name (inbound remark, then extra).
 func (s *SubService) genRemark(inbound *model.Inbound, email string, extra string, transport string) string {
-	if s.remarkTemplate != "" && s.subscriptionBody {
-		return s.genTemplatedRemark(inbound, s.lookupClient(inbound, email), extra, transport)
+	if s.remarkTemplate != "" {
+		if s.subscriptionBody {
+			return s.genTemplatedRemark(inbound, s.lookupClient(inbound, email), extra, transport)
+		}
+		// Sub info page + panel link/QR displays: the name-only template, so the
+		// client identity ({{EMAIL}}) still shows without the volatile usage info.
+		if out := s.genDisplayRemark(inbound, s.lookupClient(inbound, email), extra, transport); out != "" {
+			return out
+		}
 	}
-	// Sub info page + panel link/QR displays: just the config name (no template,
-	// so no per-client email/usage leaks into the shown remark).
 	return fallbackRemark(inbound.Remark, extra)
 }
 
