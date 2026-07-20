@@ -498,21 +498,18 @@ func runSeeders(isUsersEmpty bool) error {
 	return nil
 }
 
-// seedRemarkTemplateEmail ensures the subscription Remark Template contains the
-// {{EMAIL}} token, so config names carry the client identity (3.4 dropped the
-// client name from the default, which broke name-based listing in sales bots).
-// One-time, self-gated. If the admin already has the token (any brace style) or
-// the setting is unset (the new default already includes it), it's left alone.
+// seedRemarkTemplateEmail makes sure an existing *custom* subscription Remark
+// Template still carries the {{EMAIL}} token, so config names keep the client
+// identity (3.4 dropped the client name from the default, which broke
+// name-based listing in sales bots). One-time and self-gated. If the template
+// already has the token (any brace style) it is left alone.
+//
+// Note: this seeder no longer forces an empty template back to the default —
+// clearing the Remark Template is handled by SettingService.UpdateAllSetting
+// (restoreBlankDefaults) on save, and an unset key already resolves to the
+// in-code default (which includes {{EMAIL}}).
 func seedRemarkTemplateEmail() error {
-	// Bumped to V2: the original one-shot seeder could leave installs without the
-	// {{EMAIL}} token in two real-world cases — (a) the admin cleared the field
-	// to empty (the old guard skipped empty values, and an empty template makes
-	// the sub fall back to the 3.4 remark model that has no client identity), and
-	// (b) the row was absent on first run so nothing was persisted. V2 re-runs
-	// once for everyone and heals all three states: empty, missing, and
-	// custom-without-EMAIL.
 	const seederName = "RemarkTemplateEmailTokenV2"
-	const defaultTemplate = "{{EMAIL}}|{{INBOUND}}|📊{{TRAFFIC_LEFT}}|⏳{{DAYS_LEFT}}D"
 
 	var history []string
 	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
@@ -527,14 +524,11 @@ func seedRemarkTemplateEmail() error {
 	switch {
 	case err == nil:
 		val := strings.TrimSpace(setting.Value)
-		if val == "" {
-			// Field was cleared -> restore the identity-carrying default so the
-			// subscription/bot listing shows the client name again.
-			if e := db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").
-				Update("value", defaultTemplate).Error; e != nil {
-				return e
-			}
-		} else if !strings.Contains(strings.ToUpper(val), "EMAIL") {
+		// Only heal a *custom* template that is missing the client-identity token.
+		// Blank values are intentionally left untouched here: clearing the Remark
+		// Template now restores the default in UpdateAllSetting (on save), so this
+		// seeder no longer forces empty -> default.
+		if val != "" && !strings.Contains(strings.ToUpper(val), "EMAIL") {
 			// Custom template missing the identity token -> prepend it.
 			if e := db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").
 				Update("value", "{{EMAIL}}|"+setting.Value).Error; e != nil {
@@ -542,11 +536,9 @@ func seedRemarkTemplateEmail() error {
 			}
 		}
 	case IsNotFound(err):
-		// No stored row: persist the default explicitly so the token is present
-		// regardless of what the in-code default happens to be on this binary.
-		if e := db.Create(&model.Setting{Key: "remarkTemplate", Value: defaultTemplate}).Error; e != nil {
-			return e
-		}
+		// No stored row: nothing to do. An unset key already resolves to the
+		// in-code default (which includes {{EMAIL}}), and it is persisted the
+		// next time settings are saved.
 	default:
 		return err
 	}
