@@ -28,6 +28,24 @@
 - **Yerleşik abonelik sunucusu** ve [özel sayfa şablonları](docs/custom-subscription-templates.md).
 - **Telegram botu**, panel içi Swagger ile **RESTful API**, **SQLite veya PostgreSQL**, **13 arayüz dili**, koyu/açık temalar ve **Fail2ban** ile IP limiti uygulaması.
 
+## Panel özellikleri ve seçenekleri (bu fork)
+
+Yukarıdakilere ek olarak panel şunları da içerir:
+
+- **Planlar / Paketler** — yeniden kullanılabilir istemci şablonları: trafik, bitiş tarihi ve IP limitini tek tıkla doldurur.
+- **İstemci Grupları** — tek bir aboneliğin birden çok yapılandırma sunması için birkaç geleni gruplar.
+- **Ana Bilgisayarlar (Hosts)** — her gelen için özel abonelik uç noktaları (adres, port, remark, SNI) yayınlar.
+- **Abonelik Remark Şablonu** — istemci bağlantı adlarını `{{VAR}}` belirteçlerinden (`EMAIL`, `INBOUND`, `TRAFFIC_LEFT`, `DAYS_LEFT`, `HOST`, …) oluşturur; alan boşaltıldığında varsayılan şablon geri gelir.
+- **Ek abonelik biçimleri** — base64 aboneliğinin yanında JSON ve Clash çıktıları (isteğe bağlı yönlendirme kurallarıyla).
+- **İki Adımlı Doğrulama (2FA / TOTP)** yönetici girişleri için.
+- **LDAP / Active Directory ile giriş** — panel yöneticilerini bir dizine karşı doğrular.
+- **E-posta (SMTP) bildirimleri** — STARTTLS/TLS ve test e-postası düğmesiyle olay tabanlı uyarılar.
+- **Harici trafik webhook'u** — istemci trafik olaylarını harici bir URL'ye gönderir.
+- **MTProto (Telegram) proxy** desteği, birlikte gelen `mtg` yardımcı bileşeniyle.
+- **Celali (Farsça) / Miladi takvim** tüm tarihler için değiştirilebilir.
+- **Panel içi Eğitimler sayfası** (yalnızca super_admin) — her panel bölümü için çok dilli hızlı başlangıç kılavuzu.
+- **Güçlendirilmiş güvenlik** — CSRF koruması, güvenlik başlıkları ve yapılandırılabilir oturum ömrü.
+
 ## Hızlı Başlangıç (çevrimiçi)
 
 ```bash

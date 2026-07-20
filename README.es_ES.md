@@ -28,6 +28,24 @@ Un fork personalizado de [MHSanaei/3X-UI](https://github.com/MHSanaei/3x-ui) —
 - **Servidor de suscripción integrado** con [plantillas de página personalizadas](docs/custom-subscription-templates.md).
 - **Bot de Telegram**, **API RESTful** con Swagger integrado, **SQLite o PostgreSQL**, **13 idiomas de interfaz**, temas claro/oscuro y aplicación de límites de IP con **Fail2ban**.
 
+## Funciones y opciones del panel (este fork)
+
+Además de lo anterior, el panel también incluye:
+
+- **Planes / Paquetes** — plantillas de cliente reutilizables: rellena tráfico, caducidad y límite de IP con un clic.
+- **Grupos de clientes** — agrupa varias entradas para que una sola suscripción entregue varias configuraciones.
+- **Hosts** — publica endpoints de suscripción personalizados (dirección, puerto, remark, SNI) por entrada.
+- **Plantilla de Remark de suscripción** — crea los nombres de los enlaces con tokens `{{VAR}}` (`EMAIL`, `INBOUND`, `TRAFFIC_LEFT`, `DAYS_LEFT`, `HOST`, …); vaciar el campo restaura la plantilla por defecto.
+- **Formatos de suscripción adicionales** — salidas JSON y Clash (con reglas de enrutamiento opcionales) junto a la suscripción base64.
+- **Autenticación de dos factores (2FA / TOTP)** para el inicio de sesión de administradores.
+- **Inicio de sesión con LDAP / Active Directory** — autentica a los administradores contra un directorio.
+- **Notificaciones por correo (SMTP)** — alertas basadas en eventos con STARTTLS/TLS y botón de correo de prueba.
+- **Webhook de tráfico externo** — envía eventos de tráfico de clientes a una URL externa.
+- **Soporte de proxy MTProto (Telegram)** mediante el sidecar `mtg` incluido.
+- **Calendario Jalali (persa) / Gregoriano** conmutable para todas las fechas.
+- **Página de Tutoriales en el panel** (solo super_admin) — una guía rápida multilingüe de cada sección del panel.
+- **Seguridad reforzada** — protección CSRF, cabeceras de seguridad y duración de sesión configurable.
+
 ## Inicio rápido (en línea)
 
 ```bash

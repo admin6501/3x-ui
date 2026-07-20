@@ -28,6 +28,24 @@ A customized fork of [MHSanaei/3X-UI](https://github.com/MHSanaei/3x-ui) — an 
 - **Built-in subscription server** with [custom page templates](docs/custom-subscription-templates.md).
 - **Telegram bot**, **RESTful API** with in-panel Swagger, **SQLite or PostgreSQL**, **13 UI languages**, dark/light themes, and **Fail2ban** IP-limit enforcement.
 
+## Panel features & options (this fork)
+
+Beyond the basics above, the panel also includes:
+
+- **Plans / Packages** — reusable client templates: prefill traffic, expiry and IP limit in one click.
+- **Client Groups** — bundle several inbounds so a single client subscription delivers multiple configs.
+- **Hosts** — publish custom subscription endpoints (address, port, remark, SNI) per inbound.
+- **Subscription Remark Template** — build client link names from `{{VAR}}` tokens (`EMAIL`, `INBOUND`, `TRAFFIC_LEFT`, `DAYS_LEFT`, `HOST`, …); clearing the field restores the default template.
+- **Extra subscription formats** — JSON and Clash outputs (with optional routing rules) alongside the base64 subscription.
+- **Two-Factor Authentication (2FA / TOTP)** for admin logins.
+- **LDAP / Active Directory login** — authenticate panel admins against a directory.
+- **Email (SMTP) notifications** — event-based alerts with STARTTLS/TLS and a test-email button.
+- **External traffic webhook** — push client traffic events to an external URL.
+- **MTProto (Telegram) proxy** support via the bundled `mtg` sidecar.
+- **Jalali (Persian) / Gregorian calendar** toggle for all dates.
+- **In-panel Tutorials page** (super_admin only) — a multilingual quick-start guide to every panel section.
+- **Hardened security** — CSRF protection, security headers, and configurable session lifetime.
+
 ## Quick Start (online)
 
 ```bash
