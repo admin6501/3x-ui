@@ -19,6 +19,16 @@ Un fork personalizado de [MHSanaei/3X-UI](https://github.com/MHSanaei/3x-ui) —
 - **Comprobador de actualizaciones del fork** — la opción "buscar actualización" del panel lee las versiones de este fork (`admin6501/3x-ui`).
 - **Migración segura a PostgreSQL** — la migración SQLite → PostgreSQL copia todos los datos RBAC (administradores, roles, entradas permitidas, registros de auditoría).
 
+## Asignación de tráfico por revendedor (reseller)
+
+Da a cada **revendedor** un presupuesto total de tráfico y deja que el panel lo aplique automáticamente:
+
+- Define una **cuota de tráfico** por revendedor (en GB) en la página **Admins** — `0` significa ilimitado.
+- El consumo se mide como la **suma de subida + bajada de todas las entradas asignadas a ese revendedor**.
+- Cuando un revendedor alcanza su cuota, la tarea de tráfico **desactiva automáticamente todas sus entradas asignadas**, cortando al instante a sus clientes.
+- Las entradas desactivadas de este modo se registran y se **reactivan automáticamente** en cuanto subes o restableces la cuota del revendedor.
+- Se **permite la sobreventa** — solo cuenta el consumo real — y cada revendedor ve su consumo frente a su cuota en el panel de revendedor.
+
 ## Funciones principales (de 3X-UI)
 
 - **Entradas multiprotocolo** — VLESS, VMess, Trojan, Shadowsocks, WireGuard, Hysteria2, HTTP, SOCKS (Mixed), Dokodemo-door / Tunnel y TUN.

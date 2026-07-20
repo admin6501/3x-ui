@@ -19,6 +19,16 @@ A customized fork of [MHSanaei/3X-UI](https://github.com/MHSanaei/3x-ui) — an 
 - **Fork-aware updater** — the panel's "check for update" reads releases from this fork (`admin6501/3x-ui`).
 - **PostgreSQL-safe migration** — SQLite → PostgreSQL migration copies all RBAC data (admins, roles, allowed inbounds, audit logs).
 
+## Reseller traffic allocation
+
+Give each **reseller** a total traffic budget and let the panel enforce it automatically:
+
+- Set a per-reseller **traffic quota** (in GB) on the **Admins** page — `0` means unlimited.
+- Usage is measured as the **combined up + download of all inbounds assigned to that reseller**.
+- When a reseller reaches their quota, the traffic job **auto-disables all of their assigned inbounds**, instantly cutting off their clients.
+- Inbounds disabled this way are tracked and **re-enabled automatically** once you raise or reset the reseller's quota.
+- **Over-selling is allowed** — only real consumption counts — and each reseller sees their own usage vs. quota on the Reseller dashboard.
+
 ## Core features (from 3X-UI)
 
 - **Multi-protocol inbounds** — VLESS, VMess, Trojan, Shadowsocks, WireGuard, Hysteria2, HTTP, SOCKS (Mixed), Dokodemo-door / Tunnel, and TUN.

@@ -19,6 +19,16 @@
 - **Fork'a duyarlı güncelleyici** — panelin "güncellemeyi denetle" özelliği sürümleri bu fork'tan (`admin6501/3x-ui`) okur.
 - **PostgreSQL güvenli geçiş** — SQLite → PostgreSQL geçişi tüm RBAC verilerini (yöneticiler, roller, izin verilen gelenler, denetim günlükleri) kopyalar.
 
+## Bayi (reseller) trafik tahsisi
+
+Her **bayiye** toplam bir trafik bütçesi verin ve panel bunu otomatik olarak uygulasın:
+
+- **Admins** sayfasında bayi başına bir **trafik kotası** (GB) belirleyin — `0` sınırsız demektir.
+- Tüketim, **o bayiye atanmış tüm gelenlerin yükleme + indirme toplamı** olarak ölçülür.
+- Bir bayi kotasına ulaştığında, trafik görevi **atanmış tüm gelenlerini otomatik olarak devre dışı bırakır** ve müşterilerinin bağlantısını anında keser.
+- Bu şekilde devre dışı bırakılan gelenler izlenir ve bayinin kotasını yükselttiğinizde veya sıfırladığınızda **otomatik olarak yeniden etkinleştirilir**.
+- **Fazla satış (over-selling) serbesttir** — yalnızca gerçek tüketim sayılır — ve her bayi kendi tüketimini ve kotasını Bayi panosunda görür.
+
 ## Temel özellikler (3X-UI'den)
 
 - **Çok protokollü gelenler** — VLESS, VMess, Trojan, Shadowsocks, WireGuard, Hysteria2, HTTP, SOCKS (Mixed), Dokodemo-door / Tunnel ve TUN.
