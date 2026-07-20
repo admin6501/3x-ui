@@ -31,6 +31,17 @@ function IndexRoute() {
   return withSuspense(<IndexPage />);
 }
 
+// Tutorials is a super_admin-only page. Even though the sidebar hides the entry
+// for other roles, guard the route so a non-super_admin hitting /panel/tutorials
+// directly (typed URL / bookmark) is redirected to their landing page instead.
+function TutorialsRoute() {
+  const role = (typeof window !== 'undefined' && window.X_UI_ROLE) || 'super_admin';
+  if (role !== 'super_admin') {
+    return <Navigate to="/" replace />;
+  }
+  return withSuspense(<TutorialsPage />);
+}
+
 const routes: RouteObject[] = [
   {
     path: '/',
@@ -50,7 +61,7 @@ const routes: RouteObject[] = [
       { path: 'outbound', element: withSuspense(<XrayPage />) },
       { path: 'routing', element: withSuspense(<XrayPage />) },
       { path: 'api-docs', element: withSuspense(<ApiDocsPage />) },
-      { path: 'tutorials', element: withSuspense(<TutorialsPage />) },
+      { path: 'tutorials', element: <TutorialsRoute /> },
     ],
   },
 ];
