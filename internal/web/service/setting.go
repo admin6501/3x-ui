@@ -1041,6 +1041,7 @@ func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting) error {
 	if err := s.preserveRedactedSecrets(allSetting); err != nil {
 		return err
 	}
+	s.restoreBlankDefaults(allSetting)
 	if err := validateSettingsURLs(allSetting); err != nil {
 		return err
 	}
@@ -1114,6 +1115,17 @@ func (s *SettingService) preserveRedactedSecrets(allSetting *entity.AllSetting) 
 		allSetting.SmtpPassword = value
 	}
 	return nil
+}
+
+// restoreBlankDefaults resets settings that must never persist as empty back to
+// their built-in default. The subscription Remark Template is one such field:
+// clearing it (fully, or by deleting a word/segment so only whitespace remains)
+// and saving should restore the default template rather than store a blank value
+// — matching the field's placeholder/default the UI shows after the save reloads.
+func (s *SettingService) restoreBlankDefaults(allSetting *entity.AllSetting) {
+	if strings.TrimSpace(allSetting.RemarkTemplate) == "" {
+		allSetting.RemarkTemplate = defaultValueMap["remarkTemplate"]
+	}
 }
 
 func validateSettingsURLs(allSetting *entity.AllSetting) error {
