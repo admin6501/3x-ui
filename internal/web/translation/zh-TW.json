@@ -119,7 +119,8 @@
     "donate": "捐贈",
     "hosts": "Hosts",
     "plans": "方案",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "教學"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "面板教學",
+      "subtitle": "快速了解如何使用面板的每個部分。",
+      "sections": {
+        "overview": {
+          "title": "開始使用",
+          "body": "使用管理員帳號登入，然後開啟「面板設定」修改使用者名稱、密碼和面板連接埠。請妥善保管這些憑證。"
+        },
+        "dashboard": {
+          "title": "總覽（儀表板）",
+          "body": "儀表板顯示系統資源、Xray 狀態和總流量。用它來監控伺服器狀態，並在需要時重啟或停止 Xray 核心。"
+        },
+        "inbounds": {
+          "title": "入站 (Inbounds)",
+          "body": "入站是伺服器接受的連線。選擇協定（VLESS、VMess、Trojan、Shadowsocks）、連接埠、傳輸方式以及選用的 TLS/Reality 來建立入站。"
+        },
+        "clients": {
+          "title": "用戶端 (Clients)",
+          "body": "用戶端是透過入站連線的使用者。新增具有流量限制、到期日期和 IP 限制的用戶端，然後分享其訂閱或設定連結。"
+        },
+        "plans": {
+          "title": "方案 (Plans)",
+          "body": "方案是常用用戶端設定（流量、時長、限制）的可重複使用範本，便於快速且一致地建立新用戶端。"
+        },
+        "groups": {
+          "title": "群組 (Groups)",
+          "body": "群組將多個入站綁在一起，使單一用戶端訂閱可一次提供多個設定。"
+        },
+        "nodes": {
+          "title": "節點 (Nodes)",
+          "body": "節點讓你從一個面板管理多台伺服器。新增節點即可在多台機器間同步入站與用戶端。"
+        },
+        "hosts": {
+          "title": "主機 (Hosts)",
+          "body": "主機定義訂閱連結中顯示的位址、連接埠和備註 (Remark)。用它們向使用者發布整潔的位址和自訂名稱。"
+        },
+        "subscription": {
+          "title": "訂閱與設定",
+          "body": "在「面板設定 → 訂閱」中啟用訂閱服務，設定其路徑和連接埠，並自訂用戶端連結使用的備註範本 (Remark)。"
+        },
+        "xray": {
+          "title": "Xray 設定",
+          "body": "Xray 區塊提供對核心的進階控制：出站、路由規則、DNS 和負載平衡。請謹慎編輯——錯誤的設定可能導致服務停止。"
+        },
+        "admins": {
+          "title": "管理員 (Admins)",
+          "body": "建立具有角色（經理、代理、唯讀）的其他管理員，讓團隊以有限權限協助管理面板。"
+        },
+        "security": {
+          "title": "安全建議",
+          "body": "啟用兩步驟驗證，設定自訂面板基礎路徑，使用 HTTPS，並定期備份資料庫，以確保面板安全。"
+        }
+      }
     }
   },
   "tgbot": {

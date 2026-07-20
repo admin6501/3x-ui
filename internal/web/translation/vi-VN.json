@@ -119,7 +119,8 @@
     "donate": "Quyên góp",
     "hosts": "Hosts",
     "plans": "Gói",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "Hướng dẫn"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "Hướng dẫn Bảng điều khiển",
+      "subtitle": "Hướng dẫn nhanh để sử dụng mọi phần của bảng điều khiển.",
+      "sections": {
+        "overview": {
+          "title": "Bắt đầu",
+          "body": "Đăng nhập bằng tài khoản quản trị, sau đó mở Cài đặt Bảng điều khiển để đổi tên đăng nhập, mật khẩu và cổng bảng điều khiển. Hãy giữ an toàn cho các thông tin này."
+        },
+        "dashboard": {
+          "title": "Tổng quan (Bảng điều khiển)",
+          "body": "Bảng điều khiển hiển thị tài nguyên hệ thống, trạng thái Xray và tổng lưu lượng. Dùng nó để theo dõi tình trạng máy chủ và khởi động lại hoặc dừng lõi Xray khi cần."
+        },
+        "inbounds": {
+          "title": "Inbound (Inbounds)",
+          "body": "Inbound là các kết nối mà máy chủ của bạn chấp nhận. Tạo một inbound bằng cách chọn giao thức (VLESS, VMess, Trojan, Shadowsocks), cổng, phương thức truyền và tùy chọn TLS/Reality."
+        },
+        "clients": {
+          "title": "Người dùng (Clients)",
+          "body": "Người dùng là những người kết nối qua một inbound. Thêm người dùng với giới hạn lưu lượng, ngày hết hạn và giới hạn IP, rồi chia sẻ liên kết đăng ký hoặc cấu hình của họ."
+        },
+        "plans": {
+          "title": "Gói (Plans)",
+          "body": "Gói là các mẫu tái sử dụng cho cài đặt người dùng phổ biến (lưu lượng, thời hạn, giới hạn) để bạn tạo người dùng mới nhanh chóng và nhất quán."
+        },
+        "groups": {
+          "title": "Nhóm (Groups)",
+          "body": "Nhóm gộp nhiều inbound lại với nhau để một đăng ký của người dùng có thể cung cấp nhiều cấu hình cùng lúc."
+        },
+        "nodes": {
+          "title": "Node (Nodes)",
+          "body": "Node cho phép bạn quản lý nhiều máy chủ từ một bảng điều khiển. Thêm một node để đồng bộ inbound và người dùng trên nhiều máy."
+        },
+        "hosts": {
+          "title": "Host (Hosts)",
+          "body": "Host xác định địa chỉ, cổng và tên (Remark) hiển thị trong liên kết đăng ký. Dùng chúng để công bố các điểm cuối gọn gàng và tên tùy chỉnh cho người dùng của bạn."
+        },
+        "subscription": {
+          "title": "Đăng ký & Cài đặt",
+          "body": "Trong Cài đặt Bảng điều khiển → Đăng ký, bật dịch vụ đăng ký, đặt đường dẫn và cổng, và tùy chỉnh Mẫu Remark dùng trong liên kết của người dùng."
+        },
+        "xray": {
+          "title": "Cấu hình Xray",
+          "body": "Phần Xray cho phép kiểm soát nâng cao lõi: outbound, quy tắc định tuyến, DNS và bộ cân bằng. Hãy chỉnh sửa cẩn thận — cấu hình sai có thể làm dừng dịch vụ."
+        },
+        "admins": {
+          "title": "Quản trị viên (Admins)",
+          "body": "Tạo thêm quản trị viên với vai trò (quản lý, đại lý, chỉ đọc) để nhóm của bạn giúp quản lý bảng điều khiển với quyền hạn giới hạn."
+        },
+        "security": {
+          "title": "Mẹo bảo mật",
+          "body": "Bật xác thực hai yếu tố, đặt đường dẫn gốc tùy chỉnh cho bảng điều khiển, dùng HTTPS và sao lưu cơ sở dữ liệu thường xuyên để giữ an toàn cho bảng điều khiển của bạn."
+        }
+      }
     }
   },
   "tgbot": {

@@ -24,6 +24,7 @@ import {
   MoonFilled,
   MoonOutlined,
   ProfileOutlined,
+  ReadOutlined,
   SafetyOutlined,
   SettingOutlined,
   SunOutlined,
@@ -43,7 +44,7 @@ const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
 const REPO_URL = 'https://github.com/admin6501/3x-ui';
 const LOGOUT_KEY = '__logout__';
 
-type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans' | 'usage';
+type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans' | 'usage' | 'tutorials';
 
 const iconByName: Record<IconName, ComponentType> = {
   dashboard: DashboardOutlined,
@@ -61,6 +62,7 @@ const iconByName: Record<IconName, ComponentType> = {
   admins: SafetyOutlined,
   plans: ProfileOutlined,
   usage: FundOutlined,
+  tutorials: ReadOutlined,
 };
 
 function readCollapsed(): boolean {
@@ -190,6 +192,7 @@ export default function AppSidebar() {
       { key: '/xray', icon: 'tool', title: t('menu.xray') },
       { key: '/admins', icon: 'admins', title: t('menu.admins') },
       { key: '/api-docs', icon: 'apidocs', title: t('menu.apiDocs') },
+      { key: '/tutorials', icon: 'tutorials', title: t('menu.tutorials') },
       { key: LOGOUT_KEY, icon: 'logout', title: t('logout') },
     ];
     // super_admin sees everything except the reseller-only "My Usage" page.

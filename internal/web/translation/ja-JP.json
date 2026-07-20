@@ -119,7 +119,8 @@
     "donate": "寄付",
     "hosts": "ホスト",
     "plans": "プラン",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "チュートリアル"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "パネルのチュートリアル",
+      "subtitle": "パネルの各機能を使うためのクイックガイド。",
+      "sections": {
+        "overview": {
+          "title": "はじめに",
+          "body": "管理者アカウントでログインし、「パネル設定」を開いてユーザー名・パスワード・パネルのポートを変更します。これらの認証情報は安全に保管してください。"
+        },
+        "dashboard": {
+          "title": "概要（ダッシュボード）",
+          "body": "ダッシュボードはシステムリソース、Xray の状態、総トラフィックを表示します。サーバーの状態を監視し、必要に応じて Xray コアの再起動や停止に使用します。"
+        },
+        "inbounds": {
+          "title": "インバウンド (Inbounds)",
+          "body": "インバウンドはサーバーが受け付ける接続です。プロトコル（VLESS、VMess、Trojan、Shadowsocks）、ポート、トランスポート、必要に応じて TLS/Reality を選んで作成します。"
+        },
+        "clients": {
+          "title": "クライアント (Clients)",
+          "body": "クライアントはインバウンド経由で接続するユーザーです。トラフィック上限・有効期限・IP 制限を設定してクライアントを追加し、サブスクリプションや設定リンクを共有します。"
+        },
+        "plans": {
+          "title": "プラン (Plans)",
+          "body": "プランは一般的なクライアント設定（トラフィック、期間、制限）の再利用可能なテンプレートで、新規クライアントを素早く一貫して作成できます。"
+        },
+        "groups": {
+          "title": "グループ (Groups)",
+          "body": "グループは複数のインバウンドをまとめ、1 つのクライアントのサブスクリプションで複数の設定を一度に配信できるようにします。"
+        },
+        "nodes": {
+          "title": "ノード (Nodes)",
+          "body": "ノードを使うと 1 つのパネルから複数のサーバーを管理できます。ノードを追加すると、複数のマシン間でインバウンドとクライアントを同期できます。"
+        },
+        "hosts": {
+          "title": "ホスト (Hosts)",
+          "body": "ホストはサブスクリプションリンクに表示されるアドレス・ポート・名前（Remark）を定義します。整ったエンドポイントとカスタム名をユーザーに提供できます。"
+        },
+        "subscription": {
+          "title": "サブスクリプションと設定",
+          "body": "「パネル設定 → サブスクリプション」でサブスクリプションサービスを有効にし、パスとポートを設定し、クライアントリンクで使う Remark テンプレートをカスタマイズします。"
+        },
+        "xray": {
+          "title": "Xray 設定",
+          "body": "Xray セクションではコアを高度に制御できます：アウトバウンド、ルーティングルール、DNS、バランサー。誤った設定はサービスを停止させることがあるため、慎重に編集してください。"
+        },
+        "admins": {
+          "title": "管理者 (Admins)",
+          "body": "ロール（マネージャー、リセラー、読み取り専用）を持つ管理者を追加作成し、限定された権限でチームがパネル管理を手伝えるようにします。"
+        },
+        "security": {
+          "title": "セキュリティのヒント",
+          "body": "二要素認証を有効にし、カスタムのパネルベースパスを設定し、HTTPS を使用し、定期的にデータベースをバックアップしてパネルを安全に保ちます。"
+        }
+      }
     }
   },
   "tgbot": {

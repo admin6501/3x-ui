@@ -119,7 +119,8 @@
     "donate": "Donasi",
     "hosts": "Host",
     "plans": "Paket",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "Tutorial"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "Tutorial Panel",
+      "subtitle": "Panduan cepat untuk menggunakan setiap bagian panel.",
+      "sections": {
+        "overview": {
+          "title": "Memulai",
+          "body": "Masuk dengan akun admin Anda, lalu buka Pengaturan Panel untuk mengubah nama pengguna, kata sandi, dan port panel. Simpan kredensial ini dengan aman."
+        },
+        "dashboard": {
+          "title": "Ikhtisar (Dasbor)",
+          "body": "Dasbor menampilkan sumber daya sistem, status Xray, dan total lalu lintas. Gunakan untuk memantau kesehatan server serta memulai ulang atau menghentikan inti Xray bila perlu."
+        },
+        "inbounds": {
+          "title": "Inbound (Inbounds)",
+          "body": "Inbound adalah koneksi yang diterima server Anda. Buat satu dengan memilih protokol (VLESS, VMess, Trojan, Shadowsocks), port, transport, dan opsional TLS/Reality."
+        },
+        "clients": {
+          "title": "Klien (Clients)",
+          "body": "Klien adalah pengguna yang terhubung melalui sebuah inbound. Tambahkan klien dengan batas lalu lintas, tanggal kedaluwarsa, dan batas IP, lalu bagikan tautan langganan atau konfigurasinya."
+        },
+        "plans": {
+          "title": "Paket (Plans)",
+          "body": "Paket adalah templat yang dapat digunakan ulang untuk pengaturan klien umum (lalu lintas, durasi, batas) agar Anda dapat membuat klien baru dengan cepat dan konsisten."
+        },
+        "groups": {
+          "title": "Grup (Groups)",
+          "body": "Grup menggabungkan beberapa inbound sehingga satu langganan klien dapat memberikan beberapa konfigurasi sekaligus."
+        },
+        "nodes": {
+          "title": "Node (Nodes)",
+          "body": "Node memungkinkan Anda mengelola beberapa server dari satu panel. Tambahkan node untuk menyinkronkan inbound dan klien di beberapa mesin."
+        },
+        "hosts": {
+          "title": "Host (Hosts)",
+          "body": "Host menentukan alamat, port, dan nama (Remark) yang ditampilkan di tautan langganan. Gunakan untuk menerbitkan endpoint yang rapi dan nama kustom bagi pengguna Anda."
+        },
+        "subscription": {
+          "title": "Langganan & Pengaturan",
+          "body": "Di Pengaturan Panel → Langganan, aktifkan layanan langganan, atur jalur dan portnya, serta sesuaikan Templat Remark yang digunakan pada tautan klien."
+        },
+        "xray": {
+          "title": "Konfigurasi Xray",
+          "body": "Bagian Xray memberi kontrol lanjutan atas inti: outbound, aturan routing, DNS, dan balancer. Edit dengan hati-hati — konfigurasi yang salah dapat menghentikan layanan."
+        },
+        "admins": {
+          "title": "Admin (Admins)",
+          "body": "Buat admin tambahan dengan peran (manajer, reseller, hanya-baca) agar tim Anda dapat membantu mengelola panel dengan izin terbatas."
+        },
+        "security": {
+          "title": "Tips Keamanan",
+          "body": "Aktifkan autentikasi dua faktor, atur jalur dasar panel kustom, gunakan HTTPS, dan lakukan pencadangan basis data secara berkala agar panel Anda tetap aman."
+        }
+      }
     }
   },
   "tgbot": {

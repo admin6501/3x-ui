@@ -119,7 +119,8 @@
     "donate": "Donar",
     "hosts": "Hosts",
     "plans": "Planes",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "Tutoriales"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "Tutoriales del Panel",
+      "subtitle": "Una guía rápida para usar cada parte del panel.",
+      "sections": {
+        "overview": {
+          "title": "Primeros pasos",
+          "body": "Inicia sesión con tu cuenta de administrador y abre Ajustes del Panel para cambiar tu usuario, contraseña y puerto del panel. Mantén estas credenciales seguras."
+        },
+        "dashboard": {
+          "title": "Resumen (Panel)",
+          "body": "El panel muestra los recursos del sistema, el estado de Xray y el tráfico total. Úsalo para supervisar el estado del servidor y para reiniciar o detener el núcleo de Xray cuando sea necesario."
+        },
+        "inbounds": {
+          "title": "Entradas (Inbounds)",
+          "body": "Las entradas son las conexiones que acepta tu servidor. Crea una eligiendo un protocolo (VLESS, VMess, Trojan, Shadowsocks), un puerto, un transporte y, opcionalmente, TLS/Reality."
+        },
+        "clients": {
+          "title": "Clientes (Clients)",
+          "body": "Los clientes son los usuarios que se conectan a través de una entrada. Agrega un cliente con límite de tráfico, fecha de expiración y límite de IP, y luego comparte su enlace de suscripción o configuración."
+        },
+        "plans": {
+          "title": "Planes (Plans)",
+          "body": "Los planes son plantillas reutilizables para ajustes comunes de clientes (tráfico, duración, límites) para crear nuevos clientes de forma rápida y coherente."
+        },
+        "groups": {
+          "title": "Grupos (Groups)",
+          "body": "Los grupos agrupan varias entradas para que una sola suscripción de cliente pueda entregar múltiples configuraciones a la vez."
+        },
+        "nodes": {
+          "title": "Nodos (Nodes)",
+          "body": "Los nodos te permiten gestionar varios servidores desde un solo panel. Agrega un nodo para sincronizar entradas y clientes entre varias máquinas."
+        },
+        "hosts": {
+          "title": "Hosts",
+          "body": "Los hosts definen la dirección, el puerto y el nombre (Remark) que aparecen en los enlaces de suscripción. Úsalos para publicar direcciones limpias y nombres personalizados a tus usuarios."
+        },
+        "subscription": {
+          "title": "Suscripciones y Ajustes",
+          "body": "En Ajustes del Panel → Suscripción, habilita el servicio de suscripción, define su ruta y puerto, y personaliza la Plantilla de Remark usada en los enlaces de los clientes."
+        },
+        "xray": {
+          "title": "Configuraciones de Xray",
+          "body": "La sección Xray ofrece control avanzado del núcleo: salidas, reglas de enrutamiento, DNS y balanceadores. Edita con cuidado: una configuración incorrecta puede detener el servicio."
+        },
+        "admins": {
+          "title": "Administradores (Admins)",
+          "body": "Crea administradores adicionales con roles (gerente, revendedor, solo lectura) para que tu equipo ayude a gestionar el panel con permisos limitados."
+        },
+        "security": {
+          "title": "Consejos de seguridad",
+          "body": "Habilita la autenticación de dos factores, define una ruta base personalizada del panel, usa HTTPS y realiza copias de seguridad periódicas de la base de datos para mantener seguro tu panel."
+        }
+      }
     }
   },
   "tgbot": {

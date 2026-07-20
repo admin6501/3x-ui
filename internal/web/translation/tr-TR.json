@@ -119,7 +119,8 @@
     "donate": "Bağış Yap",
     "hosts": "Host'lar",
     "plans": "Planlar",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "Eğitimler"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "Panel Eğitimleri",
+      "subtitle": "Panelin her bölümünü kullanmak için hızlı bir kılavuz.",
+      "sections": {
+        "overview": {
+          "title": "Başlarken",
+          "body": "Yönetici hesabınızla giriş yapın, ardından kullanıcı adınızı, şifrenizi ve panel portunu değiştirmek için Panel Ayarları'nı açın. Bu bilgileri güvende tutun."
+        },
+        "dashboard": {
+          "title": "Genel Bakış (Panel)",
+          "body": "Panel; sistem kaynaklarını, Xray durumunu ve toplam trafiği gösterir. Sunucu sağlığını izlemek ve gerektiğinde Xray çekirdeğini yeniden başlatmak veya durdurmak için kullanın."
+        },
+        "inbounds": {
+          "title": "Gelenler (Inbounds)",
+          "body": "Gelenler, sunucunuzun kabul ettiği bağlantılardır. Bir protokol (VLESS, VMess, Trojan, Shadowsocks), port, taşıma ve isteğe bağlı TLS/Reality seçerek bir gelen oluşturun."
+        },
+        "clients": {
+          "title": "İstemciler (Clients)",
+          "body": "İstemciler, bir gelen üzerinden bağlanan kullanıcılardır. Trafik limiti, son kullanma tarihi ve IP limiti olan bir istemci ekleyin, ardından abonelik veya yapılandırma bağlantısını paylaşın."
+        },
+        "plans": {
+          "title": "Planlar (Plans)",
+          "body": "Planlar; yaygın istemci ayarları (trafik, süre, limitler) için yeniden kullanılabilir şablonlardır; böylece yeni istemcileri hızlı ve tutarlı biçimde oluşturursunuz."
+        },
+        "groups": {
+          "title": "Gruplar (Groups)",
+          "body": "Gruplar birden çok geleni bir araya toplar; böylece tek bir istemci aboneliği aynı anda birden çok yapılandırma sunabilir."
+        },
+        "nodes": {
+          "title": "Düğümler (Nodes)",
+          "body": "Düğümler, birden çok sunucuyu tek panelden yönetmenizi sağlar. Gelenleri ve istemcileri birden çok makinede eşitlemek için bir düğüm ekleyin."
+        },
+        "hosts": {
+          "title": "Ana Bilgisayarlar (Hosts)",
+          "body": "Ana bilgisayarlar, abonelik bağlantılarında görünen adresi, portu ve adı (Remark) tanımlar. Kullanıcılarınıza temiz adresler ve özel adlar sunmak için kullanın."
+        },
+        "subscription": {
+          "title": "Abonelikler ve Ayarlar",
+          "body": "Panel Ayarları → Abonelik bölümünde abonelik hizmetini etkinleştirin, yolunu ve portunu ayarlayın ve istemci bağlantılarında kullanılan Remark Şablonunu özelleştirin."
+        },
+        "xray": {
+          "title": "Xray Yapılandırmaları",
+          "body": "Xray bölümü, çekirdek üzerinde gelişmiş denetim sağlar: çıkışlar, yönlendirme kuralları, DNS ve dengeleyiciler. Dikkatli düzenleyin — yanlış yapılandırma hizmeti durdurabilir."
+        },
+        "admins": {
+          "title": "Yöneticiler (Admins)",
+          "body": "Rolleri (yönetici, bayi, salt okunur) olan ek yöneticiler oluşturun; böylece ekibiniz sınırlı izinlerle paneli yönetmeye yardımcı olur."
+        },
+        "security": {
+          "title": "Güvenlik İpuçları",
+          "body": "İki adımlı doğrulamayı etkinleştirin, özel bir panel temel yolu belirleyin, HTTPS kullanın ve panelinizi güvende tutmak için düzenli veritabanı yedekleri alın."
+        }
+      }
     }
   },
   "tgbot": {

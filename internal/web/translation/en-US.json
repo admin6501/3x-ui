@@ -120,7 +120,8 @@
     "donate": "Donate",
     "admins": "Admins",
     "plans": "Plans",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "Tutorials"
   },
   "pages": {
     "login": {
@@ -1935,6 +1936,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "Panel Tutorials",
+      "subtitle": "A quick guide to using every part of the panel.",
+      "sections": {
+        "overview": {
+          "title": "Getting Started",
+          "body": "Log in with your admin account, then open Panel Settings to change your username, password, and panel port. Keep these credentials safe."
+        },
+        "dashboard": {
+          "title": "Overview (Dashboard)",
+          "body": "The dashboard shows system resources, Xray status, and total traffic. Use it to monitor server health and to restart or stop the Xray core when needed."
+        },
+        "inbounds": {
+          "title": "Inbounds",
+          "body": "Inbounds are the connections your server accepts. Create one by choosing a protocol (VLESS, VMess, Trojan, Shadowsocks), a port, a transport, and optionally TLS/Reality."
+        },
+        "clients": {
+          "title": "Clients",
+          "body": "Clients are the users who connect through an inbound. Add a client with a traffic limit, an expiry date, and an IP limit, then share its subscription or config link."
+        },
+        "plans": {
+          "title": "Plans",
+          "body": "Plans are reusable templates for common client settings (traffic, duration, limits) so you can create new clients quickly and consistently."
+        },
+        "groups": {
+          "title": "Groups",
+          "body": "Groups bundle several inbounds together so a single client subscription can deliver multiple configs at once."
+        },
+        "nodes": {
+          "title": "Nodes",
+          "body": "Nodes let you manage several servers from one panel. Add a node to sync inbounds and clients across multiple machines."
+        },
+        "hosts": {
+          "title": "Hosts",
+          "body": "Hosts define the address, port, and remark shown in subscription links. Use them to publish clean endpoints and custom names to your users."
+        },
+        "subscription": {
+          "title": "Subscriptions & Settings",
+          "body": "In Panel Settings → Subscription you enable the subscription service, set its path and port, and customize the Remark Template used in client links."
+        },
+        "xray": {
+          "title": "Xray Configs",
+          "body": "The Xray section gives advanced control over the core: outbounds, routing rules, DNS, and balancers. Edit carefully — a wrong config can stop the service."
+        },
+        "admins": {
+          "title": "Admins",
+          "body": "Create additional admins with roles (manager, reseller, read-only) so your team can help manage the panel with limited permissions."
+        },
+        "security": {
+          "title": "Security Tips",
+          "body": "Enable two-factor authentication, set a custom panel base path, use HTTPS, and take regular database backups to keep your panel secure."
+        }
+      }
     }
   },
   "tgbot": {

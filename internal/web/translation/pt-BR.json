@@ -119,7 +119,8 @@
     "donate": "Doar",
     "hosts": "Hosts",
     "plans": "Planos",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "Tutoriais"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "Tutoriais do Painel",
+      "subtitle": "Um guia rápido para usar cada parte do painel.",
+      "sections": {
+        "overview": {
+          "title": "Primeiros passos",
+          "body": "Faça login com sua conta de administrador e abra Configurações do Painel para alterar seu usuário, senha e porta do painel. Mantenha essas credenciais seguras."
+        },
+        "dashboard": {
+          "title": "Visão geral (Painel)",
+          "body": "O painel mostra os recursos do sistema, o status do Xray e o tráfego total. Use-o para monitorar a saúde do servidor e reiniciar ou parar o núcleo do Xray quando necessário."
+        },
+        "inbounds": {
+          "title": "Entradas (Inbounds)",
+          "body": "Entradas são as conexões que seu servidor aceita. Crie uma escolhendo um protocolo (VLESS, VMess, Trojan, Shadowsocks), uma porta, um transporte e, opcionalmente, TLS/Reality."
+        },
+        "clients": {
+          "title": "Clientes (Clients)",
+          "body": "Clientes são os usuários que se conectam por uma entrada. Adicione um cliente com limite de tráfego, data de expiração e limite de IP e compartilhe seu link de assinatura ou configuração."
+        },
+        "plans": {
+          "title": "Planos (Plans)",
+          "body": "Planos são modelos reutilizáveis para configurações comuns de clientes (tráfego, duração, limites), permitindo criar novos clientes de forma rápida e consistente."
+        },
+        "groups": {
+          "title": "Grupos (Groups)",
+          "body": "Grupos reúnem várias entradas para que uma única assinatura de cliente possa entregar várias configurações de uma vez."
+        },
+        "nodes": {
+          "title": "Nós (Nodes)",
+          "body": "Nós permitem gerenciar vários servidores a partir de um único painel. Adicione um nó para sincronizar entradas e clientes entre várias máquinas."
+        },
+        "hosts": {
+          "title": "Hosts",
+          "body": "Hosts definem o endereço, a porta e o nome (Remark) exibidos nos links de assinatura. Use-os para publicar endpoints limpos e nomes personalizados para seus usuários."
+        },
+        "subscription": {
+          "title": "Assinaturas e Configurações",
+          "body": "Em Configurações do Painel → Assinatura, ative o serviço de assinatura, defina seu caminho e porta e personalize o Modelo de Remark usado nos links dos clientes."
+        },
+        "xray": {
+          "title": "Configurações do Xray",
+          "body": "A seção Xray oferece controle avançado do núcleo: saídas, regras de roteamento, DNS e balanceadores. Edite com cuidado — uma configuração errada pode parar o serviço."
+        },
+        "admins": {
+          "title": "Administradores (Admins)",
+          "body": "Crie administradores adicionais com funções (gerente, revendedor, somente leitura) para que sua equipe ajude a gerenciar o painel com permissões limitadas."
+        },
+        "security": {
+          "title": "Dicas de segurança",
+          "body": "Ative a autenticação de dois fatores, defina um caminho base personalizado do painel, use HTTPS e faça backups regulares do banco de dados para manter seu painel seguro."
+        }
+      }
     }
   },
   "tgbot": {

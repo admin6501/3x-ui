@@ -119,7 +119,8 @@
     "donate": "捐赠",
     "hosts": "主机",
     "plans": "套餐",
-    "usage": "My Usage"
+    "usage": "My Usage",
+    "tutorials": "教程"
   },
   "pages": {
     "login": {
@@ -1926,6 +1927,60 @@
       "of": "of",
       "errClientQuota": "Client limit reached for your account. Delete an existing client or ask an administrator to raise your limit.",
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
+    },
+    "tutorials": {
+      "title": "面板教程",
+      "subtitle": "快速了解如何使用面板的每个部分。",
+      "sections": {
+        "overview": {
+          "title": "开始使用",
+          "body": "使用管理员账户登录，然后打开“面板设置”修改用户名、密码和面板端口。请妥善保管这些凭据。"
+        },
+        "dashboard": {
+          "title": "概览（仪表盘）",
+          "body": "仪表盘显示系统资源、Xray 状态和总流量。用它来监控服务器状态，并在需要时重启或停止 Xray 内核。"
+        },
+        "inbounds": {
+          "title": "入站 (Inbounds)",
+          "body": "入站是服务器接受的连接。选择协议（VLESS、VMess、Trojan、Shadowsocks）、端口、传输方式以及可选的 TLS/Reality 来创建入站。"
+        },
+        "clients": {
+          "title": "客户端 (Clients)",
+          "body": "客户端是通过入站连接的用户。添加带有流量限制、到期日期和 IP 限制的客户端，然后分享其订阅或配置链接。"
+        },
+        "plans": {
+          "title": "套餐 (Plans)",
+          "body": "套餐是常用客户端设置（流量、时长、限制）的可复用模板，便于快速且一致地创建新客户端。"
+        },
+        "groups": {
+          "title": "分组 (Groups)",
+          "body": "分组将多个入站捆绑在一起，使单个客户端订阅可以一次提供多个配置。"
+        },
+        "nodes": {
+          "title": "节点 (Nodes)",
+          "body": "节点让你从一个面板管理多台服务器。添加节点即可在多台机器间同步入站和客户端。"
+        },
+        "hosts": {
+          "title": "主机 (Hosts)",
+          "body": "主机定义订阅链接中显示的地址、端口和备注 (Remark)。用它们向用户发布整洁的地址和自定义名称。"
+        },
+        "subscription": {
+          "title": "订阅与设置",
+          "body": "在“面板设置 → 订阅”中启用订阅服务，设置其路径和端口，并自定义客户端链接使用的备注模板 (Remark)。"
+        },
+        "xray": {
+          "title": "Xray 配置",
+          "body": "Xray 部分提供对内核的高级控制：出站、路由规则、DNS 和负载均衡。请谨慎编辑——错误的配置可能导致服务停止。"
+        },
+        "admins": {
+          "title": "管理员 (Admins)",
+          "body": "创建具有角色（经理、代理、只读）的其他管理员，让团队以有限权限协助管理面板。"
+        },
+        "security": {
+          "title": "安全建议",
+          "body": "启用两步验证，设置自定义面板基础路径，使用 HTTPS，并定期备份数据库，以保障面板安全。"
+        }
+      }
     }
   },
   "tgbot": {
