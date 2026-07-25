@@ -146,6 +146,38 @@ describe('inboundFromDb', () => {
     expect(entries.length).toBeGreaterThan(0);
     expect(entries[0].link).toContain('trojan://');
   });
+
+  // The Hosts mirror stores an override-only host (TLS/SNI override, no address
+  // of its own) with a blank dest, so the link must fall back to the inbound's
+  // own address and port instead of emitting an empty host.
+  it('falls back to the inbound address when an externalProxy entry has a blank dest', () => {
+    const raw = {
+      ...BASE_DB_FIELDS,
+      protocol: 'trojan',
+      settings: { clients: [{ password: 'pw1', email: 'one@test' }] },
+      streamSettings: {
+        network: 'tcp',
+        security: 'tls',
+        tlsSettings: { serverName: 'example.test' },
+        externalProxy: [
+          { forceTls: 'same', dest: '', port: 12345, remark: 'override-only' },
+          { forceTls: 'same', dest: 'cdn.example.test', port: 2053, remark: 'cdn' },
+        ],
+      },
+    };
+    const inbound = inboundFromDb(raw);
+    const entries = genAllLinks({
+      inbound,
+      remark: 'trojan',
+      client: { password: 'pw1', email: 'one@test' },
+      fallbackHostname: FALLBACK_HOST,
+    });
+    expect(entries).toHaveLength(2);
+    expect(new URL(entries[0].link).hostname).toBe(FALLBACK_HOST);
+    expect(new URL(entries[0].link).port).toBe('12345');
+    expect(new URL(entries[1].link).hostname).toBe('cdn.example.test');
+    expect(new URL(entries[1].link).port).toBe('2053');
+  });
 });
 
 describe('protocol-capability helpers with raw coerced shapes', () => {

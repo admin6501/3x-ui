@@ -250,6 +250,66 @@ func externalProxyEntryToHost(inboundId, index int, ep map[string]any) *model.Ho
 	}
 }
 
+// syncExternalProxyMirrorFromHosts is a one-time, self-gated migration that
+// rewrites the legacy streamSettings.externalProxy array of every inbound that
+// has host rows so it mirrors those hosts.
+//
+// seedHostsFromExternalProxy (above) copied the legacy entries into the Hosts
+// table but deliberately left the arrays untouched, which froze them at their
+// pre-migration value: the panel's own link/QR generator still reads that array
+// (so it showed stale links), and the subscription layer falls back to it when
+// no host applies, which resurrected deleted hosts. From here on the array is a
+// mirror maintained by HostService; this migration brings existing databases up
+// to date. Inbounds without any host row are left alone — their externalProxy
+// may be a hand-written one, which is still supported.
+func syncExternalProxyMirrorFromHosts() error {
+	var history []string
+	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
+		return err
+	}
+	if slices.Contains(history, "ExternalProxyMirrorFromHosts") {
+		return nil
+	}
+
+	var inbounds []model.Inbound
+	if err := db.Find(&inbounds).Error; err != nil {
+		return err
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, inbound := range inbounds {
+			var hosts []*model.Host
+			if err := tx.Where("inbound_id = ?", inbound.Id).
+				Order("sort_order asc, id asc").
+				Find(&hosts).Error; err != nil {
+				return err
+			}
+			if len(hosts) == 0 {
+				continue
+			}
+			entries := model.HostsToExternalProxyEntries(hosts, inbound.Port)
+			updated, changed, err := model.StreamSettingsWithExternalProxy(inbound.StreamSettings, entries)
+			if err != nil {
+				log.Printf("ExternalProxyMirrorFromHosts: skip inbound %d (invalid stream json): %v", inbound.Id, err)
+				continue
+			}
+			if !changed {
+				continue
+			}
+			log.Printf(
+				"ExternalProxyMirrorFromHosts: inbound %d externalProxy now mirrors %d host(s); previous streamSettings: %s",
+				inbound.Id, len(entries), inbound.StreamSettings,
+			)
+			if err := tx.Model(&model.Inbound{}).
+				Where("id = ?", inbound.Id).
+				Update("stream_settings", updated).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Create(&model.HistoryOfSeeders{SeederName: "ExternalProxyMirrorFromHosts"}).Error
+	})
+}
+
 func anyToNonEmptyStrings(v any) []string {
 	switch t := v.(type) {
 	case []any:
@@ -478,6 +538,12 @@ func runSeeders(isUsersEmpty bool) error {
 	// Self-gated on the "HostsFromExternalProxy" row, so it is safe to call
 	// unconditionally here.
 	if err := seedHostsFromExternalProxy(); err != nil {
+		return err
+	}
+
+	// Self-gated on the "ExternalProxyMirrorFromHosts" row: brings the legacy
+	// externalProxy arrays in line with the Hosts they were migrated into.
+	if err := syncExternalProxyMirrorFromHosts(); err != nil {
 		return err
 	}
 

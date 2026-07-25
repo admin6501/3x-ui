@@ -48,6 +48,7 @@ func (s *HostService) AddHost(host *model.Host) (*model.Host, error) {
 	if err := db.Create(host).Error; err != nil {
 		return nil, err
 	}
+	syncHostMirrors(db, []int{host.InboundId}, false)
 	return host, nil
 }
 
@@ -66,29 +67,54 @@ func (s *HostService) UpdateHost(id int, host *model.Host) (*model.Host, error) 
 	if err := db.Save(host).Error; err != nil {
 		return nil, err
 	}
+	syncHostMirrors(db, []int{host.InboundId}, false)
 	return s.GetHost(id)
 }
 
 func (s *HostService) DeleteHost(id int) error {
-	return database.GetDB().Delete(&model.Host{}, id).Error
+	db := database.GetDB()
+	inboundIds := inboundIdsForHosts(db, []int{id})
+	if err := db.Delete(&model.Host{}, id).Error; err != nil {
+		return err
+	}
+	// force: removing the last host must clear the mirror, otherwise the
+	// deleted host would keep producing links through the legacy path.
+	syncHostMirrors(db, inboundIds, true)
+	return nil
 }
 
 func (s *HostService) SetHostEnable(id int, enable bool) error {
-	return database.GetDB().Model(&model.Host{}).Where("id = ?", id).Update("is_disabled", !enable).Error
+	db := database.GetDB()
+	if err := db.Model(&model.Host{}).Where("id = ?", id).Update("is_disabled", !enable).Error; err != nil {
+		return err
+	}
+	syncHostMirrors(db, inboundIdsForHosts(db, []int{id}), false)
+	return nil
 }
 
 func (s *HostService) SetHostsEnable(ids []int, enable bool) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	return database.GetDB().Model(&model.Host{}).Where("id IN ?", ids).Update("is_disabled", !enable).Error
+	db := database.GetDB()
+	if err := db.Model(&model.Host{}).Where("id IN ?", ids).Update("is_disabled", !enable).Error; err != nil {
+		return err
+	}
+	syncHostMirrors(db, inboundIdsForHosts(db, ids), false)
+	return nil
 }
 
 func (s *HostService) DeleteHosts(ids []int) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	return database.GetDB().Where("id IN ?", ids).Delete(&model.Host{}).Error
+	db := database.GetDB()
+	inboundIds := inboundIdsForHosts(db, ids)
+	if err := db.Where("id IN ?", ids).Delete(&model.Host{}).Error; err != nil {
+		return err
+	}
+	syncHostMirrors(db, inboundIds, true)
+	return nil
 }
 
 // ReorderHosts assigns sort_order by the position of each id in ids, in a single
@@ -97,14 +123,20 @@ func (s *HostService) ReorderHosts(ids []int) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	tx := database.GetDB().Begin()
+	db := database.GetDB()
+	tx := db.Begin()
 	for i, id := range ids {
 		if err := tx.Model(&model.Host{}).Where("id = ?", id).Update("sort_order", i).Error; err != nil {
 			tx.Rollback()
 			return err
 		}
 	}
-	return tx.Commit().Error
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+	// Order matters: the mirror lists hosts in sort order.
+	syncHostMirrors(db, inboundIdsForHosts(db, ids), false)
+	return nil
 }
 
 // GetAllTags returns the distinct, sorted set of tags across all hosts.

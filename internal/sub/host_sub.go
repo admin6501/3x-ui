@@ -43,46 +43,15 @@ func (s *SubService) hostEndpoints(inbound *model.Inbound, format string) []map[
 // raw/json/clash renderers already consume. Address/port fall back to the
 // inbound's own when the host leaves them blank (override-only host).
 func hostToExternalProxyMap(h *model.Host, defaultDest string, defaultPort int) map[string]any {
-	dest := h.Address
-	if dest == "" {
-		dest = defaultDest
-	}
-	port := h.Port
-	if port == 0 {
-		port = defaultPort
-	}
-	ep := map[string]any{
-		"forceTls": hostSecurityToForceTls(h.Security),
-		"dest":     dest,
-		"port":     float64(port),
-		"remark":   h.Remark,
-		// Marks this as a host (not a legacy externalProxy) entry so host-only
-		// behaviors (e.g. reality SNI/fp override) apply without touching the
-		// legacy externalProxy path. Not emitted into output.
-		"isHost": true,
-	}
-	sni := h.Sni
-	if h.OverrideSniFromAddress {
-		sni = dest
-	}
-	if !h.KeepSniBlank && sni != "" {
-		ep["sni"] = sni
-	}
-	if h.Fingerprint != "" {
-		ep["fingerprint"] = h.Fingerprint
-	}
-	if len(h.Alpn) > 0 {
-		ep["alpn"] = stringsToAnySlice(h.Alpn)
-	}
-	if len(h.PinnedPeerCertSha256) > 0 {
-		ep["pinnedPeerCertSha256"] = stringsToAnySlice(h.PinnedPeerCertSha256)
-	}
-	if h.EchConfigList != "" {
-		ep["echConfigList"] = h.EchConfigList
-	}
-	if h.VerifyPeerCertByName != "" {
-		ep["verifyPeerCertByName"] = h.VerifyPeerCertByName
-	}
+	// Shared with the panel-side mirror written into the inbound's
+	// streamSettings (model.Host.ToExternalProxyEntry), so subscription links
+	// and the links the panel shows can't drift apart. Host-only extras are
+	// layered on below.
+	ep := h.ToExternalProxyEntry(defaultDest, defaultPort)
+	// Marks this as a host (not a legacy externalProxy) entry so host-only
+	// behaviors (e.g. reality SNI/fp override) apply without touching the
+	// legacy externalProxy path. Not emitted into output.
+	ep["isHost"] = true
 	if h.AllowInsecure {
 		ep["allowInsecure"] = true
 	}
@@ -151,28 +120,6 @@ func applyHostStreamOverrides(ep map[string]any, stream map[string]any) {
 			}
 		}
 	}
-}
-
-// hostSecurityToForceTls maps Host.Security onto the externalProxy forceTls
-// vocabulary. "reality"/"same"/"" all keep the inbound's base security ("same")
-// — reality parameters can only come from the inbound itself.
-func hostSecurityToForceTls(security string) string {
-	switch security {
-	case "tls", "none":
-		return security
-	default:
-		return "same"
-	}
-}
-
-func stringsToAnySlice(in []string) []any {
-	out := make([]any, 0, len(in))
-	for _, s := range in {
-		if s != "" {
-			out = append(out, s)
-		}
-	}
-	return out
 }
 
 // injectExternalProxy rewrites the inbound's StreamSettings so its externalProxy

@@ -1063,16 +1063,22 @@ export function genAllLinks(input: GenAllLinksInput): GenAllLinksEntry[] {
   }
   return externals.map((ep) => {
     const r = composeRemark(ep.remark);
+    // An override-only entry (blank dest / no port) inherits the inbound's own
+    // address and port — that's how the Hosts mirror stores a host that only
+    // overrides TLS/SNI, since the address is resolved per request.
+    const epAddr = ep.dest.length > 0 ? ep.dest : addr;
+    const epPort = ep.port > 0 ? ep.port : port;
+    const effective = { ...ep, dest: epAddr, port: epPort };
     return {
       remark: r,
       link: genLink({
         inbound,
-        address: ep.dest,
-        port: ep.port,
+        address: epAddr,
+        port: epPort,
         forceTls: ep.forceTls,
         remark: r,
         client,
-        externalProxy: ep,
+        externalProxy: effective,
       }),
     };
   });

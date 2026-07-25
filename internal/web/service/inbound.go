@@ -1218,6 +1218,11 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 			logger.Warning("mark node dirty failed:", dErr)
 		}
 	}
+	// The inbound form round-trips the whole streamSettings blob, including the
+	// externalProxy array. When the inbound has hosts that array is only their
+	// mirror, so re-derive it from the host rows after the save instead of
+	// trusting whatever the client sent back.
+	syncHostMirrors(nil, []int{inbound.Id}, false)
 	return inbound, needRestart, nil
 }
 
