@@ -329,8 +329,13 @@ func (s *SubJsonService) realityData(rData map[string]any) map[string]any {
 	rltyData["fingerprint"] = rltyClientSettings["fingerprint"]
 	rltyData["mldsa65Verify"] = rltyClientSettings["mldsa65Verify"]
 
+	// spiderX mirrors whatever the inbound stores; a blank value is omitted so
+	// a cleared field stays cleared in the generated JSON config.
+	if spx, ok := rltyClientSettings["spiderX"].(string); ok && spx != "" {
+		rltyData["spiderX"] = spx
+	}
+
 	// Set random data
-	rltyData["spiderX"] = "/" + random.Seq(15)
 	shortIds, ok := rData["shortIds"].([]any)
 	if ok && len(shortIds) > 0 {
 		rltyData["shortId"] = shortIds[random.Num(len(shortIds))].(string)

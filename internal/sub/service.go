@@ -1273,7 +1273,15 @@ func applyShareRealityParams(stream map[string]any, params map[string]string) {
 				params["pqv"] = pqv
 			}
 		}
-		params["spx"] = "/" + random.Seq(15)
+		// spiderX is a user-controlled Reality client setting: emit exactly
+		// what the inbound stores and omit `spx` entirely when it is blank.
+		// (Older builds hard-coded a random "/xxxxxxxx" here, which silently
+		// overrode — and re-added — a value the operator had cleared.)
+		if spxValue, ok := searchKey(realitySettings, "spiderX"); ok {
+			if spx, ok := spxValue.(string); ok && len(spx) > 0 {
+				params["spx"] = spx
+			}
+		}
 	}
 }
 

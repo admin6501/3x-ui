@@ -54,7 +54,7 @@ func TestGenVlessLink_TLSParamsMapped(t *testing.T) {
 
 // TestGenVlessLink_RealityParamsMapped locks the reality field mapping
 // (applyShareRealityParams, service.go:1147). serverNames/shortIds are single-element
-// so random.Num is deterministic (index 0); spx is random so it is asserted by prefix.
+// so random.Num is deterministic (index 0); spx must mirror the configured spiderX.
 // Distinct pbk/sid values catch a pbk<->sid swap mutant.
 func TestGenVlessLink_RealityParamsMapped(t *testing.T) {
 	stream := `{
@@ -63,7 +63,7 @@ func TestGenVlessLink_RealityParamsMapped(t *testing.T) {
 		"realitySettings":{
 			"serverNames":["reality.example.com"],
 			"shortIds":["ab12cd"],
-			"settings":{"publicKey":"PBKvalue","fingerprint":"firefox"}
+			"settings":{"publicKey":"PBKvalue","fingerprint":"firefox","spiderX":"/spider"}
 		}
 	}`
 	s := &SubService{}
@@ -75,7 +75,7 @@ func TestGenVlessLink_RealityParamsMapped(t *testing.T) {
 		"pbk=PBKvalue",
 		"sid=ab12cd",
 		"fp=firefox",
-		"spx=%2F", // "/" + random.Seq(15), percent-encoded leading slash
+		"spx=%2Fspider", // exactly the configured spiderX, percent-encoded
 	}
 	for _, w := range wants {
 		if !strings.Contains(link, w) {
@@ -85,5 +85,31 @@ func TestGenVlessLink_RealityParamsMapped(t *testing.T) {
 	// A pbk<->sid swap must not silently pass: pbk must not carry the shortId.
 	if strings.Contains(link, "pbk=ab12cd") || strings.Contains(link, "sid=PBKvalue") {
 		t.Fatalf("reality pbk/sid mapping crossed: %s", link)
+	}
+}
+
+// TestGenVlessLink_RealityEmptySpiderXOmitted locks the fix for the panel
+// re-adding a random spiderX after the operator cleared the field: when
+// realitySettings.settings.spiderX is empty (or missing) the share link must
+// carry no `spx` parameter at all.
+func TestGenVlessLink_RealityEmptySpiderXOmitted(t *testing.T) {
+	for name, settings := range map[string]string{
+		"empty":   `{"publicKey":"PBKvalue","fingerprint":"firefox","spiderX":""}`,
+		"missing": `{"publicKey":"PBKvalue","fingerprint":"firefox"}`,
+	} {
+		stream := `{
+			"network":"tcp","security":"reality",
+			"tcpSettings":{"header":{"type":"none"}},
+			"realitySettings":{
+				"serverNames":["reality.example.com"],
+				"shortIds":["ab12cd"],
+				"settings":` + settings + `
+			}
+		}`
+		s := &SubService{}
+		link := s.genVlessLink(shareLinkInbound(stream), "user")
+		if strings.Contains(link, "spx=") {
+			t.Fatalf("%s spiderX must not emit spx: %s", name, link)
+		}
 	}
 }

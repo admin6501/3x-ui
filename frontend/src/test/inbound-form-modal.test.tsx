@@ -92,6 +92,46 @@ describe('InboundFormModal', () => {
     expect((shareAddrInput as HTMLInputElement).value).toBe('edge.example.test');
   });
 
+  it('allows switching the protocol while editing and warns about it', async () => {
+    renderWithProviders(
+      <InboundFormModal
+        open
+        mode="edit"
+        dbInbound={new DBInbound({
+          id: 7,
+          port: 34567,
+          listen: '',
+          protocol: 'vless',
+          remark: 'switchme',
+          enable: true,
+          settings: {
+            clients: [{ id: '11111111-2222-4333-8444-555555555555', email: 'keepme', flow: '' }],
+            decryption: 'none',
+            encryption: 'none',
+          },
+          streamSettings: { network: 'tcp', security: 'none', tcpSettings: {} },
+          sniffing: { enabled: false },
+          nodeId: null,
+          shareAddrStrategy: 'listen',
+        })}
+        dbInbounds={[]}
+        availableNodes={[]}
+        onClose={() => {}}
+        onSaved={() => {}}
+      />,
+    );
+
+    // The picker must be editable in edit mode (it used to be hard-disabled).
+    const protocolSelect = document.getElementById('protocol')?.closest('.ant-select');
+    expect(protocolSelect?.classList.contains('ant-select-disabled')).toBe(false);
+
+    chooseSelectOption('protocol', 'trojan');
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+    // Switching protocols surfaces the credential-rebuild warning.
+    expect(document.querySelector('.ant-alert-warning')).toBeTruthy();
+  });
+
   it('keeps the persisted node share strategy through the nodes-loading race (#5375)', async () => {
     const node = { id: 1, name: 'arm2', enable: true, status: 'online' } as never;
     const buildInbound = () => new DBInbound({

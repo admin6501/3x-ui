@@ -22,6 +22,7 @@ import {
   formValuesToWirePayload,
 } from '@/lib/xray/inbound-form-adapter';
 import { createDefaultInboundSettings } from '@/lib/xray/inbound-defaults';
+import { migrateClientsToProtocol, protocolSupportsClients } from '@/lib/xray/protocol-migration';
 import { composeInboundTag, isAutoInboundTag, type InboundTagInput } from '@/lib/xray/inbound-tag';
 import {
   canEnableReality,
@@ -172,6 +173,7 @@ export default function InboundFormModal({
 }: InboundFormModalProps) {
   const { t } = useTranslation();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const [modal, modalContextHolder] = Modal.useModal();
   const [form] = Form.useForm<InboundFormValues>();
   const [saving, setSaving] = useState(false);
   const {
@@ -189,6 +191,12 @@ export default function InboundFormModal({
   const selectableNodes = (availableNodes || []).filter((n) => n.enable);
   const protocol = (Form.useWatch('protocol', form) ?? '') as string;
   const isNodeEligible = NODE_ELIGIBLE_PROTOCOLS.has(protocol);
+  // Edit-mode protocol switch: surfaced as a banner in the form and confirmed
+  // once more before the save request goes out.
+  const protocolChanged = mode === 'edit'
+    && !!dbInbound
+    && protocol.length > 0
+    && protocol !== dbInbound.protocol;
   // The `node` share-address strategy only means something when the inbound can
   // actually live on a node — otherwise the node address it would resolve to is
   // always empty. Offer it only then; `listen`/`custom` work for local inbounds.
@@ -224,6 +232,9 @@ export default function InboundFormModal({
   const wTunnelNetwork = Form.useWatch(['settings', 'allowedNetwork'], form);
   const autoTagRef = useRef(true);
   const lastWrittenTagRef = useRef('');
+  // Protocol the form currently holds, so a protocol switch knows what shape
+  // the existing settings/clients came from.
+  const protocolRef = useRef<string>('');
   const currentTagInput = (): InboundTagInput => ({
     port: typeof wPort === 'number' ? wPort : 0,
     nodeId: typeof wNodeId === 'number' ? wNodeId : null,
@@ -340,6 +351,7 @@ export default function InboundFormModal({
       settings: (initial.settings ?? {}) as Record<string, unknown>,
     });
     lastWrittenTagRef.current = initialTag;
+    protocolRef.current = (initial.protocol ?? '') as string;
     if (
       mode === 'edit'
       && dbInbound
@@ -397,12 +409,31 @@ export default function InboundFormModal({
   // into AntD's onValuesChange and let setFieldValue keep the rest of
   // the form state intact.
   const onValuesChange = (changed: Partial<InboundFormValues>) => {
-    if (mode === 'edit') return;
     if ('protocol' in changed && typeof changed.protocol === 'string') {
       const next = changed.protocol;
+      const previous = protocolRef.current;
+      protocolRef.current = next;
+      const previousSettings = form.getFieldValue('settings') as Record<string, unknown> | undefined;
       const settings = createDefaultInboundSettings(next) ?? undefined;
+      // Editing an existing inbound must not silently wipe its clients: the
+      // per-protocol credential shape differs, so rebuild each client onto the
+      // new shape while keeping email/subId/quota (the backend re-links traffic
+      // by email). Protocols without a client list drop them — the banner above
+      // the picker warns about that before saving.
+      if (mode === 'edit' && settings && protocolSupportsClients(next)) {
+        const carried = migrateClientsToProtocol(next, previousSettings?.clients, {
+          fromProtocol: previous,
+          ssMethod: (settings as { method?: string }).method,
+        });
+        if (carried.length > 0) {
+          (settings as { clients?: unknown[] }).clients = carried;
+        }
+      }
       form.setFieldValue('settings', settings);
-      if (!NODE_ELIGIBLE_PROTOCOLS.has(next)) {
+      // A node deployment is fixed for the lifetime of an inbound (the picker is
+      // disabled in edit mode and the backend keeps the stored NodeID), so only
+      // the add-mode flow needs the reset.
+      if (mode !== 'edit' && !NODE_ELIGIBLE_PROTOCOLS.has(next)) {
         form.setFieldValue('nodeId', null);
       }
       // Hysteria uses its dedicated transport — force the network branch
@@ -494,6 +525,26 @@ export default function InboundFormModal({
     }
   };
 
+  // Changing the protocol of a live inbound rewrites every client credential
+  // (new uuid/password/auth) — existing share links stop working — so make the
+  // operator acknowledge it once before the request goes out.
+  const handleOk = () => {
+    if (!protocolChanged) {
+      void submit();
+      return;
+    }
+    modal.confirm({
+      title: t('pages.inbounds.form.protocolChangedTitle'),
+      content: protocolSupportsClients(protocol)
+        ? t('pages.inbounds.form.protocolChangedConfirm')
+        : t('pages.inbounds.form.protocolChangedDropsClients'),
+      okText: t('confirm'),
+      cancelText: t('close'),
+      okButtonProps: { danger: true },
+      onOk: () => submit(),
+    });
+  };
+
   const title = mode === 'edit'
     ? t('pages.inbounds.modifyInbound')
     : t('pages.inbounds.addInbound');
@@ -536,8 +587,22 @@ export default function InboundFormModal({
       )}
 
       <Form.Item name="protocol" label={t('pages.inbounds.protocol')}>
-        <Select disabled={mode === 'edit'} options={PROTOCOL_OPTIONS} />
+        <Select options={PROTOCOL_OPTIONS} />
       </Form.Item>
+
+      {protocolChanged && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 14 }}
+          message={t('pages.inbounds.form.protocolChangedTitle')}
+          description={
+            protocolSupportsClients(protocol)
+              ? t('pages.inbounds.form.protocolChangedDesc')
+              : t('pages.inbounds.form.protocolChangedDropsClients')
+          }
+        />
+      )}
 
       <Form.Item
         name="listen"
@@ -981,6 +1046,7 @@ export default function InboundFormModal({
   return (
     <>
       {messageContextHolder}
+      {modalContextHolder}
       <Modal
         open={open}
         title={title}
@@ -989,7 +1055,7 @@ export default function InboundFormModal({
         confirmLoading={saving}
         mask={{ closable: false }}
         width={780}
-        onOk={submit}
+        onOk={handleOk}
         onCancel={onClose}
         destroyOnHidden
       >
