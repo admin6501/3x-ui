@@ -45,6 +45,7 @@ Beyond the basics above, the panel also includes:
 - **Plans / Packages** — reusable client templates: prefill traffic, expiry and IP limit in one click.
 - **Client Groups** — bundle several inbounds so a single client subscription delivers multiple configs.
 - **Hosts** — publish custom subscription endpoints (address, port, remark, SNI) per inbound.
+- **Editable inbound protocol** — switch an existing inbound to another protocol; its clients are carried over (email, traffic quota, expiry, subscription id) and only their credentials are rebuilt, after a warning that previously shared links stop working.
 - **Subscription Remark Template** — build client link names from `{{VAR}}` tokens (`EMAIL`, `INBOUND`, `TRAFFIC_LEFT`, `DAYS_LEFT`, `HOST`, …); clearing the field restores the default template.
 - **Extra subscription formats** — JSON and Clash outputs (with optional routing rules) alongside the base64 subscription.
 - **Two-Factor Authentication (2FA / TOTP)** for admin logins.

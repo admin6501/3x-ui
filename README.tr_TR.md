@@ -45,6 +45,7 @@ Yukarıdakilere ek olarak panel şunları da içerir:
 - **Planlar / Paketler** — yeniden kullanılabilir istemci şablonları: trafik, bitiş tarihi ve IP limitini tek tıkla doldurur.
 - **İstemci Grupları** — tek bir aboneliğin birden çok yapılandırma sunması için birkaç geleni gruplar.
 - **Ana Bilgisayarlar (Hosts)** — her gelen için özel abonelik uç noktaları (adres, port, remark, SNI) yayınlar.
+- **Gelen protokolü değiştirilebilir** — mevcut bir gelen bağlantının protokolü değiştirilebilir; istemcileri korunur (e-posta, kota, bitiş tarihi, abonelik kimliği) ve yalnızca kimlik bilgileri yeniden oluşturulur; kaydetmeden önce daha önce paylaşılan bağlantıların çalışmayacağı uyarısı gösterilir.
 - **Abonelik Remark Şablonu** — istemci bağlantı adlarını `{{VAR}}` belirteçlerinden (`EMAIL`, `INBOUND`, `TRAFFIC_LEFT`, `DAYS_LEFT`, `HOST`, …) oluşturur; alan boşaltıldığında varsayılan şablon geri gelir.
 - **Ek abonelik biçimleri** — base64 aboneliğinin yanında JSON ve Clash çıktıları (isteğe bağlı yönlendirme kurallarıyla).
 - **İki Adımlı Doğrulama (2FA / TOTP)** yönetici girişleri için.

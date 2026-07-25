@@ -45,6 +45,7 @@ Además de lo anterior, el panel también incluye:
 - **Planes / Paquetes** — plantillas de cliente reutilizables: rellena tráfico, caducidad y límite de IP con un clic.
 - **Grupos de clientes** — agrupa varias entradas para que una sola suscripción entregue varias configuraciones.
 - **Hosts** — publica endpoints de suscripción personalizados (dirección, puerto, remark, SNI) por entrada.
+- **Protocolo editable en la entrada** — cambia el protocolo de una entrada existente; sus clientes se conservan (correo, cuota, caducidad, id de suscripción) y solo se regeneran sus credenciales, tras avisar de que los enlaces ya compartidos dejarán de funcionar.
 - **Plantilla de Remark de suscripción** — crea los nombres de los enlaces con tokens `{{VAR}}` (`EMAIL`, `INBOUND`, `TRAFFIC_LEFT`, `DAYS_LEFT`, `HOST`, …); vaciar el campo restaura la plantilla por defecto.
 - **Formatos de suscripción adicionales** — salidas JSON y Clash (con reglas de enrutamiento opcionales) junto a la suscripción base64.
 - **Autenticación de dos factores (2FA / TOTP)** para el inicio de sesión de administradores.
