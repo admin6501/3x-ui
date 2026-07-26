@@ -254,6 +254,7 @@
       "importDatabaseDesc": "点击选择并上传设备中的 .db 文件以从备份恢复数据库。",
       "importDatabaseSuccess": "数据库导入成功",
       "importDatabaseError": "导入数据库时出错",
+      "importDatabaseXrayWarning": "数据库已恢复，但 Xray 未能重新启动。面板已在使用恢复后的数据——请检查 Xray 状态与日志。",
       "readDatabaseError": "读取数据库时出错",
       "getDatabaseError": "检索数据库时出错",
       "getConfigError": "检索配置文件时出错",

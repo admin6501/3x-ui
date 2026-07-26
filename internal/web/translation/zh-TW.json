@@ -254,6 +254,7 @@
       "importDatabaseDesc": "點擊選擇並上傳設備中的 .db 文件以從備份恢復資料庫。",
       "importDatabaseSuccess": "資料庫匯入成功",
       "importDatabaseError": "匯入資料庫時發生錯誤",
+      "importDatabaseXrayWarning": "資料庫已還原，但 Xray 未能重新啟動。面板已在使用還原後的資料——請檢查 Xray 狀態與日誌。",
       "readDatabaseError": "讀取資料庫時發生錯誤",
       "getDatabaseError": "檢索資料庫時發生錯誤",
       "getConfigError": "檢索設定檔時發生錯誤",

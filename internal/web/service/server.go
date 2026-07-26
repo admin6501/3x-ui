@@ -1375,6 +1375,26 @@ func (s *ServerService) GetMigration() ([]byte, string, error) {
 	return data, "x-ui.dump", nil
 }
 
+// ImportedButXrayFailedError reports that a restore fully succeeded — the
+// uploaded database is in place and open — but Xray would not start again
+// afterwards.
+//
+// This distinction matters: by the time Xray is restarted the swap has already
+// happened and cannot be undone, so reporting a plain failure would tell the
+// admin their restore did not work while their panel is in fact running on the
+// restored data. Callers surface it as a success carrying a warning, which also
+// keeps the UI on its post-import path (restart the panel, reload the page)
+// instead of leaving a freshly restored database behind a stale page.
+type ImportedButXrayFailedError struct {
+	Cause error
+}
+
+func (e *ImportedButXrayFailedError) Error() string {
+	return fmt.Sprintf("database restored, but Xray failed to start: %v", e.Cause)
+}
+
+func (e *ImportedButXrayFailedError) Unwrap() error { return e.Cause }
+
 func (s *ServerService) ImportDB(file multipart.File) error {
 	if database.IsPostgres() {
 		return s.importPostgresDB(file)
@@ -1501,7 +1521,7 @@ func (s *ServerService) ImportDB(file multipart.File) error {
 
 	xrayStopped = false
 	if err = s.RestartXrayService(); err != nil {
-		return common.NewErrorf("Imported DB but failed to start Xray: %v", err)
+		return &ImportedButXrayFailedError{Cause: err}
 	}
 
 	return nil
@@ -1633,7 +1653,7 @@ func (s *ServerService) importPostgresDB(file multipart.File) error {
 
 	xrayStopped = false
 	if err := s.RestartXrayService(); err != nil {
-		return common.NewErrorf("Restored DB but failed to start Xray: %v", err)
+		return &ImportedButXrayFailedError{Cause: err}
 	}
 	return nil
 }

@@ -254,6 +254,7 @@
       "importDatabaseDesc": "Cihazınızdan bir .db dosyası seçip yükleyerek veritabanınızı yedekten geri yüklemek için tıklayın.",
       "importDatabaseSuccess": "Veritabanı başarıyla içe aktarıldı.",
       "importDatabaseError": "Veritabanı içe aktarılırken bir hata oluştu.",
+      "importDatabaseXrayWarning": "Veritabanı geri yüklendi, ancak Xray yeniden başlamadı. Panel artık geri yüklenen verilerle çalışıyor — Xray durumunu ve günlüklerini kontrol edin.",
       "readDatabaseError": "Veritabanı okunurken bir hata oluştu.",
       "getDatabaseError": "Veritabanı alınırken bir hata oluştu.",
       "getConfigError": "Yapılandırma dosyası alınırken bir hata oluştu.",

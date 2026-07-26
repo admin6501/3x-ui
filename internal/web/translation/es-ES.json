@@ -254,6 +254,7 @@
       "importDatabaseDesc": "Haz clic para seleccionar y cargar un archivo .db desde tu dispositivo para restaurar tu base de datos desde una copia de seguridad.",
       "importDatabaseSuccess": "La base de datos se ha importado correctamente",
       "importDatabaseError": "Ocurrió un error al importar la base de datos",
+      "importDatabaseXrayWarning": "La base de datos se restauró, pero Xray no volvió a iniciarse. El panel ya funciona con los datos restaurados: revisa el estado y los registros de Xray.",
       "readDatabaseError": "Ocurrió un error al leer la base de datos",
       "getDatabaseError": "Ocurrió un error al obtener la base de datos",
       "getConfigError": "Ocurrió un error al obtener el archivo de configuración",

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -336,6 +337,17 @@ func (a *ServerController) importDB(c *gin.Context) {
 	}
 	defer file.Close()
 	if err := a.serverService.ImportDB(file); err != nil {
+		// A failed Xray restart happens *after* the database has been swapped
+		// in, so the restore did land. Reporting it as an error would tell the
+		// admin to try again while the panel already runs on the restored data
+		// — and would stop the UI from restarting the panel and reloading, the
+		// step that makes the restored inbounds and clients show up.
+		var xrayErr *service.ImportedButXrayFailedError
+		if errors.As(err, &xrayErr) {
+			logger.Warning("importDB:", err)
+			jsonMsgObj(c, I18nWeb(c, "pages.index.importDatabaseXrayWarning"), xrayErr.Cause.Error(), nil)
+			return
+		}
 		jsonMsg(c, I18nWeb(c, "pages.index.importDatabaseError"), err)
 		return
 	}

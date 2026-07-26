@@ -256,6 +256,7 @@
       "importDatabaseDesc": "Click to select and upload a .db file from your device to restore your database from a backup.",
       "importDatabaseSuccess": "The database has been successfully imported.",
       "importDatabaseError": "An error occurred while importing the database.",
+      "importDatabaseXrayWarning": "The database was restored, but Xray did not start again. The panel is now running on the restored data — check Xray's status and logs.",
       "readDatabaseError": "An error occurred while reading the database.",
       "getDatabaseError": "An error occurred while retrieving the database.",
       "getConfigError": "An error occurred while retrieving the config file.",

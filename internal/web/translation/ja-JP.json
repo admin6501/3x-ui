@@ -254,6 +254,7 @@
       "importDatabaseDesc": "クリックして、デバイスから .db ファイルを選択し、アップロードしてバックアップからデータベースを復元します。",
       "importDatabaseSuccess": "データベースのインポートに成功しました",
       "importDatabaseError": "データベースのインポート中にエラーが発生しました",
+      "importDatabaseXrayWarning": "データベースは復元されましたが、Xray が再起動しませんでした。パネルは復元後のデータで動作しています — Xray の状態とログを確認してください。",
       "readDatabaseError": "データベースの読み取り中にエラーが発生しました",
       "getDatabaseError": "データベースの取得中にエラーが発生しました",
       "getConfigError": "設定ファイルの取得中にエラーが発生しました",

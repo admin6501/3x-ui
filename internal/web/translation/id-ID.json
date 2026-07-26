@@ -254,6 +254,7 @@
       "importDatabaseDesc": "Klik untuk memilih dan mengunggah file .db dari perangkat Anda untuk memulihkan database dari cadangan.",
       "importDatabaseSuccess": "Database berhasil diimpor",
       "importDatabaseError": "Terjadi kesalahan saat mengimpor database",
+      "importDatabaseXrayWarning": "Basis data berhasil dipulihkan, tetapi Xray tidak berjalan kembali. Panel kini memakai data hasil pemulihan — periksa status dan log Xray.",
       "readDatabaseError": "Terjadi kesalahan saat membaca database",
       "getDatabaseError": "Terjadi kesalahan saat mengambil database",
       "getConfigError": "Terjadi kesalahan saat mengambil file konfigurasi",

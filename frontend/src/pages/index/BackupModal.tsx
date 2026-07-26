@@ -51,14 +51,15 @@ export default function BackupModal({ open, basePath: _basePath, onClose, onBusy
         return;
       }
 
+      // The restore is only half done until the panel restarts and this page
+      // reloads: until then the panel keeps serving from pre-import state and
+      // the open page still shows the data it fetched before the upload. Reload
+      // even if the restart call itself fails, so the page can never sit on a
+      // stale view of a database that has already been replaced.
       onBusy({ busy: true, tip: `${t('pages.settings.restartPanel')}…` });
-      const restart = await HttpUtil.post('/panel/api/setting/restartPanel');
-      if (restart?.success) {
-        await PromiseUtil.sleep(5000);
-        window.location.reload();
-      } else {
-        onBusy({ busy: false });
-      }
+      await HttpUtil.post('/panel/api/setting/restartPanel', undefined, { silent: true }).catch(() => null);
+      await PromiseUtil.sleep(5000);
+      window.location.reload();
     });
     fileInput.click();
   }
