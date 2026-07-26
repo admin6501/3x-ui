@@ -13,6 +13,7 @@ import {
   TagsOutlined,
   UsergroupAddOutlined,
   UsergroupDeleteOutlined,
+  UserDeleteOutlined,
 } from '@ant-design/icons';
 
 import { isInboundMultiUser, showQrCodeMenu } from './helpers';
@@ -22,12 +23,13 @@ interface RowActionsMenuProps {
   record: DBInboundRecord;
   subEnable: boolean;
   hasClients: boolean;
+  depletedCount?: number;
   onClick: (key: RowAction) => void;
   isMobile?: boolean;
   readOnly?: boolean;
 }
 
-export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients, readOnly }: { record: DBInboundRecord; subEnable: boolean; t: (k: string) => string; isMobile?: boolean; hasClients?: boolean; readOnly?: boolean }): MenuProps['items'] {
+export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients, depletedCount = 0, readOnly }: { record: DBInboundRecord; subEnable: boolean; t: (k: string) => string; isMobile?: boolean; hasClients?: boolean; depletedCount?: number; readOnly?: boolean }): MenuProps['items'] {
   const items: MenuProps['items'] = [];
   if (isMobile && !readOnly) {
     items.push({ key: 'edit', icon: <EditOutlined />, label: t('edit') });
@@ -63,6 +65,17 @@ export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients
     items.push({ key: 'detachClients', icon: <UsergroupDeleteOutlined />, label: t('pages.inbounds.detachClients') });
     items.push({ key: 'addToGroup', icon: <TagsOutlined />, label: t('pages.inbounds.addClientsToGroup') });
     items.push({ type: 'divider' });
+    // Count comes from the list rollup, which only classifies clients on an
+    // enabled inbound — so it is a hint for the label, never a gate. The
+    // server recomputes the ended set when the action runs.
+    items.push({
+      key: 'delDepletedClients',
+      icon: <UserDeleteOutlined />,
+      danger: true,
+      label: depletedCount > 0
+        ? `${t('pages.inbounds.delDepletedClients')} (${depletedCount})`
+        : t('pages.inbounds.delDepletedClients'),
+    });
     items.push({ key: 'delAllClients', icon: <UsergroupDeleteOutlined />, danger: true, label: t('pages.inbounds.delAllClients') });
   } else {
     items.push({ type: 'divider' });
@@ -71,7 +84,7 @@ export function buildRowActionsMenu({ record, subEnable, t, isMobile, hasClients
   return items;
 }
 
-export function RowActionsCell({ record, subEnable, hasClients, onClick, readOnly }: RowActionsMenuProps) {
+export function RowActionsCell({ record, subEnable, hasClients, depletedCount, onClick, readOnly }: RowActionsMenuProps) {
   const { t } = useTranslation();
   return (
     <div className="action-buttons">
@@ -81,7 +94,7 @@ export function RowActionsCell({ record, subEnable, hasClients, onClick, readOnl
       <Dropdown
         trigger={['click']}
         menu={{
-          items: buildRowActionsMenu({ record, subEnable, t, hasClients, readOnly }),
+          items: buildRowActionsMenu({ record, subEnable, t, hasClients, depletedCount, readOnly }),
           onClick: ({ key }) => onClick(key as RowAction),
         }}
       >

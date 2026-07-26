@@ -250,7 +250,7 @@ export default function InboundList({
                         trigger={['click']}
                         placement="bottomRight"
                         menu={{
-                          items: buildRowActionsMenu({ record, subEnable, t, isMobile: true, hasClients: (clientCount[record.id]?.clients || 0) > 0, readOnly }),
+                          items: buildRowActionsMenu({ record, subEnable, t, isMobile: true, hasClients: (clientCount[record.id]?.clients || 0) > 0, depletedCount: clientCount[record.id]?.depleted.length || 0, readOnly }),
                           onClick: ({ key }) => onRowAction({ key: key as RowAction, dbInbound: record }),
                         }}
                       >

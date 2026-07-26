@@ -75,6 +75,7 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/setEnable/:id", rejectReseller, scopeInboundParam, a.setInboundEnable)
 	g.POST("/:id/resetTraffic", rejectReseller, scopeInboundParam, a.resetInboundTraffic)
 	g.POST("/:id/delAllClients", rejectReseller, scopeInboundParam, a.delAllInboundClients)
+	g.POST("/:id/delDepletedClients", rejectReseller, scopeInboundParam, a.delDepletedInboundClients)
 	g.POST("/resetAllTraffics", rejectReseller, a.resetAllTraffics)
 	g.POST("/import", rejectReseller, a.importInbound)
 	g.POST("/:id/fallbacks", rejectReseller, scopeInboundParam, a.setFallbacks)
@@ -308,6 +309,39 @@ func (a *InboundController) delAllInboundClients(c *gin.Context) {
 		return
 	}
 	emails, err := a.inboundService.EmailsByInbound(id)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	if len(emails) == 0 {
+		jsonObj(c, service.BulkDeleteResult{}, nil)
+		return
+	}
+	result, needRestart, err := a.clientService.BulkDelete(&a.inboundService, emails, false)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonObj(c, result, nil)
+	if needRestart {
+		a.xrayService.SetToNeedRestart()
+	}
+	user := session.GetLoginUser(c)
+	a.broadcastInboundsUpdate(user.Id)
+	notifyClientsChanged()
+}
+
+// delDepletedInboundClients removes only the ended clients of a specific
+// inbound — those whose expiry date has passed or whose traffic quota is
+// exhausted — and keeps everyone else (and the inbound) untouched. Same
+// bulk-delete path as delAllInboundClients, just a filtered email list.
+func (a *InboundController) delDepletedInboundClients(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	emails, err := a.inboundService.DepletedEmailsByInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return

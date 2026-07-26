@@ -71,6 +71,7 @@ export function useInboundColumns({
             record={record}
             subEnable={subEnable}
             hasClients={(clientCount[record.id]?.clients || 0) > 0}
+            depletedCount={clientCount[record.id]?.depleted.length || 0}
             onClick={(key) => onRowAction({ key, dbInbound: record })}
             readOnly={readOnly}
           />

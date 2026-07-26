@@ -498,8 +498,14 @@ export const SettingSchema = z.object({
 export type Setting = z.infer<typeof SettingSchema>;
 
 export const UserSchema = z.object({
+  allowedInbounds: z.string(),
+  clientQuota: z.number().int(),
+  clientsCreatedTotal: z.number().int(),
+  disabled: z.boolean(),
   id: z.number().int(),
   password: z.string(),
+  role: z.string(),
+  trafficQuotaGB: z.number().int(),
   username: z.string(),
 });
 export type User = z.infer<typeof UserSchema>;

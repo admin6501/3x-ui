@@ -56,6 +56,7 @@ type RowAction =
   | 'delete'
   | 'resetTraffic'
   | 'delAllClients'
+  | 'delDepletedClients'
   | 'attachClients'
   | 'attachExisting'
   | 'detachClients'
@@ -427,6 +428,31 @@ export default function InboundsPage() {
     });
   }, [modal, refresh, t, clientCount]);
 
+  // Ended clients only (expiry date passed or traffic quota exhausted). The
+  // count here is the list rollup's view — the server recomputes the set from
+  // the traffic rows, so the toast reports what was actually deleted.
+  const confirmDelDepletedClients = useCallback((dbInbound: DBInbound) => {
+    const count = clientCount[dbInbound.id]?.depleted.length || 0;
+    modal.confirm({
+      title: t('pages.inbounds.delDepletedClientsConfirmTitle', { remark: dbInbound.remark, count }),
+      content: t('pages.inbounds.delDepletedClientsConfirmContent'),
+      okText: t('delete'),
+      okType: 'danger',
+      cancelText: t('cancel'),
+      onOk: async () => {
+        const msg = await HttpUtil.post(`/panel/api/inbounds/${dbInbound.id}/delDepletedClients`);
+        if (!msg?.success) return;
+        const deleted = ((msg.obj ?? {}) as { deleted?: number }).deleted ?? 0;
+        if (deleted > 0) {
+          messageApi.success(t('pages.inbounds.toasts.delDepletedClientsDeleted', { count: deleted }));
+        } else {
+          messageApi.info(t('pages.inbounds.toasts.delDepletedClientsNone'));
+        }
+        await refresh();
+      },
+    });
+  }, [modal, refresh, t, clientCount, messageApi]);
+
   const confirmClone = useCallback((dbInbound: DBInbound) => {
     modal.confirm({
       title: t('pages.inbounds.cloneConfirmTitle', { remark: dbInbound.remark }),
@@ -533,6 +559,9 @@ export default function InboundsPage() {
       case 'delAllClients':
         confirmDelAllClients(target);
         break;
+      case 'delDepletedClients':
+        confirmDelDepletedClients(target);
+        break;
       case 'attachClients':
         setAttachSource(target);
         setAttachOpen(true);
@@ -555,7 +584,7 @@ export default function InboundsPage() {
       default:
         messageApi.info(`Action "${key}" — coming in a later 5f subphase`);
     }
-  }, [hydrateInbound, openEdit, checkFallback, findClientIndex, exportInboundLinks, exportInboundSubs, exportInboundClipboard, confirmDelete, confirmResetTraffic, confirmDelAllClients, confirmClone, messageApi]);
+  }, [hydrateInbound, openEdit, checkFallback, findClientIndex, exportInboundLinks, exportInboundSubs, exportInboundClipboard, confirmDelete, confirmResetTraffic, confirmDelAllClients, confirmDelDepletedClients, confirmClone, messageApi]);
 
   return (
     <ConfigProvider theme={antdThemeConfig}>

@@ -194,6 +194,15 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
+        path: '/panel/api/inbounds/:id/delDepletedClients',
+        summary: 'Remove only the ended clients of a single inbound — those whose expiry date has passed or whose traffic quota is exhausted (auto-renew rows are left alone). Everyone else, and the inbound itself, are kept. Runs through the same optimized bulk-delete path as /delAllClients. Destructive and cannot be undone.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Inbound ID.' },
+        ],
+        response: '{\n  "success": true,\n  "obj": {\n    "deleted": 3\n  }\n}',
+      },
+      {
+        method: 'POST',
         path: '/panel/api/inbounds/resetAllTraffics',
         summary: 'Reset upload + download counters on every inbound. Destructive — accounting history is lost.',
       },

@@ -59,6 +59,7 @@ export type RowAction =
   | 'delete'
   | 'resetTraffic'
   | 'delAllClients'
+  | 'delDepletedClients'
   | 'clone';
 
 export type GeneralAction = 'import' | 'export' | 'subs' | 'resetInbounds';

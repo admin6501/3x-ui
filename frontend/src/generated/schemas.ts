@@ -2123,19 +2123,49 @@ export const SCHEMAS: Record<string, unknown> = {
   "User": {
     "description": "User represents a user account in the 3x-ui panel.",
     "properties": {
+      "allowedInbounds": {
+        "description": "AllowedInbounds is a CSV list of inbound IDs (e.g. \"3,7,12\") used only\nby RoleReseller. Empty = no inbounds visible (intentionally restrictive\n— admins must explicitly grant access). Other roles ignore this field.",
+        "type": "string"
+      },
+      "clientQuota": {
+        "description": "ClientQuota caps how many clients a reseller may have at once. 0 = unlimited.",
+        "type": "integer"
+      },
+      "clientsCreatedTotal": {
+        "description": "ClientsCreatedTotal is a cumulative counter of clients ever created by this\nreseller. Increments on every create, never decrements on delete.",
+        "type": "integer"
+      },
+      "disabled": {
+        "description": "Disabled, when true, blocks this account from logging in regardless of its\nrole. New column defaults to false so every existing account stays enabled\nafter an upgrade. Super-admins toggle it from the Admins page.",
+        "type": "boolean"
+      },
       "id": {
         "type": "integer"
       },
       "password": {
         "type": "string"
       },
+      "role": {
+        "description": "Role is one of RoleSuperAdmin / RoleManager / RoleReseller / RoleReadonly.\nDefaults to RoleSuperAdmin so a freshly-upgraded install with the\npre-existing single admin user keeps full access.",
+        "type": "string"
+      },
+      "trafficQuotaGB": {
+        "description": "TrafficQuotaGB caps the total traffic a reseller may consume across all\nassigned inbounds, in GB. 0 = unlimited. Reseller-only.",
+        "type": "integer"
+      },
       "username": {
         "type": "string"
       }
     },
     "required": [
+      "allowedInbounds",
+      "clientQuota",
+      "clientsCreatedTotal",
+      "disabled",
       "id",
       "password",
+      "role",
+      "trafficQuotaGB",
       "username"
     ],
     "type": "object"

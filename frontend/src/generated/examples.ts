@@ -465,8 +465,14 @@ export const EXAMPLES: Record<string, unknown> = {
     "value": ""
   },
   "User": {
+    "allowedInbounds": "",
+    "clientQuota": 0,
+    "clientsCreatedTotal": 0,
+    "disabled": false,
     "id": 0,
     "password": "",
+    "role": "",
+    "trafficQuotaGB": 0,
     "username": ""
   }
 };

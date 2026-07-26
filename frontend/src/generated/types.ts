@@ -465,8 +465,14 @@ export interface Setting {
 }
 
 export interface User {
+  allowedInbounds: string;
+  clientQuota: number;
+  clientsCreatedTotal: number;
+  disabled: boolean;
   id: number;
   password: string;
+  role: string;
+  trafficQuotaGB: number;
   username: string;
 }
 

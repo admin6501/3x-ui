@@ -455,3 +455,68 @@ func (s *InboundService) EmailsByInbound(inboundId int) ([]string, error) {
 	}
 	return emails, nil
 }
+
+// depletedTrafficClause matches traffic rows whose client has ended: quota
+// exhausted or expiry date passed. Rows flagged for auto-renew (reset != 0)
+// are excluded — they are scheduled to come back, not finished.
+const depletedTrafficClause = "reset = 0 and ((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?))"
+
+// DepletedEmailsByInbound returns the emails on an inbound whose client has
+// ended — expiry date passed or traffic quota exhausted. This is the same
+// "depleted" definition the inbounds list uses for its per-inbound counter,
+// so what the UI reports as ended is exactly what this deletes. Used by the
+// "delete expired clients" row action, which feeds the list into
+// ClientService.BulkDelete.
+func (s *InboundService) DepletedEmailsByInbound(inboundId int) ([]string, error) {
+	emails, err := s.EmailsByInbound(inboundId)
+	if err != nil {
+		return nil, err
+	}
+	if len(emails) == 0 {
+		return nil, nil
+	}
+
+	// Traffic rows are keyed on email but their casing can drift from the
+	// settings JSON, so match case-insensitively and return the settings
+	// spelling — that is what BulkDelete rewrites settings.clients[] against.
+	lowered := make([]string, 0, len(emails))
+	for _, e := range emails {
+		lowered = append(lowered, strings.ToLower(e))
+	}
+
+	db := database.GetDB()
+	now := time.Now().UnixMilli()
+	depleted := make(map[string]struct{}, len(emails))
+	for _, batch := range chunkStrings(lowered, sqlInChunk) {
+		var rows []xray.ClientTraffic
+		if err := db.Model(xray.ClientTraffic{}).
+			Where("LOWER(email) IN ?", batch).
+			Where(depletedTrafficClause, now).
+			Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			if r.Email != "" {
+				depleted[strings.ToLower(r.Email)] = struct{}{}
+			}
+		}
+	}
+	if len(depleted) == 0 {
+		return nil, nil
+	}
+
+	result := make([]string, 0, len(depleted))
+	seen := make(map[string]struct{}, len(depleted))
+	for _, e := range emails {
+		key := strings.ToLower(e)
+		if _, ok := depleted[key]; !ok {
+			continue
+		}
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, e)
+	}
+	return result, nil
+}
