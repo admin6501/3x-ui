@@ -97,7 +97,7 @@ func (a *AdminController) update(c *gin.Context) {
 		return
 	}
 	actor := session.GetLoginUser(c)
-	if err := a.adminService.UpdateAdmin(actor, id, f.Username, f.Role, f.AllowedInbounds, f.TrafficQuotaGB, f.ClientQuota); err != nil {
+	if err := a.adminService.UpdateAdmin(actor, id, f.Username, f.Role, f.AllowedInbounds, f.TrafficQuotaGB, f.ClientQuota, &a.inboundService, &a.xrayService); err != nil {
 		jsonMsg(c, "update admin", err)
 		return
 	}
@@ -111,7 +111,7 @@ func (a *AdminController) delete(c *gin.Context) {
 		return
 	}
 	actor := session.GetLoginUser(c)
-	if err := a.adminService.DeleteAdmin(actor, id); err != nil {
+	if err := a.adminService.DeleteAdmin(actor, id, &a.inboundService, &a.xrayService); err != nil {
 		jsonMsg(c, "delete admin", err)
 		return
 	}
@@ -158,7 +158,7 @@ func (a *AdminController) setEnabled(c *gin.Context) {
 		return
 	}
 	actor := session.GetLoginUser(c)
-	if err := a.adminService.SetAdminEnabled(actor, id, f.Enabled); err != nil {
+	if err := a.adminService.SetAdminEnabled(actor, id, f.Enabled, &a.inboundService, &a.xrayService); err != nil {
 		jsonMsg(c, "set enabled", err)
 		return
 	}

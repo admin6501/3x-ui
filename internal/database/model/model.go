@@ -104,15 +104,24 @@ type Plan struct {
 }
 
 
-// ResellerQuotaDisabledInbound tracks inbounds that the reseller-quota
-// enforcer auto-disabled because the owning reseller exhausted their traffic
-// quota. Only inbounds recorded here are auto-re-enabled when the reseller
-// recovers (quota raised / traffic reset) — so an admin's manual disable is
-// never clobbered.
+// Reasons an inbound was auto-disabled on a reseller's behalf. The reason is
+// what keeps the two mechanisms from clobbering each other: re-enabling after a
+// quota reset must not revive inbounds that are down because the reseller's
+// account itself is disabled, and vice versa.
+const (
+        ResellerDisableReasonQuota   = "quota"   // traffic quota exhausted
+        ResellerDisableReasonAccount = "account" // the reseller account was disabled
+)
+
+// ResellerQuotaDisabledInbound tracks inbounds that the panel auto-disabled on
+// behalf of a reseller — because they exhausted their traffic quota, or because
+// their account was disabled. Only inbounds recorded here are auto-re-enabled
+// when the reseller recovers, so an admin's manual disable is never clobbered.
 type ResellerQuotaDisabledInbound struct {
-        InboundId  int   `json:"inboundId" gorm:"primaryKey;column:inbound_id"`
-        ResellerId int   `json:"resellerId" gorm:"index;column:reseller_id"`
-        DisabledAt int64 `json:"disabledAt" gorm:"autoCreateTime:milli"`
+        InboundId  int    `json:"inboundId" gorm:"primaryKey;column:inbound_id"`
+        ResellerId int    `json:"resellerId" gorm:"index;column:reseller_id"`
+        Reason     string `json:"reason" gorm:"column:reason;default:quota"`
+        DisabledAt int64  `json:"disabledAt" gorm:"autoCreateTime:milli"`
 }
 
 func (ResellerQuotaDisabledInbound) TableName() string { return "reseller_quota_disabled_inbounds" }

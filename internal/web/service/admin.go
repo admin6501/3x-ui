@@ -193,6 +193,12 @@ func (s *AdminService) EnforceResellerQuotas(inboundSvc *InboundService) bool {
 	changed := false
 	for i := range resellers {
 		r := &resellers[i]
+		if r.Disabled {
+			// A disabled account already has its inbounds down for a different
+			// reason; leaving it alone here keeps the quota enforcer from
+			// re-enabling them the moment the quota is raised.
+			continue
+		}
 		ids := AllowedInboundIDs(r)
 		if len(ids) == 0 {
 			continue
@@ -212,16 +218,23 @@ func (s *AdminService) EnforceResellerQuotas(inboundSvc *InboundService) bool {
 					changed = changed || nr
 					_ = db.Where("inbound_id = ?", id).
 						Delete(&model.ResellerQuotaDisabledInbound{}).Error
-					_ = db.Create(&model.ResellerQuotaDisabledInbound{InboundId: id, ResellerId: r.Id}).Error
+					_ = db.Create(&model.ResellerQuotaDisabledInbound{
+						InboundId:  id,
+						ResellerId: r.Id,
+						Reason:     model.ResellerDisableReasonQuota,
+					}).Error
 					changed = true
 				}
 			}
 			continue
 		}
 
-		// Recovered: re-enable only inbounds WE auto-disabled for this reseller.
+		// Recovered: re-enable only the inbounds this enforcer took down for
+		// quota. Rows recorded for a disabled account belong to
+		// SetAdminEnabled and must survive a quota recovery.
 		var tracked []model.ResellerQuotaDisabledInbound
-		if err := db.Where("reseller_id = ?", r.Id).Find(&tracked).Error; err != nil {
+		if err := db.Where("reseller_id = ? AND reason = ?", r.Id, model.ResellerDisableReasonQuota).
+			Find(&tracked).Error; err != nil {
 			continue
 		}
 		for _, row := range tracked {
@@ -268,8 +281,13 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 	// existing rows.
 	var existing model.User
 	err := db.Where("username = ?", username).First(&existing).Error
-	if err == nil {
+	switch {
+	case err == nil:
 		return nil, fmt.Errorf("username %q already exists", username)
+	case !database.IsNotFound(err):
+		// A failed lookup is not proof the name is free; creating anyway would
+		// risk a duplicate account.
+		return nil, err
 	}
 
 	hashed, err := crypto.HashPasswordAsBcrypt(password)
@@ -296,7 +314,7 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 // UpdateAdmin updates role / allowedInbounds / username for the given admin.
 // Password changes go through ResetAdminPassword to keep the audit trail
 // honest.
-func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, allowedInbounds string, trafficQuotaGB int64, clientQuota int) error {
+func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, allowedInbounds string, trafficQuotaGB int64, clientQuota int, inboundSvc *InboundService, xrayService *XrayService) error {
 	if !IsValidRole(role) {
 		return fmt.Errorf("unknown role %q", role)
 	}
@@ -324,17 +342,47 @@ func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, al
 	}
 	if strings.TrimSpace(username) != "" && username != u.Username {
 		var dup model.User
-		if err := db.Where("username = ? AND id <> ?", username, id).First(&dup).Error; err == nil {
+		err := db.Where("username = ? AND id <> ?", username, id).First(&dup).Error
+		switch {
+		case err == nil:
 			return fmt.Errorf("username %q already exists", username)
+		case !database.IsNotFound(err):
+			return err
 		}
 		updates["username"] = username
 	}
 	if err := db.Model(&model.User{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		return err
 	}
+	// An inbound taken off a reseller — or a reseller turned into another role
+	// — would otherwise stay disabled with a tracking row nobody clears.
+	released := false
+	if role != model.RoleReseller {
+		released = s.releaseResellerInbounds(u.Id, nil, inboundSvc)
+	} else if dropped := droppedInboundIDs(u.AllowedInbounds, updates["allowed_inbounds"].(string)); len(dropped) > 0 {
+		released = s.releaseResellerInbounds(u.Id, dropped, inboundSvc)
+	}
+	if released && xrayService != nil {
+		xrayService.SetToNeedRestart()
+	}
 	s.logAction(actor, "update_admin", u.Id, u.Username,
 		fmt.Sprintf("role=%s, allowedInbounds=[%s]", role, NormalizeAllowedInbounds(allowedInbounds)))
 	return nil
+}
+
+// droppedInboundIDs returns the ids present in the old CSV but not the new one.
+func droppedInboundIDs(oldCSV, newCSV string) []int {
+	keep := map[int]struct{}{}
+	for _, id := range AllowedInboundIDs(&model.User{AllowedInbounds: newCSV}) {
+		keep[id] = struct{}{}
+	}
+	var dropped []int
+	for _, id := range AllowedInboundIDs(&model.User{AllowedInbounds: oldCSV}) {
+		if _, ok := keep[id]; !ok {
+			dropped = append(dropped, id)
+		}
+	}
+	return dropped
 }
 
 // ResetAdminPassword overwrites another admin's password without requiring
@@ -363,7 +411,7 @@ func (s *AdminService) ResetAdminPassword(actor *model.User, id int, newPassword
 
 // DeleteAdmin removes an admin row. Refuses to delete the last super-admin
 // or the actor's own row (preventing accidental self-lockout).
-func (s *AdminService) DeleteAdmin(actor *model.User, id int) error {
+func (s *AdminService) DeleteAdmin(actor *model.User, id int, inboundSvc *InboundService, xrayService *XrayService) error {
 	if actor != nil && actor.Id == id {
 		return errors.New("cannot delete your own account; ask another super_admin")
 	}
@@ -384,14 +432,116 @@ func (s *AdminService) DeleteAdmin(actor *model.User, id int) error {
 	if err := db.Delete(&model.User{}, id).Error; err != nil {
 		return err
 	}
+	// Inbounds the panel took down on this reseller's behalf have nobody left
+	// to restore them, so hand them back before the account disappears.
+	if s.releaseResellerInbounds(u.Id, nil, inboundSvc) && xrayService != nil {
+		xrayService.SetToNeedRestart()
+	}
 	s.logAction(actor, "delete_admin", u.Id, u.Username, fmt.Sprintf("role=%s", u.Role))
 	return nil
 }
 
+// applyResellerAccountState takes a reseller's assigned inbounds down when
+// their account is disabled and brings back exactly those when it is enabled
+// again.
+//
+// Disabling the account alone only stops the reseller logging in — their
+// clients keep connecting, which is rarely what an admin means by "disable this
+// reseller". Every inbound taken down here is recorded with the "account"
+// reason so re-enabling restores precisely what we disabled: an inbound the
+// admin had already switched off by hand stays off, and rows the quota
+// enforcer owns are left to it.
+func (s *AdminService) applyResellerAccountState(u *model.User, enabled bool, inboundSvc *InboundService) bool {
+	if u == nil || u.Role != model.RoleReseller || inboundSvc == nil {
+		return false
+	}
+	db := database.GetDB()
+	changed := false
+
+	if !enabled {
+		for _, id := range AllowedInboundIDs(u) {
+			ib, err := inboundSvc.GetInbound(id)
+			if err != nil || ib == nil || !ib.Enable {
+				// Already off: don't record it, or enabling the account later
+				// would switch on an inbound the admin meant to keep down.
+				continue
+			}
+			if _, err := inboundSvc.SetInboundEnable(id, false); err != nil {
+				logger.Warning("disable reseller account: inbound", id, "failed:", err)
+				continue
+			}
+			_ = db.Where("inbound_id = ?", id).Delete(&model.ResellerQuotaDisabledInbound{}).Error
+			_ = db.Create(&model.ResellerQuotaDisabledInbound{
+				InboundId:  id,
+				ResellerId: u.Id,
+				Reason:     model.ResellerDisableReasonAccount,
+			}).Error
+			changed = true
+		}
+		return changed
+	}
+
+	var tracked []model.ResellerQuotaDisabledInbound
+	if err := db.Where("reseller_id = ? AND reason = ?", u.Id, model.ResellerDisableReasonAccount).
+		Find(&tracked).Error; err != nil {
+		return false
+	}
+	for _, row := range tracked {
+		if _, err := inboundSvc.SetInboundEnable(row.InboundId, true); err != nil {
+			logger.Warning("enable reseller account: inbound", row.InboundId, "failed:", err)
+			continue
+		}
+		changed = true
+	}
+	_ = db.Where("reseller_id = ? AND reason = ?", u.Id, model.ResellerDisableReasonAccount).
+		Delete(&model.ResellerQuotaDisabledInbound{}).Error
+	return changed
+}
+
+// releaseResellerInbounds re-enables and forgets every inbound the panel took
+// down on a reseller's behalf. Used when the reseller loses an inbound or is
+// deleted outright — without it those inbounds would stay disabled forever
+// with nobody left to restore them.
+func (s *AdminService) releaseResellerInbounds(resellerID int, inboundIDs []int, inboundSvc *InboundService) bool {
+	if resellerID <= 0 || inboundSvc == nil {
+		return false
+	}
+	db := database.GetDB()
+	query := db.Where("reseller_id = ?", resellerID)
+	if inboundIDs != nil {
+		if len(inboundIDs) == 0 {
+			return false
+		}
+		query = query.Where("inbound_id IN ?", inboundIDs)
+	}
+	var tracked []model.ResellerQuotaDisabledInbound
+	if err := query.Find(&tracked).Error; err != nil {
+		return false
+	}
+	changed := false
+	for _, row := range tracked {
+		if _, err := inboundSvc.SetInboundEnable(row.InboundId, true); err != nil {
+			logger.Warning("release reseller inbound", row.InboundId, "failed:", err)
+			continue
+		}
+		changed = true
+	}
+	ids := make([]int, 0, len(tracked))
+	for _, row := range tracked {
+		ids = append(ids, row.InboundId)
+	}
+	if len(ids) > 0 {
+		_ = db.Where("reseller_id = ? AND inbound_id IN ?", resellerID, ids).
+			Delete(&model.ResellerQuotaDisabledInbound{}).Error
+	}
+	return changed
+}
+
 // SetAdminEnabled toggles the Disabled flag on any admin account (any role).
-// A disabled account can no longer log in. Guards against locking yourself out
-// and against disabling the last enabled super_admin.
-func (s *AdminService) SetAdminEnabled(actor *model.User, id int, enabled bool) error {
+// A disabled account can no longer log in, and for a reseller their assigned
+// inbounds follow the account state. Guards against locking yourself out and
+// against disabling the last enabled super_admin.
+func (s *AdminService) SetAdminEnabled(actor *model.User, id int, enabled bool, inboundSvc *InboundService, xrayService *XrayService) error {
 	if !enabled && actor != nil && actor.Id == id {
 		return errors.New("cannot disable your own account; ask another super_admin")
 	}
@@ -414,6 +564,10 @@ func (s *AdminService) SetAdminEnabled(actor *model.User, id int, enabled bool) 
 	if err := db.Model(&model.User{}).Where("id = ?", id).
 		Update("disabled", !enabled).Error; err != nil {
 		return err
+	}
+	u.Disabled = !enabled
+	if s.applyResellerAccountState(&u, enabled, inboundSvc) && xrayService != nil {
+		xrayService.SetToNeedRestart()
 	}
 	action := "enable_admin"
 	if !enabled {
