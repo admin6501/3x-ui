@@ -1,4 +1,4 @@
-# 3x-ui — Offline Install Bundle (v3.4.2 + RBAC fork)
+# 3x-ui — Offline Install Bundle (v3.4.3 + RBAC fork)
 
 This folder ships a **fully self-contained** 3x-ui install for servers that have
 **no internet access** (or where the GitHub release download is blocked).
