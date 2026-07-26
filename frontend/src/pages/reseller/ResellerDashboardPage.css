@@ -1,0 +1,225 @@
+/* Reseller dashboard shares the standard panel page shell (background,
+   transparent layout, content padding) so it matches the other pages. */
+.reseller-page {
+  --bg-page: #e6e8ec;
+  --bg-card: #ffffff;
+  min-height: 100vh;
+  background: var(--bg-page);
+}
+
+.reseller-page.is-dark {
+  --bg-page: #1a1b1f;
+  --bg-card: #23252b;
+}
+
+.reseller-page.is-dark.is-ultra {
+  --bg-page: #000;
+  --bg-card: #101013;
+}
+
+.reseller-page .ant-layout,
+.reseller-page .ant-layout-content,
+.reseller-page .content-shell {
+  background: transparent;
+}
+
+.reseller-page .content-area {
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .reseller-page .content-area {
+    padding: 12px;
+  }
+}
+
+.reseller-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.reseller-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    var(--ant-color-primary, #1677ff) 0%,
+    color-mix(in srgb, var(--ant-color-primary, #1677ff) 55%, #7b2ff7) 100%
+  );
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ant-color-primary, #1677ff) 22%, transparent);
+}
+
+.reseller-header .ant-typography,
+.reseller-header .ant-typography-secondary {
+  color: #fff !important;
+}
+
+.reseller-header .ant-typography-secondary {
+  opacity: 0.82;
+}
+
+.reseller-header .ant-btn-primary {
+  color: var(--ant-color-primary, #1677ff);
+  background: #fff;
+  border-color: #fff;
+}
+
+.reseller-header .ant-btn-primary:hover {
+  color: var(--ant-color-primary, #1677ff) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.88) !important;
+}
+
+@media (max-width: 576px) {
+  .reseller-header {
+    padding: 16px;
+  }
+
+  .reseller-header .ant-btn {
+    width: 100%;
+  }
+}
+
+/* Quota cards ------------------------------------------------------------- */
+
+.reseller-quota-card {
+  height: 100%;
+  border-radius: 14px;
+}
+
+.reseller-quota-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.reseller-quota-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  font-size: 22px;
+  color: var(--ant-color-primary, #1677ff);
+  background: color-mix(in srgb, var(--ant-color-primary, #1677ff) 12%, transparent);
+}
+
+.reseller-quota-title {
+  font-size: 13px;
+  opacity: 0.68;
+}
+
+.reseller-quota-value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.reseller-quota-of {
+  font-size: 15px;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.reseller-quota-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Mini stat cards --------------------------------------------------------- */
+
+.reseller-stat-row .ant-card-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.reseller-mini-card {
+  height: 100%;
+  border-radius: 14px;
+}
+
+.reseller-mini-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
+.reseller-mini-value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.reseller-mini-label {
+  font-size: 12px;
+  opacity: 0.66;
+}
+
+.reseller-mini-card.is-green .reseller-mini-icon {
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.14);
+}
+
+.reseller-mini-card.is-blue .reseller-mini-icon {
+  color: #1677ff;
+  background: rgba(22, 119, 255, 0.14);
+}
+
+.reseller-mini-card.is-orange .reseller-mini-icon {
+  color: #fa8c16;
+  background: rgba(250, 140, 22, 0.14);
+}
+
+.reseller-mini-card.is-red .reseller-mini-icon {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.14);
+}
+
+/* Tables ------------------------------------------------------------------ */
+
+.reseller-inbound-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.reseller-inbound-name {
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.reseller-inbound-meta {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.reseller-share {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.reseller-dashboard .ant-card {
+  border-radius: 14px;
+}

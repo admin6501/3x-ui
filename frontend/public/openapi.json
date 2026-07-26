@@ -10910,6 +10910,79 @@
           }
         }
       }
+    },
+    "/panel/api/reseller/overview": {
+      "get": {
+        "tags": [
+          "Reseller"
+        ],
+        "summary": "Everything the reseller dashboard renders, in one call: the quota block from /me, client counts bucketed by state (active, online, expiring within 7 days, expired or depleted, disabled), a per-inbound breakdown of the assigned inbounds with their traffic and client count, the clients expiring soonest, and the most recently created clients. No credentials or client configs are included. A non-reseller role gets a well-formed empty overview.",
+        "operationId": "get_panel_api_reseller_overview",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "username": "reseller1",
+                    "role": "reseller",
+                    "disabled": false,
+                    "trafficUsedBytes": 10737418240,
+                    "trafficQuotaGB": 100,
+                    "currentClients": 12,
+                    "clientQuota": 50,
+                    "clientsCreatedTotal": 30,
+                    "clientsActive": 9,
+                    "clientsOnline": 3,
+                    "clientsExpiring": 2,
+                    "clientsEnded": 2,
+                    "clientsDisabled": 1,
+                    "inbounds": [
+                      {
+                        "id": 3,
+                        "remark": "de-vless",
+                        "protocol": "vless",
+                        "port": 443,
+                        "enable": true,
+                        "up": 1073741824,
+                        "down": 9663676416,
+                        "clients": 12
+                      }
+                    ],
+                    "expiringSoon": [
+                      {
+                        "email": "customer1",
+                        "enable": true,
+                        "up": 1073741824,
+                        "down": 2147483648,
+                        "total": 32212254720,
+                        "expiryTime": 1735689600000,
+                        "online": true,
+                        "createdAt": 1733011200000
+                      }
+                    ],
+                    "recent": []
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

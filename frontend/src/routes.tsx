@@ -21,12 +21,12 @@ function withSuspense(node: React.ReactNode) {
   return <Suspense fallback={null}>{node}</Suspense>;
 }
 
-// Resellers are scoped to the Clients section only; send them there instead of
-// the dashboard (which is hidden from their sidebar and shows panel-wide stats).
+// The panel-wide dashboard shows stats a reseller is not allowed to see, so it
+// is hidden from their sidebar; send them to their own dashboard instead.
 function IndexRoute() {
   const role = (typeof window !== 'undefined' && window.X_UI_ROLE) || 'super_admin';
   if (role === 'reseller') {
-    return <Navigate to="/clients" replace />;
+    return <Navigate to="/usage" replace />;
   }
   return withSuspense(<IndexPage />);
 }

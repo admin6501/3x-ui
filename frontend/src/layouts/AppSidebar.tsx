@@ -196,11 +196,11 @@ export default function AppSidebar() {
       { key: '/tutorials', icon: 'tutorials', title: t('menu.tutorials') },
       { key: LOGOUT_KEY, icon: 'logout', title: t('logout') },
     ];
-    // super_admin sees everything except the reseller-only "My Usage" page.
+    // super_admin sees everything except the reseller-only dashboard page.
     // Other roles see only a role-appropriate subset (logout is always
     // available). settings / xray / nodes / admins are super_admin-only and are
-    // also gated on the backend; a reseller is scoped down to just their
-    // assigned inbounds plus their own usage dashboard.
+    // also gated on the backend; a reseller is scoped down to their own
+    // dashboard plus the clients on their assigned inbounds.
     if (isSuperAdmin) return all.filter((tab) => tab.key !== '/usage');
     const allowedByRole: Record<string, string[]> = {
       manager: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],

@@ -22,7 +22,9 @@ async function loadOnce(): Promise<void> {
   }
   pending = (async () => {
     try {
-      const msg = await HttpUtil.post('/panel/api/setting/defaultSettings');
+      // Background preference lookup: on failure we fall back to the Gregorian
+      // calendar, so it must not raise a toast in front of the user.
+      const msg = await HttpUtil.post('/panel/api/setting/defaultSettings', undefined, { silent: true });
       if (msg?.success) {
         const validated = parseMsg(msg, DefaultsPayloadSchema, 'setting/defaultSettings');
         cachedValue = validated.obj?.datepicker || 'gregorian';

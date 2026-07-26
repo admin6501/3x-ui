@@ -1635,6 +1635,14 @@ export const sections: readonly Section[] = [
         response:
           '{\n  "success": true,\n  "obj": {\n    "username": "reseller1",\n    "role": "reseller",\n    "trafficUsedBytes": 10737418240,\n    "currentClients": 12,\n    "clientsCreatedTotal": 30,\n    "trafficQuotaGB": 100,\n    "clientQuota": 50\n  }\n}',
       },
+      {
+        method: 'GET',
+        path: '/panel/api/reseller/overview',
+        summary:
+          'Everything the reseller dashboard renders, in one call: the quota block from /me, client counts bucketed by state (active, online, expiring within 7 days, expired or depleted, disabled), a per-inbound breakdown of the assigned inbounds with their traffic and client count, the clients expiring soonest, and the most recently created clients. No credentials or client configs are included. A non-reseller role gets a well-formed empty overview.',
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "username": "reseller1",\n    "role": "reseller",\n    "disabled": false,\n    "trafficUsedBytes": 10737418240,\n    "trafficQuotaGB": 100,\n    "currentClients": 12,\n    "clientQuota": 50,\n    "clientsCreatedTotal": 30,\n    "clientsActive": 9,\n    "clientsOnline": 3,\n    "clientsExpiring": 2,\n    "clientsEnded": 2,\n    "clientsDisabled": 1,\n    "inbounds": [\n      {\n        "id": 3,\n        "remark": "de-vless",\n        "protocol": "vless",\n        "port": 443,\n        "enable": true,\n        "up": 1073741824,\n        "down": 9663676416,\n        "clients": 12\n      }\n    ],\n    "expiringSoon": [\n      {\n        "email": "customer1",\n        "enable": true,\n        "up": 1073741824,\n        "down": 2147483648,\n        "total": 32212254720,\n        "expiryTime": 1735689600000,\n        "online": true,\n        "createdAt": 1733011200000\n      }\n    ],\n    "recent": []\n  }\n}',
+      },
     ],
   },
 ];
