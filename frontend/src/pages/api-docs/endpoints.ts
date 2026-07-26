@@ -1504,6 +1504,31 @@ export const sections: readonly Section[] = [
         ],
       },
       {
+        method: 'POST',
+        path: '/panel/api/admin/setEnabled/:id',
+        summary: 'Enable or disable an administrator account. A disabled account keeps its data but cannot log in. You cannot disable your own account, and the last enabled super_admin cannot be disabled.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Admin user ID.' },
+          { name: 'enabled', in: 'body (form)', type: 'boolean', desc: 'true to allow login, false to lock the account out.' },
+        ],
+        body: '{\n  "enabled": false\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/admin/resetResellerTraffic/:id',
+        summary: 'Zero the consumed traffic of a reseller: resets the counters of every inbound assigned to them and re-enables the inbounds the quota enforcer had auto-disabled. Reseller accounts only — other roles are rejected.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Reseller user ID.' },
+        ],
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/admin/resellerStats',
+        summary: 'Aggregated usage per reseller, keyed by user id: traffic consumed across all assigned inbounds, current and cumulative client counts, and the configured quotas. Quota values of 0 mean unlimited.',
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "2": {\n      "trafficUsedBytes": 10737418240,\n      "currentClients": 12,\n      "clientsCreatedTotal": 30,\n      "trafficQuotaGB": 100,\n      "clientQuota": 50\n    }\n  }\n}',
+      },
+      {
         method: 'GET',
         path: '/panel/api/admin/auditLog',
         summary: 'Return the most recent admin audit-log entries (account creation, updates, deletions, password resets), newest first.',
@@ -1565,6 +1590,22 @@ export const sections: readonly Section[] = [
           { name: 'id', in: 'path', type: 'number', desc: 'Plan ID.' },
         ],
         response: '{\n  "success": true,\n  "obj": { "id": 1 }\n}',
+      },
+    ],
+  },
+
+  {
+    id: 'reseller',
+    title: 'Reseller',
+    description:
+      'Self-service snapshot for the logged-in account, used by the reseller dashboard. Lives under /panel/api/reseller and is open to any authenticated user — a non-reseller role gets its username and role back with the usage/quota fields zeroed.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/reseller/me',
+        summary: 'Return the caller’s own username, role and (for resellers) live usage against quota: traffic consumed across the assigned inbounds, current client count and cumulative clients created. Quota values of 0 mean unlimited. Counters are read fresh from the database, not from the session.',
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "username": "reseller1",\n    "role": "reseller",\n    "trafficUsedBytes": 10737418240,\n    "currentClients": 12,\n    "clientsCreatedTotal": 30,\n    "trafficQuotaGB": 100,\n    "clientQuota": 50\n  }\n}',
       },
     ],
   },

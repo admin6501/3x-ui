@@ -2262,6 +2262,10 @@
     {
       "name": "Plans",
       "description": "Reusable client package/template definitions (e.g. \"1 month / 30GB / 1 IP\"). Picking a plan in the client form prefills traffic quota, expiry and IP limit — plans never auto-mutate existing clients. All endpoints live under /panel/api/plans. <strong>Listing is open to any authenticated admin</strong> (so the client form can offer plans, including for resellers); creating, updating and deleting are restricted to super_admin / manager (resellers are rejected)."
+    },
+    {
+      "name": "Reseller",
+      "description": "Self-service snapshot for the logged-in account, used by the reseller dashboard. Lives under /panel/api/reseller and is open to any authenticated user — a non-reseller role gets its username and role back with the usage/quota fields zeroed."
     }
   ],
   "paths": {
@@ -10215,6 +10219,143 @@
         }
       }
     },
+    "/panel/api/admin/setEnabled/{id}": {
+      "post": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Enable or disable an administrator account. A disabled account keeps its data but cannot log in. You cannot disable your own account, and the last enabled super_admin cannot be disabled.",
+        "operationId": "post_panel_api_admin_setEnabled_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Admin user ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "enabled": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/resetResellerTraffic/{id}": {
+      "post": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Zero the consumed traffic of a reseller: resets the counters of every inbound assigned to them and re-enables the inbounds the quota enforcer had auto-disabled. Reseller accounts only — other roles are rejected.",
+        "operationId": "post_panel_api_admin_resetResellerTraffic_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Reseller user ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/admin/resellerStats": {
+      "get": {
+        "tags": [
+          "Admins (RBAC)"
+        ],
+        "summary": "Aggregated usage per reseller, keyed by user id: traffic consumed across all assigned inbounds, current and cumulative client counts, and the configured quotas. Quota values of 0 mean unlimited.",
+        "operationId": "get_panel_api_admin_resellerStats",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "2": {
+                      "trafficUsedBytes": 10737418240,
+                      "currentClients": 12,
+                      "clientsCreatedTotal": 30,
+                      "trafficQuotaGB": 100,
+                      "clientQuota": 50
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/panel/api/admin/auditLog": {
       "get": {
         "tags": [
@@ -10469,6 +10610,48 @@
                   "success": true,
                   "obj": {
                     "id": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/reseller/me": {
+      "get": {
+        "tags": [
+          "Reseller"
+        ],
+        "summary": "Return the caller’s own username, role and (for resellers) live usage against quota: traffic consumed across the assigned inbounds, current client count and cumulative clients created. Quota values of 0 mean unlimited. Counters are read fresh from the database, not from the session.",
+        "operationId": "get_panel_api_reseller_me",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "username": "reseller1",
+                    "role": "reseller",
+                    "trafficUsedBytes": 10737418240,
+                    "currentClients": 12,
+                    "clientsCreatedTotal": 30,
+                    "trafficQuotaGB": 100,
+                    "clientQuota": 50
                   }
                 }
               }

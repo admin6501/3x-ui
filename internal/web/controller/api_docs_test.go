@@ -19,6 +19,33 @@ var routePattern = regexp.MustCompile(`\b(g|api)\.(GET|POST|PUT|DELETE|PATCH|HEA
 // docRoutePattern matches { method: 'X', path: 'Y' ... } entries in endpoints.ts.
 var docRoutePattern = regexp.MustCompile(`method:\s*'([A-Z]+)'\s*,\s*path:\s*'([^']+)'`)
 
+// spaPagePattern matches the GET registrations that serve the React shell, so
+// UI pages are recognised as such no matter how many are added to spa.go.
+var spaPagePattern = regexp.MustCompile(`\bg\.GET\("([^"]+)",\s*a\.panelSPA\)`)
+
+// controllerBasePaths maps each controller file to the router group its routes
+// are mounted on in APIController.initRouter (web.go for the root ones), so a
+// registration like g.POST("/add") can be resolved to its full path. Files that
+// register on the engine root map to "". Keep in sync when a controller moves
+// to a different group or a new one is added.
+var controllerBasePaths = map[string]string{
+	"index.go":        "",
+	"websocket.go":    "",
+	"spa.go":          "/panel",
+	"api.go":          "/panel/api",
+	"inbound.go":      "/panel/api/inbounds",
+	"client.go":       "/panel/api/clients",
+	"group.go":        "/panel/api/clients",
+	"server.go":       "/panel/api/server",
+	"node.go":         "/panel/api/nodes",
+	"host.go":         "/panel/api/hosts",
+	"setting.go":      "/panel/api/setting",
+	"xray_setting.go": "/panel/api/xray",
+	"admin.go":        "/panel/api/admin",
+	"plan.go":         "/panel/api/plans",
+	"reseller.go":     "/panel/api/reseller",
+}
+
 // buildDocSet parses frontend/src/pages/api-docs/endpoints.ts and returns the
 // set of documented "METHOD PATH" keys. WS pseudo-routes and subscription
 // placeholders (paths starting with /{...}) are skipped because they aren't
@@ -60,6 +87,9 @@ func TestAPIRoutesDocumented(t *testing.T) {
 	}
 
 	var allRoutes []routeDef
+	// Paths served by the SPA shell (UI pages, not API endpoints). Collected
+	// from spa.go itself so adding a page there never fails this test.
+	spaPages := map[string]bool{"/": true}
 
 	entries, err := os.ReadDir(controllerDir)
 	if err != nil {
@@ -76,37 +106,26 @@ func TestAPIRoutesDocumented(t *testing.T) {
 		}
 		src := string(data)
 
-		// Determine the base path for this file based on its initRouter patterns
-		basePath := ""
-		switch entry.Name() {
-		case "index.go":
-			basePath = ""
-		case "spa.go":
-			basePath = "/panel"
-		case "api.go":
-			basePath = "/panel/api"
-		case "inbound.go":
-			basePath = "/panel/api/inbounds"
-		case "client.go":
-			basePath = "/panel/api/clients"
-		case "group.go":
-			basePath = "/panel/api/clients"
-		case "server.go":
-			basePath = "/panel/api/server"
-		case "node.go":
-			basePath = "/panel/api/nodes"
-		case "host.go":
-			basePath = "/panel/api/hosts"
-		case "setting.go":
-			basePath = "/panel/api/setting"
-		case "xray_setting.go":
-			basePath = "/panel/api/xray"
-		case "websocket.go":
-			basePath = ""
-		}
-
 		// Find all route registrations
 		matches := routePattern.FindAllStringSubmatch(src, -1)
+		if len(matches) == 0 {
+			continue
+		}
+
+		// The group each file's routes are mounted on (see APIController.initRouter).
+		// A controller that registers routes without an entry here would have its
+		// paths mis-derived, so an unknown file is a hard failure rather than a
+		// silent mismatch reported as "route not documented".
+		basePath, known := controllerBasePaths[entry.Name()]
+		if !known {
+			t.Errorf("%s registers routes but has no base path in controllerBasePaths — add its api.Group() prefix there", entry.Name())
+			continue
+		}
+
+		for _, m := range spaPagePattern.FindAllStringSubmatch(src, -1) {
+			spaPages[basePath+m[1]] = true
+		}
+
 		for _, m := range matches {
 			method := m[2]
 			path := strings.TrimSpace(m[3])
@@ -129,15 +148,6 @@ func TestAPIRoutesDocumented(t *testing.T) {
 	for _, r := range allRoutes {
 		key := r.Method + " " + r.Path
 		// Skip SPA page routes (these are UI pages, not API endpoints)
-		spaPages := map[string]bool{
-			"/": true, "/panel/": true, "/panel/inbounds": true,
-			"/panel/clients": true, "/panel/groups": true,
-			"/panel/nodes": true, "/panel/settings": true,
-			"/panel/hosts": true, "/panel/usage": true,
-			"/panel/xray": true, "/panel/outbound": true,
-			"/panel/routing": true, "/panel/api-docs": true,
-			"/panel/tutorials": true,
-		}
 		if spaPages[r.Path] {
 			continue
 		}

@@ -19,7 +19,6 @@ func TestSeedRemarkTemplateEmail(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = CloseDB() })
 
-	const defaultTemplate = "{{EMAIL}}|{{INBOUND}}|📊{{TRAFFIC_LEFT}}|⏳{{DAYS_LEFT}}D"
 	rerun := func() {
 		db.Where("seeder_name = ?", "RemarkTemplateEmailTokenV2").Delete(&model.HistoryOfSeeders{})
 		if err := seedRemarkTemplateEmail(); err != nil {
@@ -53,24 +52,30 @@ func TestSeedRemarkTemplateEmail(t *testing.T) {
 		t.Errorf("existing email template must be left alone, got %q", read())
 	}
 
-	// Cleared field (empty value) -> restored to the identity-carrying default.
+	// A cleared value is *not* the seeder's business: restoring the default on a
+	// blank template belongs to SettingService.UpdateAllSetting
+	// (restoreBlankDefaults, covered by TestRestoreBlankDefaultsRemarkTemplate),
+	// so a boot-time migration must leave the stored value alone.
 	db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").Update("value", "")
 	rerun()
-	if read() != defaultTemplate {
-		t.Errorf("empty template must be restored to default, got %q", read())
+	if read() != "" {
+		t.Errorf("empty template must be left alone by the seeder, got %q", read())
 	}
 
-	// Whitespace-only value is treated as empty -> restored to default.
+	// Same for a whitespace-only value.
 	db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").Update("value", "   ")
 	rerun()
-	if read() != defaultTemplate {
-		t.Errorf("blank template must be restored to default, got %q", read())
+	if read() != "   " {
+		t.Errorf("blank template must be left alone by the seeder, got %q", read())
 	}
 
-	// Missing row -> persisted with the default so the bot listing works.
+	// Missing row -> stays missing. An unset key resolves to the in-code default
+	// (which carries {{EMAIL}}) and is persisted the next time settings are saved.
 	db.Where("key = ?", "remarkTemplate").Delete(&model.Setting{})
 	rerun()
-	if read() != defaultTemplate {
-		t.Errorf("missing template must be created with default, got %q", read())
+	var count int64
+	db.Model(model.Setting{}).Where("key = ?", "remarkTemplate").Count(&count)
+	if count != 0 {
+		t.Errorf("missing template must not be created by the seeder, got %d row(s)", count)
 	}
 }
