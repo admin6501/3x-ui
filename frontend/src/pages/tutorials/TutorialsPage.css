@@ -1,0 +1,117 @@
+.tutorials-card .ant-card-body {
+  padding-top: 20px;
+}
+
+.tutorials-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tutorials-search {
+  max-width: 280px;
+}
+
+/* Each section reads as its own card rather than a run of collapse rows, so a
+ * long guide stays scannable. */
+.tutorials-collapse.ant-collapse {
+  background: transparent;
+}
+
+.tutorials-collapse > .ant-collapse-item {
+  margin-bottom: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.22);
+  border-radius: 12px !important;
+  overflow: hidden;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.tutorials-collapse > .ant-collapse-item:hover {
+  border-color: rgba(128, 128, 128, 0.4);
+}
+
+.tutorials-collapse > .ant-collapse-item > .ant-collapse-header {
+  align-items: center;
+  padding: 12px 16px;
+  font-weight: 600;
+}
+
+.tutorial-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tutorial-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 15px;
+  color: var(--ant-color-primary, #1677ff);
+  background: rgba(22, 119, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.is-dark .tutorial-section-icon {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tutorial-body {
+  /* Guides read better in a narrow column than across a wide screen. */
+  max-width: 78ch;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.tutorial-paragraph {
+  margin: 0 0 10px;
+}
+
+.tutorial-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.tutorial-bullets {
+  margin: 0 0 10px;
+  padding-inline-start: 20px;
+}
+
+.tutorial-bullets:last-child {
+  margin-bottom: 0;
+}
+
+.tutorial-bullets li {
+  margin-bottom: 6px;
+}
+
+.tutorial-bullets li:last-child {
+  margin-bottom: 0;
+}
+
+.tutorials-empty {
+  padding: 32px 8px;
+  text-align: center;
+}
+
+.tutorials-footer {
+  margin-top: 16px;
+}
+
+.tutorials-footer .ant-tag {
+  white-space: normal;
+  padding: 4px 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 576px) {
+  .tutorials-search {
+    max-width: none;
+    width: 100%;
+  }
+}

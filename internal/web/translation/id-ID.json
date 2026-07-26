@@ -2010,56 +2010,75 @@
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     },
     "tutorials": {
-      "title": "Tutorial Panel",
-      "subtitle": "Panduan cepat untuk menggunakan setiap bagian panel.",
+      "title": "Panduan Panel",
+      "subtitle": "Semua yang bisa dilakukan panel, dijelaskan sesuai urutan kebutuhan — dari login pertama sampai pencadangan.",
+      "searchPlaceholder": "Cari di panduan…",
+      "noResults": "Tidak ada bagian panduan yang cocok dengan pencarian itu.",
+      "footerTip": "Tips: setiap tindakan penghapusan meminta konfirmasi, dan pengaturan baru berlaku setelah Anda menekan Simpan.",
       "sections": {
         "overview": {
-          "title": "Memulai",
-          "body": "Masuk dengan akun admin Anda, lalu buka Pengaturan Panel untuk mengubah nama pengguna, kata sandi, dan port panel. Simpan kredensial ini dengan aman."
+          "title": "Langkah pertama",
+          "body": "Masuk dengan akun admin yang dibuat saat instalasi, lalu amankan panel sebelum menambah pengguna.\n- Ubah nama pengguna, kata sandi, dan port di Pengaturan → Umum.\n- Pakai path URL yang sulit ditebak agar halaman login tidak berada di /.\n- Aktifkan HTTPS dengan sertifikat atau letakkan panel di belakang reverse proxy.\n- Tekan Simpan lalu Restart Panel — pengaturan berlaku setelah restart."
         },
         "dashboard": {
-          "title": "Ikhtisar (Dasbor)",
-          "body": "Dasbor menampilkan sumber daya sistem, status Xray, dan total lalu lintas. Gunakan untuk memantau kesehatan server serta memulai ulang atau menghentikan inti Xray bila perlu."
+          "title": "Ringkasan",
+          "body": "Halaman pertama adalah pemeriksaan kesehatan: beban sistem, status Xray, dan total trafik.\n- CPU, memori, disk, dan jaringan menunjukkan apakah server masih sanggup.\n- Kartu Xray menampilkan versi core dan tombol restart atau stop.\n- Total trafik mencakup seluruh panel; pemakaian per klien ada di halaman Klien.\n- Unduh cadangan dari sini sebelum perubahan berisiko."
         },
         "inbounds": {
-          "title": "Inbound (Inbounds)",
-          "body": "Inbound adalah koneksi yang diterima server Anda. Buat satu dengan memilih protokol (VLESS, VMess, Trojan, Shadowsocks), port, transport, dan opsional TLS/Reality."
+          "title": "Inbound",
+          "body": "Inbound adalah pintu yang dibuka server untuk trafik: satu protokol pada satu port.\n- Pilih protokol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), port, dan transport.\n- Tambahkan TLS atau Reality kecuali inbound memang berada di belakang layanan lain.\n- Menu tiga titik menyalin tautan, menampilkan QR, mereset trafik, dan menggandakan inbound."
         },
         "clients": {
-          "title": "Klien (Clients)",
-          "body": "Klien adalah pengguna yang terhubung melalui sebuah inbound. Tambahkan klien dengan batas lalu lintas, tanggal kedaluwarsa, dan batas IP, lalu bagikan tautan langganan atau konfigurasinya."
+          "title": "Klien",
+          "body": "Klien adalah orang yang terhubung. Satu klien bisa melekat pada beberapa inbound dengan satu tautan langganan.\n- Beri setiap klien kuota, tanggal kedaluwarsa, dan bila perlu batas IP atau perangkat.\n- Nilai 0 pada kuota atau kedaluwarsa berarti tanpa batas.\n- Aksi massal membuat, menyesuaikan, atau menghapus banyak klien sekaligus."
         },
         "plans": {
-          "title": "Paket (Plans)",
-          "body": "Paket adalah templat yang dapat digunakan ulang untuk pengaturan klien umum (lalu lintas, durasi, batas) agar Anda dapat membuat klien baru dengan cepat dan konsisten."
+          "title": "Paket",
+          "body": "Paket adalah produk yang Anda jual, disimpan sekali dan dipakai ulang agar tiap klien baru seragam.\n- Paket memuat durasi, kuota, batas IP, dan siklus reset.\n- Memilih paket mengisi field tersebut di formulir klien dan tetap bisa diubah.\n- Mengubah paket hanya berlaku untuk klien berikutnya, bukan yang sudah ada."
         },
         "groups": {
-          "title": "Grup (Groups)",
-          "body": "Grup menggabungkan beberapa inbound sehingga satu langganan klien dapat memberikan beberapa konfigurasi sekaligus."
-        },
-        "nodes": {
-          "title": "Node (Nodes)",
-          "body": "Node memungkinkan Anda mengelola beberapa server dari satu panel. Tambahkan node untuk menyinkronkan inbound dan klien di beberapa mesin."
+          "title": "Grup",
+          "body": "Grup memberi label pada klien agar bisa dikelola sebagai satu kumpulan.\n- Saring halaman Klien menurut grup untuk melihat klien satu reseller atau satu produk.\n- Aksi massal menerima grup, jadi perpanjangan atau reset satu batch cukup satu langkah.\n- Satu klien berada di satu grup; kosongkan bila tidak perlu."
         },
         "hosts": {
-          "title": "Host (Hosts)",
-          "body": "Host menentukan alamat, port, dan nama (Remark) yang ditampilkan di tautan langganan. Gunakan untuk menerbitkan endpoint yang rapi dan nama kustom bagi pengguna Anda."
+          "title": "Host",
+          "body": "Host menentukan alamat yang benar-benar dihubungi pengguna tanpa mengubah inbound.\n- Tampilkan CDN atau domain bersih alih-alih IP mentah server.\n- Beri satu inbound beberapa host untuk membagikan titik masuk berbeda.\n- Setiap host punya nama, port, dan pengaturan TLS sendiri pada tautan yang dihasilkan."
         },
         "subscription": {
-          "title": "Langganan & Pengaturan",
-          "body": "Di Pengaturan Panel → Langganan, aktifkan layanan langganan, atur jalur dan portnya, serta sesuaikan Templat Remark yang digunakan pada tautan klien."
+          "title": "Langganan",
+          "body": "Server langganan memberi pengguna daftar konfigurasi yang selalu terbarui dari satu tautan.\n- Aktifkan di Pengaturan → Langganan, lalu atur port, path, dan domain.\n- Format biasa, JSON, dan Clash/Mihomo bisa disajikan bersamaan.\n- Template Remark mengatur nama yang tampil di aplikasi pengguna, dengan variabel seperti email dan sisa kuota.\n- Membuka tautan di browser menampilkan halaman status dengan pemakaian, masa aktif, dan tombol aplikasi."
+        },
+        "branding": {
+          "title": "Branding halaman langganan",
+          "body": "Pengaturan → Langganan → Branding mengubah halaman itu menjadi milik Anda, lengkap dengan pratinjau langsung.\n- Atur nama merek, tagline, logo, dan pengumuman untuk info atau pengingat perpanjangan.\n- Pilih warna aksen, latar, radius sudut, dan apakah halaman dikunci terang atau gelap.\n- Sembunyikan bagian yang tidak diperlukan dan tambahkan tombol dukungan, Telegram, atau situs.\n- Tidak ada yang berubah bagi pengguna sampai Anda menyalakan sakelar utama dan menyimpan."
+        },
+        "limits": {
+          "title": "Batas IP dan perangkat",
+          "body": "Dua batas berbeda mencegah satu langganan dibagi-bagi. Gunakan keduanya.\n- Batas IP membatasi alamat yang terhubung bersamaan; kelebihannya diblokir fail2ban, jadi fail2ban harus terpasang.\n- Batas perangkat membatasi jumlah perangkat yang mengunduh langganan lewat HWID yang dikirim aplikasi.\n- Setel nilai default di Pengaturan → Kebijakan Klien dan ubah per klien bila perlu.\n- Formulir klien menampilkan perangkat terdaftar agar Anda bisa mengosongkan slot saat pengguna ganti ponsel."
+        },
+        "cleanup": {
+          "title": "Klien kedaluwarsa",
+          "body": "Klien yang berakhir — tanggalnya lewat atau kuotanya habis — bisa dibersihkan manual atau otomatis.\n- Menu tiga titik pada inbound menghapus klien berakhir milik inbound itu saja.\n- Halaman Klien bisa menghapus semua klien berakhir di seluruh panel sekaligus.\n- Hapus otomatis di Pengaturan → Kebijakan Klien menghapusnya sekian hari setelah kedaluwarsa.\n- Fitur itu diam sampai Anda menyalakannya dan mengisi jumlah hari; 0 hari berarti tidak pernah menghapus."
+        },
+        "nodes": {
+          "title": "Node",
+          "body": "Node membuat satu panel mengelola beberapa server dengan klien dan inbound tetap di satu tempat.\n- Tambahkan node dengan alamat dan token API; panel menyinkronkan inbound dan kliennya.\n- Trafik yang terukur di node dijumlahkan ke total klien di panel ini.\n- mTLS tersedia bila Anda ingin jalur panel–node terautentikasi dua arah."
+        },
+        "backup": {
+          "title": "Cadangan dan pemulihan",
+          "body": "Dialog Cadangan di halaman Ringkasan mengunduh seluruh basis data — admin, inbound, klien, dan pengaturan.\n- Buat cadangan sebelum pembaruan, migrasi, atau perubahan massal.\n- Pemulihan mengganti semuanya, termasuk kredensial admin yang tersimpan di dalamnya.\n- Setelah pemulihan panel restart dan halaman dimuat ulang; masuk dengan kredensial dari cadangan.\n- Simpan salinan di luar server — cadangan yang hanya ada di mesin yang sama bukan cadangan."
         },
         "xray": {
           "title": "Konfigurasi Xray",
-          "body": "Bagian Xray memberi kontrol lanjutan atas inti: outbound, aturan routing, DNS, dan balancer. Edit dengan hati-hati — konfigurasi yang salah dapat menghentikan layanan."
+          "body": "Bagian Xray adalah akses langsung ke core untuk hal yang tidak dicakup inbound.\n- Outbound, aturan routing, DNS, dan balancer punya editor masing-masing.\n- Panel memvalidasi konfigurasi sebelum diterapkan, tetapi konfigurasi valid pun bisa salah.\n- Buat cadangan sebelum menyunting besar — satu aturan keliru bisa memutus semua pengguna."
         },
         "admins": {
-          "title": "Admin (Admins)",
-          "body": "Buat admin tambahan dengan peran (manajer, reseller, hanya-baca) agar tim Anda dapat membantu mengelola panel dengan izin terbatas."
+          "title": "Admin dan peran",
+          "body": "Akun admin tambahan memungkinkan orang lain membantu tanpa menyerahkan seluruh panel.\n- Manager: semuanya kecuali pengaturan panel dan manajemen admin.\n- Reseller: hanya inbound yang ditugaskan, dengan kuota trafik dan klien sendiri.\n- Read-only: bisa melihat, tidak bisa mengubah.\n- Log audit mencatat siapa membuat, mengubah, atau menghapus akun admin."
         },
         "security": {
-          "title": "Tips Keamanan",
-          "body": "Aktifkan autentikasi dua faktor, atur jalur dasar panel kustom, gunakan HTTPS, dan lakukan pencadangan basis data secara berkala agar panel Anda tetap aman."
+          "title": "Menjaga panel tetap aman",
+          "body": "Panel yang terjangkau dari internet layak dilindungi dengan benar.\n- Aktifkan autentikasi dua faktor untuk semua akun admin.\n- Sajikan panel lewat HTTPS dan pindahkan dari port serta path bawaan.\n- Cabut token API yang tidak dipakai dan perhatikan notifikasi percobaan login.\n- Perbarui secara berkala dan cadangkan sebelum tiap pembaruan."
         }
       }
     }

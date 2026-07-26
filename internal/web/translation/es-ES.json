@@ -2010,56 +2010,75 @@
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     },
     "tutorials": {
-      "title": "Tutoriales del Panel",
-      "subtitle": "Una guía rápida para usar cada parte del panel.",
+      "title": "Guía del panel",
+      "subtitle": "Todo lo que hace el panel, explicado en el orden en que lo necesitarás: desde el primer inicio de sesión hasta las copias de seguridad.",
+      "searchPlaceholder": "Buscar en la guía…",
+      "noResults": "Nada en la guía coincide con esa búsqueda.",
+      "footerTip": "Consejo: toda acción destructiva pide confirmación, y los ajustes solo se aplican al pulsar Guardar.",
       "sections": {
         "overview": {
           "title": "Primeros pasos",
-          "body": "Inicia sesión con tu cuenta de administrador y abre Ajustes del Panel para cambiar tu usuario, contraseña y puerto del panel. Mantén estas credenciales seguras."
+          "body": "Entra con la cuenta de administrador creada en la instalación y asegura el panel antes de añadir usuarios.\n- Cambia usuario, contraseña y puerto en Ajustes → General.\n- Usa una ruta URL difícil de adivinar para que el login no esté en /.\n- Activa HTTPS con certificado o pon el panel tras un proxy inverso.\n- Pulsa Guardar y reinicia el panel: los ajustes se aplican tras el reinicio."
         },
         "dashboard": {
-          "title": "Resumen (Panel)",
-          "body": "El panel muestra los recursos del sistema, el estado de Xray y el tráfico total. Úsalo para supervisar el estado del servidor y para reiniciar o detener el núcleo de Xray cuando sea necesario."
+          "title": "Resumen",
+          "body": "La primera página es tu chequeo de salud: carga del sistema, estado de Xray y tráfico total.\n- CPU, memoria, disco y red indican si el servidor va sobrado o justo.\n- La tarjeta de Xray muestra la versión del core y permite reiniciarlo o pararlo.\n- El tráfico total es de todo el panel; el consumo por cliente está en Clientes.\n- Descarga una copia de seguridad desde aquí antes de cualquier cambio arriesgado."
         },
         "inbounds": {
-          "title": "Entradas (Inbounds)",
-          "body": "Las entradas son las conexiones que acepta tu servidor. Crea una eligiendo un protocolo (VLESS, VMess, Trojan, Shadowsocks), un puerto, un transporte y, opcionalmente, TLS/Reality."
+          "title": "Entradas",
+          "body": "Una entrada es una puerta que tu servidor abre al tráfico: un protocolo en un puerto.\n- Elige protocolo (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), puerto y transporte.\n- Añade TLS o Reality salvo que la entrada vaya detrás de otra cosa.\n- El menú de tres puntos copia enlaces, muestra el QR, reinicia el tráfico y clona la entrada."
         },
         "clients": {
-          "title": "Clientes (Clients)",
-          "body": "Los clientes son los usuarios que se conectan a través de una entrada. Agrega un cliente con límite de tráfico, fecha de expiración y límite de IP, y luego comparte su enlace de suscripción o configuración."
+          "title": "Clientes",
+          "body": "Los clientes son quienes se conectan. Uno puede estar en varias entradas y compartir un solo enlace de suscripción.\n- Da a cada cliente cuota, fecha de caducidad y, si hace falta, límite de IP o de dispositivos.\n- Un 0 en cuota o caducidad significa ilimitado.\n- Con las acciones masivas creas, ajustas o eliminas muchos clientes de una vez."
         },
         "plans": {
-          "title": "Planes (Plans)",
-          "body": "Los planes son plantillas reutilizables para ajustes comunes de clientes (tráfico, duración, límites) para crear nuevos clientes de forma rápida y coherente."
+          "title": "Planes",
+          "body": "Los planes son los paquetes que vendes, guardados una vez y reutilizados para que cada cliente salga igual.\n- Un plan lleva duración, cuota, límite de IP y ciclo de reinicio.\n- Elegir un plan rellena esos campos en el formulario; luego puedes ajustarlos.\n- Editar un plan afecta a los clientes futuros, nunca a los existentes."
         },
         "groups": {
-          "title": "Grupos (Groups)",
-          "body": "Los grupos agrupan varias entradas para que una sola suscripción de cliente pueda entregar múltiples configuraciones a la vez."
-        },
-        "nodes": {
-          "title": "Nodos (Nodes)",
-          "body": "Los nodos te permiten gestionar varios servidores desde un solo panel. Agrega un nodo para sincronizar entradas y clientes entre varias máquinas."
+          "title": "Grupos",
+          "body": "Los grupos etiquetan clientes para trabajar con un conjunto entero.\n- Filtra la página de Clientes por grupo para ver solo los de un revendedor o producto.\n- Las acciones masivas aceptan un grupo, así extiendes o reinicias un lote de una vez.\n- Un cliente pertenece a un grupo; déjalo vacío si no lo necesitas."
         },
         "hosts": {
           "title": "Hosts",
-          "body": "Los hosts definen la dirección, el puerto y el nombre (Remark) que aparecen en los enlaces de suscripción. Úsalos para publicar direcciones limpias y nombres personalizados a tus usuarios."
+          "body": "Los hosts deciden a qué dirección se conectan tus usuarios sin tocar la entrada.\n- Publica un CDN o un dominio limpio en lugar de la IP del servidor.\n- Da varios hosts a una entrada para repartir distintos puntos de acceso.\n- Cada host puede llevar su propio nombre, puerto y TLS en el enlace generado."
         },
         "subscription": {
-          "title": "Suscripciones y Ajustes",
-          "body": "En Ajustes del Panel → Suscripción, habilita el servicio de suscripción, define su ruta y puerto, y personaliza la Plantilla de Remark usada en los enlaces de los clientes."
+          "title": "Suscripciones",
+          "body": "El servidor de suscripción entrega a tus usuarios una lista de configuraciones siempre al día desde un enlace.\n- Actívalo en Ajustes → Suscripción y define puerto, ruta y dominio.\n- Los formatos plano, JSON y Clash/Mihomo pueden servirse a la vez.\n- La plantilla Remark controla el nombre que ve el usuario, con variables como email o tráfico restante.\n- Abrir el enlace en un navegador muestra una página de estado con uso, caducidad y botones de apps."
+        },
+        "branding": {
+          "title": "Marca de la página de suscripción",
+          "body": "Ajustes → Suscripción → Marca convierte esa página en la tuya, con vista previa junto a los controles.\n- Define nombre, lema, logotipo y un aviso para anuncios o recordatorios de renovación.\n- Elige color de acento, fondo, radio de esquinas y si la página queda fijada en claro u oscuro.\n- Oculta las secciones que tus usuarios no necesitan y añade botones de soporte, Telegram o web.\n- Nada cambia para los usuarios hasta que actives el interruptor y guardes."
+        },
+        "limits": {
+          "title": "Límites de IP y dispositivos",
+          "body": "Dos límites independientes evitan que una suscripción se comparta. Usa ambos.\n- El límite de IP acota cuántas direcciones se conectan a la vez; fail2ban banea las de más, así que lo requiere instalado.\n- El límite de dispositivos acota cuántos descargan la suscripción, usando el HWID que envía su app.\n- Fija el valor por defecto en Ajustes → Políticas de clientes y ajústalo por cliente cuando haga falta.\n- El formulario del cliente lista los dispositivos registrados para liberar una plaza al cambiar de móvil."
+        },
+        "cleanup": {
+          "title": "Clientes caducados",
+          "body": "Los clientes terminados —fecha pasada o cuota agotada— se limpian a mano o automáticamente.\n- El menú de tres puntos de una entrada borra solo los terminados de esa entrada.\n- La página de Clientes borra todos los terminados del panel en una acción.\n- El borrado automático (Ajustes → Políticas de clientes) los elimina X días después de caducar.\n- Permanece apagado hasta que lo actives y pongas un número de días distinto de 0; 0 nunca borra."
+        },
+        "nodes": {
+          "title": "Nodos",
+          "body": "Los nodos permiten que un panel gobierne varios servidores manteniendo clientes y entradas en un solo sitio.\n- Añade un nodo con su dirección y token de API; el panel sincroniza sus entradas y clientes.\n- El tráfico medido en un nodo se suma al total del cliente en este panel.\n- mTLS está disponible si quieres autenticar el canal panel-nodo por ambos extremos."
+        },
+        "backup": {
+          "title": "Copia de seguridad y restauración",
+          "body": "El diálogo de copia en la página de Resumen descarga toda la base de datos: administradores, entradas, clientes y ajustes.\n- Haz una copia antes de actualizar, migrar o hacer cambios masivos.\n- Restaurar reemplaza todo, incluidas las credenciales de administrador guardadas en la copia.\n- Tras restaurar, el panel se reinicia y la página se recarga; entra con las credenciales de la copia.\n- Guarda copias fuera del servidor: una copia que solo vive en la misma máquina no es una copia."
         },
         "xray": {
-          "title": "Configuraciones de Xray",
-          "body": "La sección Xray ofrece control avanzado del núcleo: salidas, reglas de enrutamiento, DNS y balanceadores. Edita con cuidado: una configuración incorrecta puede detener el servicio."
+          "title": "Configuración de Xray",
+          "body": "La sección Xray es acceso directo al core para lo que las entradas no cubren.\n- Salidas, reglas de enrutado, DNS y balanceadores tienen su propio editor.\n- El panel valida la configuración antes de aplicarla, pero una config válida aún puede ser errónea.\n- Haz copia antes de ediciones grandes: una regla mala corta a todos los usuarios."
         },
         "admins": {
-          "title": "Administradores (Admins)",
-          "body": "Crea administradores adicionales con roles (gerente, revendedor, solo lectura) para que tu equipo ayude a gestionar el panel con permisos limitados."
+          "title": "Administradores y roles",
+          "body": "Las cuentas extra dejan que otros ayuden sin entregar el panel entero.\n- Manager: todo salvo ajustes del panel y gestión de administradores.\n- Revendedor: solo las entradas asignadas, con sus propias cuotas.\n- Solo lectura: mira pero no cambia nada.\n- El registro de auditoría guarda quién creó, cambió o borró una cuenta."
         },
         "security": {
-          "title": "Consejos de seguridad",
-          "body": "Habilita la autenticación de dos factores, define una ruta base personalizada del panel, usa HTTPS y realiza copias de seguridad periódicas de la base de datos para mantener seguro tu panel."
+          "title": "Mantener el panel seguro",
+          "body": "Un panel accesible desde internet merece protegerse en serio.\n- Activa la autenticación en dos pasos en todas las cuentas.\n- Sirve el panel por HTTPS y sácalo del puerto y la ruta por defecto.\n- Revoca tokens de API que ya no uses y vigila los avisos de intentos de acceso.\n- Actualiza con regularidad y haz copia antes de cada actualización."
         }
       }
     }

@@ -55,6 +55,9 @@ Beyond the basics above, the panel also includes:
 - **MTProto (Telegram) proxy** support via the bundled `mtg` sidecar.
 - **Jalali (Persian) / Gregorian calendar** toggle for all dates.
 - **In-panel Tutorials page** (super_admin only) — a multilingual quick-start guide to every panel section.
+- **Device (HWID) limit** — cap how many devices may fetch a client's subscription, using the `x-hwid` header Happ/Hiddify-style apps send. Panel-wide default plus a per-client override, a device list you can clear, and an optional strict mode that refuses apps sending no device id.
+- **Delete expired clients** — clear the ended clients of a single inbound from its row menu, or let the panel sweep them automatically a configurable number of days after they expire (off by default; `0` days never deletes).
+- **Subscription page branding** — build the page your users open in a browser from the panel: brand name, tagline, logo, announcement, colours, background, visible sections, support/Telegram/website buttons and custom CSS, with a live preview.
 - **Hardened security** — CSRF protection, security headers, and configurable session lifetime.
 
 ## Quick Start (online)

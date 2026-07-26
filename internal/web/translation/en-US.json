@@ -2019,56 +2019,75 @@
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     },
     "tutorials": {
-      "title": "Panel Tutorials",
-      "subtitle": "A quick guide to using every part of the panel.",
+      "title": "Panel Guide",
+      "subtitle": "Everything the panel does, explained in the order you will need it — from your first login to backups.",
+      "searchPlaceholder": "Search the guide…",
+      "noResults": "Nothing in the guide matches that search.",
+      "footerTip": "Tip: every destructive action asks for confirmation first, and settings only take effect after you press Save.",
       "sections": {
         "overview": {
-          "title": "Getting Started",
-          "body": "Log in with your admin account, then open Panel Settings to change your username, password, and panel port. Keep these credentials safe."
+          "title": "First steps",
+          "body": "Sign in with the admin account created during installation, then secure the panel before you add any users.\n- Change the username, password and port in Panel Settings → General.\n- Set a hard-to-guess URL path so the login page is not sitting on /.\n- Turn on HTTPS with a certificate, or put the panel behind a reverse proxy.\n- Press Save, then Restart Panel — settings apply only after the restart."
         },
         "dashboard": {
-          "title": "Overview (Dashboard)",
-          "body": "The dashboard shows system resources, Xray status, and total traffic. Use it to monitor server health and to restart or stop the Xray core when needed."
+          "title": "Overview",
+          "body": "The first page is your health check: system load, Xray status and traffic totals at a glance.\n- CPU, memory, disk and network tell you whether the server itself is coping.\n- The Xray card shows the core version and lets you restart or stop it.\n- Traffic totals cover the whole panel; per-client usage lives on the Clients page.\n- Use Backup here to download a copy of the database before any risky change."
         },
         "inbounds": {
           "title": "Inbounds",
-          "body": "Inbounds are the connections your server accepts. Create one by choosing a protocol (VLESS, VMess, Trojan, Shadowsocks), a port, a transport, and optionally TLS/Reality."
+          "body": "An inbound is a door your server opens for traffic: one protocol on one port.\n- Pick a protocol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard …), a port and a transport.\n- Add TLS or Reality unless the inbound is meant to sit behind something else.\n- The three-dot menu on each row copies links, shows a QR code, resets traffic and clones the inbound.\n- The client counters on each row show active, disabled, ended and online users at a glance."
         },
         "clients": {
           "title": "Clients",
-          "body": "Clients are the users who connect through an inbound. Add a client with a traffic limit, an expiry date, and an IP limit, then share its subscription or config link."
+          "body": "Clients are the people who connect. One client can be attached to several inbounds and still share one subscription link.\n- Give each client a traffic quota, an expiry date and, if you need it, an IP or device limit.\n- A quota or expiry of 0 means unlimited.\n- Traffic reset lets a client's counter start over on a schedule instead of expiring.\n- Use bulk actions to create, adjust, attach or delete many clients in one pass."
         },
         "plans": {
           "title": "Plans",
-          "body": "Plans are reusable templates for common client settings (traffic, duration, limits) so you can create new clients quickly and consistently."
+          "body": "Plans are the packages you sell, saved once and reused so every new client is set up identically.\n- A plan carries duration, traffic quota, IP limit and reset cycle.\n- Picking a plan in the client form fills those fields in; you can still adjust them.\n- Editing a plan changes what future clients get — it never rewrites existing ones."
         },
         "groups": {
           "title": "Groups",
-          "body": "Groups bundle several inbounds together so a single client subscription can deliver multiple configs at once."
-        },
-        "nodes": {
-          "title": "Nodes",
-          "body": "Nodes let you manage several servers from one panel. Add a node to sync inbounds and clients across multiple machines."
+          "body": "Groups label clients so you can work with a whole set at once instead of row by row.\n- Filter the Clients page by group to see just one reseller's or one product's users.\n- Bulk actions accept a group, so you can extend or reset a whole batch in one step.\n- A client belongs to one group; leave it empty when you don't need the grouping."
         },
         "hosts": {
           "title": "Hosts",
-          "body": "Hosts define the address, port, and remark shown in subscription links. Use them to publish clean endpoints and custom names to your users."
+          "body": "Hosts decide what address your users actually connect to, without touching the inbound itself.\n- Publish a CDN or a clean domain instead of the server's bare IP.\n- Give one inbound several hosts to hand out different entry points.\n- Each host can carry its own remark, port and TLS settings for the generated link."
         },
         "subscription": {
-          "title": "Subscriptions & Settings",
-          "body": "In Panel Settings → Subscription you enable the subscription service, set its path and port, and customize the Remark Template used in client links."
+          "title": "Subscriptions",
+          "body": "The subscription server hands your users an always-current list of configs from one link.\n- Enable it in Panel Settings → Subscription and set its port, path and domain.\n- Plain, JSON and Clash/Mihomo formats can be served side by side.\n- The Remark Template controls the name shown in the user's app, with variables like email and remaining traffic.\n- Opening the link in a browser shows a status page with usage, expiry and app buttons."
+        },
+        "branding": {
+          "title": "Branding the subscription page",
+          "body": "Panel Settings → Subscription → Branding turns that status page into your own, with a live preview beside the controls.\n- Set a brand name, tagline, logo and a notice for announcements or renewal reminders.\n- Choose the accent colour, background, corner radius and whether the page is pinned to light or dark.\n- Hide any section your users don't need, and add support, Telegram or website buttons.\n- Nothing changes for users until you turn the master switch on and save."
+        },
+        "limits": {
+          "title": "IP and device limits",
+          "body": "Two independent limits stop one subscription being shared around. Use both.\n- IP limit caps how many addresses connect at the same time; fail2ban bans the extras, so it needs fail2ban installed.\n- Device limit caps how many devices may download the subscription, using the HWID their app sends.\n- Set the panel-wide default in Settings → Client Policies, and override it per client when needed.\n- The client form lists the registered devices so you can free a slot when someone changes phone."
+        },
+        "cleanup": {
+          "title": "Expired clients",
+          "body": "Ended clients — expired date or exhausted quota — can be cleared by hand or swept automatically.\n- The three-dot menu on an inbound removes just that inbound's ended clients.\n- The Clients page can delete every ended client across the panel in one action.\n- Auto-delete in Settings → Client Policies removes clients a set number of days after they expire.\n- Auto-delete stays off until you both enable it and set a non-zero number of days; 0 days never deletes."
+        },
+        "nodes": {
+          "title": "Nodes",
+          "body": "Nodes let one panel drive several servers, so clients and inbounds live in one place.\n- Add a node with its address and API token; the panel keeps its inbounds and clients in sync.\n- Traffic measured on a node is folded back into the client's total on this panel.\n- mTLS is available when you want the panel-to-node channel authenticated on both ends."
+        },
+        "backup": {
+          "title": "Backup and restore",
+          "body": "The Backup dialog on the Overview page downloads the whole database — admins, inbounds, clients and settings.\n- Take a backup before upgrades, migrations or any bulk change.\n- Restoring replaces everything, including the admin credentials stored in the backup.\n- After a restore the panel restarts and the page reloads; sign in with the credentials from the backup.\n- Keep copies off the server — a backup that lives only on the same machine is not a backup."
         },
         "xray": {
-          "title": "Xray Configs",
-          "body": "The Xray section gives advanced control over the core: outbounds, routing rules, DNS, and balancers. Edit carefully — a wrong config can stop the service."
+          "title": "Xray configuration",
+          "body": "The Xray section is direct access to the core for the things inbounds don't cover.\n- Outbounds, routing rules, DNS and balancers each have their own editor.\n- The panel validates the configuration before applying it, but a valid config can still be wrong.\n- Take a backup before large edits — a bad rule can cut every user off at once."
         },
         "admins": {
-          "title": "Admins",
-          "body": "Create additional admins with roles (manager, reseller, read-only) so your team can help manage the panel with limited permissions."
+          "title": "Admins and roles",
+          "body": "Extra admin accounts let other people help without handing over the whole panel.\n- Manager: everything except panel settings and admin management.\n- Reseller: only the inbounds assigned to them, with their own traffic and client quotas.\n- Read-only: can look, cannot change anything.\n- The audit log records who created, changed or deleted an admin account."
         },
         "security": {
-          "title": "Security Tips",
-          "body": "Enable two-factor authentication, set a custom panel base path, use HTTPS, and take regular database backups to keep your panel secure."
+          "title": "Keeping the panel safe",
+          "body": "A panel reachable from the internet is worth protecting properly.\n- Turn on two-factor authentication for every admin account.\n- Serve the panel over HTTPS and move it off the default port and path.\n- Rotate API tokens you no longer use, and keep an eye on the login attempt notifications.\n- Update regularly and back up before every update."
         }
       }
     }

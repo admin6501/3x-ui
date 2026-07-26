@@ -2010,56 +2010,75 @@
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     },
     "tutorials": {
-      "title": "Tutoriais do Painel",
-      "subtitle": "Um guia rápido para usar cada parte do painel.",
+      "title": "Guia do painel",
+      "subtitle": "Tudo o que o painel faz, explicado na ordem em que você vai precisar — do primeiro login ao backup.",
+      "searchPlaceholder": "Buscar no guia…",
+      "noResults": "Nada no guia corresponde a essa busca.",
+      "footerTip": "Dica: toda ação destrutiva pede confirmação, e as configurações só valem depois de clicar em Salvar.",
       "sections": {
         "overview": {
           "title": "Primeiros passos",
-          "body": "Faça login com sua conta de administrador e abra Configurações do Painel para alterar seu usuário, senha e porta do painel. Mantenha essas credenciais seguras."
+          "body": "Entre com a conta de administrador criada na instalação e proteja o painel antes de adicionar usuários.\n- Altere usuário, senha e porta em Configurações → Geral.\n- Use um caminho de URL difícil de adivinhar para o login não ficar em /.\n- Ative HTTPS com certificado ou coloque o painel atrás de um proxy reverso.\n- Clique em Salvar e reinicie o painel — as configurações valem após o reinício."
         },
         "dashboard": {
-          "title": "Visão geral (Painel)",
-          "body": "O painel mostra os recursos do sistema, o status do Xray e o tráfego total. Use-o para monitorar a saúde do servidor e reiniciar ou parar o núcleo do Xray quando necessário."
+          "title": "Visão geral",
+          "body": "A primeira página é o check-up: carga do sistema, estado do Xray e tráfego total.\n- CPU, memória, disco e rede mostram se o servidor está dando conta.\n- O cartão do Xray traz a versão do core e permite reiniciar ou parar.\n- O tráfego total é do painel inteiro; o consumo por cliente fica na página Clientes.\n- Baixe um backup daqui antes de qualquer mudança arriscada."
         },
         "inbounds": {
-          "title": "Entradas (Inbounds)",
-          "body": "Entradas são as conexões que seu servidor aceita. Crie uma escolhendo um protocolo (VLESS, VMess, Trojan, Shadowsocks), uma porta, um transporte e, opcionalmente, TLS/Reality."
+          "title": "Entradas",
+          "body": "Uma entrada é a porta que seu servidor abre para o tráfego: um protocolo em uma porta.\n- Escolha protocolo (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), porta e transporte.\n- Ative TLS ou Reality, a menos que a entrada fique atrás de outra coisa.\n- O menu de três pontos copia links, mostra QR, zera o tráfego e clona a entrada."
         },
         "clients": {
-          "title": "Clientes (Clients)",
-          "body": "Clientes são os usuários que se conectam por uma entrada. Adicione um cliente com limite de tráfego, data de expiração e limite de IP e compartilhe seu link de assinatura ou configuração."
+          "title": "Clientes",
+          "body": "Clientes são quem se conecta. Um cliente pode estar em várias entradas e ainda ter um único link de assinatura.\n- Defina cota, data de expiração e, se precisar, limite de IP ou de dispositivos.\n- Cota ou expiração igual a 0 significa ilimitado.\n- As ações em massa criam, ajustam ou excluem muitos clientes de uma vez."
         },
         "plans": {
-          "title": "Planos (Plans)",
-          "body": "Planos são modelos reutilizáveis para configurações comuns de clientes (tráfego, duração, limites), permitindo criar novos clientes de forma rápida e consistente."
+          "title": "Planos",
+          "body": "Planos são os pacotes que você vende, salvos uma vez e reutilizados para que todo cliente saia igual.\n- Um plano guarda duração, cota, limite de IP e ciclo de reinício.\n- Escolher um plano preenche esses campos no formulário; ainda dá para ajustar.\n- Editar um plano vale para os próximos clientes, nunca para os já criados."
         },
         "groups": {
-          "title": "Grupos (Groups)",
-          "body": "Grupos reúnem várias entradas para que uma única assinatura de cliente possa entregar várias configurações de uma vez."
-        },
-        "nodes": {
-          "title": "Nós (Nodes)",
-          "body": "Nós permitem gerenciar vários servidores a partir de um único painel. Adicione um nó para sincronizar entradas e clientes entre várias máquinas."
+          "title": "Grupos",
+          "body": "Grupos rotulam clientes para você trabalhar com um conjunto inteiro.\n- Filtre a página Clientes por grupo para ver só os de um revendedor ou produto.\n- As ações em massa aceitam um grupo, então dá para estender ou zerar um lote de uma vez.\n- Cada cliente fica em um grupo; deixe vazio se não precisar."
         },
         "hosts": {
           "title": "Hosts",
-          "body": "Hosts definem o endereço, a porta e o nome (Remark) exibidos nos links de assinatura. Use-os para publicar endpoints limpos e nomes personalizados para seus usuários."
+          "body": "Hosts definem o endereço que seus usuários realmente acessam, sem mexer na entrada.\n- Publique um CDN ou um domínio limpo em vez do IP do servidor.\n- Dê vários hosts a uma entrada para distribuir pontos de acesso diferentes.\n- Cada host pode ter nome, porta e TLS próprios no link gerado."
         },
         "subscription": {
-          "title": "Assinaturas e Configurações",
-          "body": "Em Configurações do Painel → Assinatura, ative o serviço de assinatura, defina seu caminho e porta e personalize o Modelo de Remark usado nos links dos clientes."
+          "title": "Assinaturas",
+          "body": "O servidor de assinatura entrega uma lista sempre atual de configurações a partir de um link.\n- Ative em Configurações → Assinatura e defina porta, caminho e domínio.\n- Os formatos simples, JSON e Clash/Mihomo podem ser servidos juntos.\n- O modelo de Remark controla o nome exibido no app do usuário, com variáveis como e-mail e tráfego restante.\n- Abrir o link no navegador mostra uma página de status com uso, validade e botões de apps."
+        },
+        "branding": {
+          "title": "Identidade da página de assinatura",
+          "body": "Configurações → Assinatura → Identidade transforma essa página na sua, com prévia ao lado dos controles.\n- Defina nome, slogan, logotipo e um aviso para comunicados ou lembretes de renovação.\n- Escolha cor de destaque, fundo, arredondamento e se a página fica fixa em claro ou escuro.\n- Esconda as seções que seus usuários não precisam e adicione botões de suporte, Telegram ou site.\n- Nada muda para os usuários até você ligar a chave principal e salvar."
+        },
+        "limits": {
+          "title": "Limites de IP e de dispositivos",
+          "body": "Dois limites independentes impedem que uma assinatura seja compartilhada. Use os dois.\n- O limite de IP restringe quantos endereços se conectam ao mesmo tempo; o fail2ban bane o excesso, então ele precisa estar instalado.\n- O limite de dispositivos restringe quantos aparelhos baixam a assinatura, usando o HWID enviado pelo app.\n- Defina o padrão em Configurações → Políticas de clientes e ajuste por cliente quando precisar.\n- O formulário do cliente lista os dispositivos registrados para liberar uma vaga na troca de celular."
+        },
+        "cleanup": {
+          "title": "Clientes expirados",
+          "body": "Clientes encerrados — data vencida ou cota esgotada — podem ser limpos à mão ou automaticamente.\n- O menu de três pontos de uma entrada remove só os encerrados daquela entrada.\n- A página Clientes apaga todos os encerrados do painel em uma ação.\n- A exclusão automática (Configurações → Políticas de clientes) remove X dias após vencer.\n- Ela fica desligada até você ativá-la e definir dias diferente de 0; 0 nunca exclui."
+        },
+        "nodes": {
+          "title": "Nós",
+          "body": "Nós permitem que um painel comande vários servidores, com clientes e entradas em um só lugar.\n- Adicione um nó com endereço e token de API; o painel sincroniza entradas e clientes.\n- O tráfego medido no nó entra no total do cliente neste painel.\n- mTLS está disponível se você quiser autenticar o canal painel–nó nas duas pontas."
+        },
+        "backup": {
+          "title": "Backup e restauração",
+          "body": "A janela de backup na Visão geral baixa o banco inteiro — administradores, entradas, clientes e configurações.\n- Faça backup antes de atualizações, migrações ou mudanças em massa.\n- Restaurar substitui tudo, inclusive as credenciais de administrador guardadas no arquivo.\n- Depois de restaurar, o painel reinicia e a página recarrega; entre com as credenciais do backup.\n- Guarde cópias fora do servidor — um backup que só existe na mesma máquina não é backup."
         },
         "xray": {
-          "title": "Configurações do Xray",
-          "body": "A seção Xray oferece controle avançado do núcleo: saídas, regras de roteamento, DNS e balanceadores. Edite com cuidado — uma configuração errada pode parar o serviço."
+          "title": "Configuração do Xray",
+          "body": "A seção Xray é acesso direto ao core para o que as entradas não cobrem.\n- Saídas, regras de roteamento, DNS e balanceadores têm editores próprios.\n- O painel valida a configuração antes de aplicar, mas uma config válida ainda pode estar errada.\n- Faça backup antes de edições grandes — uma regra ruim derruba todos os usuários."
         },
         "admins": {
-          "title": "Administradores (Admins)",
-          "body": "Crie administradores adicionais com funções (gerente, revendedor, somente leitura) para que sua equipe ajude a gerenciar o painel com permissões limitadas."
+          "title": "Administradores e papéis",
+          "body": "Contas extras deixam outras pessoas ajudarem sem receber o painel inteiro.\n- Manager: tudo, menos configurações do painel e gestão de administradores.\n- Revendedor: apenas as entradas atribuídas, com cotas próprias.\n- Somente leitura: vê, mas não altera nada.\n- O log de auditoria registra quem criou, alterou ou excluiu uma conta."
         },
         "security": {
-          "title": "Dicas de segurança",
-          "body": "Ative a autenticação de dois fatores, defina um caminho base personalizado do painel, use HTTPS e faça backups regulares do banco de dados para manter seu painel seguro."
+          "title": "Mantendo o painel seguro",
+          "body": "Um painel acessível pela internet merece proteção de verdade.\n- Ative a autenticação em dois fatores em todas as contas de administrador.\n- Sirva o painel por HTTPS e tire-o da porta e do caminho padrão.\n- Revogue tokens de API sem uso e acompanhe os avisos de tentativa de login.\n- Atualize com frequência e faça backup antes de cada atualização."
         }
       }
     }

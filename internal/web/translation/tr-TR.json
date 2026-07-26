@@ -2010,56 +2010,75 @@
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     },
     "tutorials": {
-      "title": "Panel Eğitimleri",
-      "subtitle": "Panelin her bölümünü kullanmak için hızlı bir kılavuz.",
+      "title": "Panel Rehberi",
+      "subtitle": "Panelin yaptığı her şey, ihtiyaç duyacağınız sırayla — ilk girişten yedeklemeye kadar.",
+      "searchPlaceholder": "Rehberde ara…",
+      "noResults": "Bu aramayla eşleşen bir bölüm yok.",
+      "footerTip": "İpucu: her silme işlemi önce onay ister ve ayarlar yalnızca Kaydet'e bastıktan sonra geçerli olur.",
       "sections": {
         "overview": {
-          "title": "Başlarken",
-          "body": "Yönetici hesabınızla giriş yapın, ardından kullanıcı adınızı, şifrenizi ve panel portunu değiştirmek için Panel Ayarları'nı açın. Bu bilgileri güvende tutun."
+          "title": "İlk adımlar",
+          "body": "Kurulumda oluşturulan yönetici hesabıyla girin ve kullanıcı eklemeden önce paneli güvene alın.\n- Ayarlar → Genel bölümünden kullanıcı adı, parola ve portu değiştirin.\n- Giriş sayfası / üzerinde kalmasın diye tahmini zor bir URL yolu belirleyin.\n- Sertifikayla HTTPS açın veya paneli ters vekil sunucu arkasına alın.\n- Kaydet'e basıp paneli yeniden başlatın — ayarlar yeniden başlatmadan sonra uygulanır."
         },
         "dashboard": {
-          "title": "Genel Bakış (Panel)",
-          "body": "Panel; sistem kaynaklarını, Xray durumunu ve toplam trafiği gösterir. Sunucu sağlığını izlemek ve gerektiğinde Xray çekirdeğini yeniden başlatmak veya durdurmak için kullanın."
+          "title": "Genel bakış",
+          "body": "İlk sayfa sağlık kontrolüdür: sistem yükü, Xray durumu ve toplam trafik.\n- CPU, bellek, disk ve ağ sunucunun yükü kaldırıp kaldırmadığını gösterir.\n- Xray kartı çekirdek sürümünü gösterir, yeniden başlatma ve durdurma sunar.\n- Toplam trafik tüm panele aittir; kullanıcı bazlı tüketim Kullanıcılar sayfasındadır.\n- Riskli her değişiklikten önce buradan yedek indirin."
         },
         "inbounds": {
-          "title": "Gelenler (Inbounds)",
-          "body": "Gelenler, sunucunuzun kabul ettiği bağlantılardır. Bir protokol (VLESS, VMess, Trojan, Shadowsocks), port, taşıma ve isteğe bağlı TLS/Reality seçerek bir gelen oluşturun."
+          "title": "Gelen bağlantılar",
+          "body": "Gelen bağlantı, sunucunuzun trafiğe açtığı kapıdır: tek portta tek protokol.\n- Protokol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), port ve taşıma seçin.\n- Başka bir şeyin arkasında değilse TLS veya Reality ekleyin.\n- Satırdaki üç nokta menüsü bağlantıları kopyalar, QR gösterir, trafiği sıfırlar ve kopyalar."
         },
         "clients": {
-          "title": "İstemciler (Clients)",
-          "body": "İstemciler, bir gelen üzerinden bağlanan kullanıcılardır. Trafik limiti, son kullanma tarihi ve IP limiti olan bir istemci ekleyin, ardından abonelik veya yapılandırma bağlantısını paylaşın."
+          "title": "Kullanıcılar",
+          "body": "Kullanıcılar bağlanan kişilerdir. Bir kullanıcı birden çok gelen bağlantıya bağlıyken tek abonelik bağlantısı taşıyabilir.\n- Her kullanıcıya kota, bitiş tarihi ve gerekiyorsa IP veya cihaz limiti verin.\n- Kota veya bitişte 0 sınırsız demektir.\n- Toplu işlemlerle çok sayıda kullanıcıyı tek seferde oluşturun, güncelleyin veya silin."
         },
         "plans": {
-          "title": "Planlar (Plans)",
-          "body": "Planlar; yaygın istemci ayarları (trafik, süre, limitler) için yeniden kullanılabilir şablonlardır; böylece yeni istemcileri hızlı ve tutarlı biçimde oluşturursunuz."
+          "title": "Paketler",
+          "body": "Paketler sattığınız ürünlerdir; bir kez kaydedilir ve her yeni kullanıcı aynı şekilde kurulur.\n- Paket süre, kota, IP limiti ve sıfırlama döngüsü taşır.\n- Kullanıcı formunda paket seçmek bu alanları doldurur, sonra yine düzenleyebilirsiniz.\n- Paketi düzenlemek yalnızca sonraki kullanıcıları etkiler, mevcutları değiştirmez."
         },
         "groups": {
-          "title": "Gruplar (Groups)",
-          "body": "Gruplar birden çok geleni bir araya toplar; böylece tek bir istemci aboneliği aynı anda birden çok yapılandırma sunabilir."
-        },
-        "nodes": {
-          "title": "Düğümler (Nodes)",
-          "body": "Düğümler, birden çok sunucuyu tek panelden yönetmenizi sağlar. Gelenleri ve istemcileri birden çok makinede eşitlemek için bir düğüm ekleyin."
+          "title": "Gruplar",
+          "body": "Gruplar kullanıcıları etiketler; böylece tek tek değil, küme halinde çalışırsınız.\n- Kullanıcılar sayfasını gruba göre süzerek yalnızca bir bayinin veya ürünün kullanıcılarını görün.\n- Toplu işlemler grup kabul eder, bir partiyi tek adımda uzatır veya sıfırlarsınız.\n- Bir kullanıcı tek gruba aittir; gerekmiyorsa boş bırakın."
         },
         "hosts": {
-          "title": "Ana Bilgisayarlar (Hosts)",
-          "body": "Ana bilgisayarlar, abonelik bağlantılarında görünen adresi, portu ve adı (Remark) tanımlar. Kullanıcılarınıza temiz adresler ve özel adlar sunmak için kullanın."
+          "title": "Hostlar",
+          "body": "Hostlar, gelen bağlantıya dokunmadan kullanıcıların gerçekte bağlandığı adresi belirler.\n- Sunucunun çıplak IP'si yerine CDN veya temiz bir alan adı yayınlayın.\n- Bir gelen bağlantıya birden çok host vererek farklı giriş noktaları dağıtın.\n- Her host üretilen bağlantıda kendi adını, portunu ve TLS ayarını taşıyabilir."
         },
         "subscription": {
-          "title": "Abonelikler ve Ayarlar",
-          "body": "Panel Ayarları → Abonelik bölümünde abonelik hizmetini etkinleştirin, yolunu ve portunu ayarlayın ve istemci bağlantılarında kullanılan Remark Şablonunu özelleştirin."
+          "title": "Abonelikler",
+          "body": "Abonelik sunucusu, tek bağlantıdan her zaman güncel bir yapılandırma listesi sunar.\n- Ayarlar → Abonelik bölümünden açın; port, yol ve alan adını belirleyin.\n- Düz, JSON ve Clash/Mihomo biçimleri aynı anda sunulabilir.\n- Remark şablonu kullanıcının uygulamasında görünen adı belirler; e-posta, kalan trafik gibi değişkenler kullanılır.\n- Bağlantıyı tarayıcıda açmak kullanım, bitiş ve uygulama düğmeleri olan bir durum sayfası gösterir."
+        },
+        "branding": {
+          "title": "Abonelik sayfası markası",
+          "body": "Ayarlar → Abonelik → Marka o sayfayı sizinkine dönüştürür; kontrollerin yanında canlı önizleme vardır.\n- Marka adı, slogan, logo ve duyuru ya da yenileme hatırlatması ekleyin.\n- Vurgu rengini, arka planı, köşe yuvarlaklığını ve sayfanın açık/koyu sabitlenmesini seçin.\n- Kullanıcının ihtiyaç duymadığı bölümleri gizleyin; destek, Telegram veya web sitesi düğmeleri ekleyin.\n- Ana anahtarı açıp kaydedene kadar kullanıcı tarafında hiçbir şey değişmez."
+        },
+        "limits": {
+          "title": "IP ve cihaz limitleri",
+          "body": "Bir aboneliğin paylaşılmasını engelleyen iki bağımsız limit vardır. İkisini birlikte kullanın.\n- IP limiti aynı anda bağlanan adres sayısını sınırlar; fazlasını fail2ban engeller, bu yüzden fail2ban kurulu olmalıdır.\n- Cihaz limiti, uygulamanın gönderdiği HWID ile aboneliği indiren cihaz sayısını sınırlar.\n- Varsayılanı Ayarlar → Kullanıcı Politikaları'nda belirleyip gerektiğinde kullanıcı bazında değiştirin.\n- Kullanıcı formu kayıtlı cihazları listeler; telefon değişiminde bir yer açabilirsiniz."
+        },
+        "cleanup": {
+          "title": "Süresi dolan kullanıcılar",
+          "body": "Biten kullanıcılar — tarihi geçmiş veya kotası tükenmiş — elle ya da otomatik temizlenebilir.\n- Gelen bağlantıdaki üç nokta menüsü yalnızca o bağlantının biten kullanıcılarını siler.\n- Kullanıcılar sayfası panel genelindeki tüm biten kullanıcıları tek işlemde siler.\n- Ayarlar → Kullanıcı Politikaları'ndaki otomatik silme, bitişten belirli gün sonra siler.\n- Hem açmadan hem de sıfırdan farklı gün girmeden çalışmaz; 0 gün asla silmez."
+        },
+        "nodes": {
+          "title": "Nodlar",
+          "body": "Nodlar tek panelin birden çok sunucuyu yönetmesini sağlar; kullanıcılar ve bağlantılar tek yerde kalır.\n- Nodu adresi ve API tokenıyla ekleyin; panel gelen bağlantılarını ve kullanıcılarını eşitler.\n- Nod üzerinde ölçülen trafik bu paneldeki kullanıcı toplamına eklenir.\n- Panel–nod kanalını çift taraflı doğrulamak isterseniz mTLS mevcuttur."
+        },
+        "backup": {
+          "title": "Yedekleme ve geri yükleme",
+          "body": "Genel bakış sayfasındaki Yedek penceresi tüm veritabanını indirir — yöneticiler, bağlantılar, kullanıcılar ve ayarlar.\n- Yükseltme, taşıma veya toplu değişiklik öncesi yedek alın.\n- Geri yükleme her şeyi değiştirir; yedekteki yönetici bilgileri de dahil.\n- Geri yüklemeden sonra panel yeniden başlar ve sayfa yenilenir; yedekteki bilgilerle girin.\n- Kopyaları sunucu dışında saklayın — yalnızca aynı makinede duran yedek, yedek değildir."
         },
         "xray": {
-          "title": "Xray Yapılandırmaları",
-          "body": "Xray bölümü, çekirdek üzerinde gelişmiş denetim sağlar: çıkışlar, yönlendirme kuralları, DNS ve dengeleyiciler. Dikkatli düzenleyin — yanlış yapılandırma hizmeti durdurabilir."
+          "title": "Xray yapılandırması",
+          "body": "Xray bölümü, gelen bağlantıların kapsamadığı işler için çekirdeğe doğrudan erişimdir.\n- Giden bağlantılar, yönlendirme kuralları, DNS ve dengeleyicilerin kendi düzenleyicileri vardır.\n- Panel yapılandırmayı uygulamadan önce doğrular, ama geçerli bir yapılandırma yine de yanlış olabilir.\n- Büyük düzenlemelerden önce yedek alın — hatalı bir kural tüm kullanıcıları kesebilir."
         },
         "admins": {
-          "title": "Yöneticiler (Admins)",
-          "body": "Rolleri (yönetici, bayi, salt okunur) olan ek yöneticiler oluşturun; böylece ekibiniz sınırlı izinlerle paneli yönetmeye yardımcı olur."
+          "title": "Yöneticiler ve roller",
+          "body": "Ek yönetici hesapları, paneli tümüyle devretmeden başkalarının yardım etmesini sağlar.\n- Manager: panel ayarları ve yönetici yönetimi dışında her şey.\n- Bayi: yalnızca kendisine atanan bağlantılar, kendi trafik ve kullanıcı kotalarıyla.\n- Salt okunur: görür ama değiştiremez.\n- Denetim günlüğü hesabı kimin oluşturduğunu, değiştirdiğini veya sildiğini kaydeder."
         },
         "security": {
-          "title": "Güvenlik İpuçları",
-          "body": "İki adımlı doğrulamayı etkinleştirin, özel bir panel temel yolu belirleyin, HTTPS kullanın ve panelinizi güvende tutmak için düzenli veritabanı yedekleri alın."
+          "title": "Paneli güvende tutmak",
+          "body": "İnternetten erişilebilen bir panel doğru düzgün korunmayı hak eder.\n- Tüm yönetici hesapları için iki adımlı doğrulamayı açın.\n- Paneli HTTPS üzerinden sunun, varsayılan port ve yoldan çıkarın.\n- Kullanmadığınız API tokenlarını iptal edin ve giriş denemesi bildirimlerini izleyin.\n- Düzenli güncelleyin ve her güncellemeden önce yedek alın."
         }
       }
     }

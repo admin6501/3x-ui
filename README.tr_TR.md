@@ -55,6 +55,9 @@ Yukarıdakilere ek olarak panel şunları da içerir:
 - **MTProto (Telegram) proxy** desteği, birlikte gelen `mtg` yardımcı bileşeniyle.
 - **Celali (Farsça) / Miladi takvim** tüm tarihler için değiştirilebilir.
 - **Panel içi Eğitimler sayfası** (yalnızca super_admin) — her panel bölümü için çok dilli hızlı başlangıç kılavuzu.
+- **Cihaz (HWID) limiti** — Happ/Hiddify tarzı uygulamaların gönderdiği `x-hwid` başlığıyla, bir kullanıcının aboneliğini kaç cihazın indirebileceğini sınırlar. Panel geneli varsayılan ve kullanıcı bazında geçersiz kılma, temizlenebilir cihaz listesi ve kimlik göndermeyen uygulamaları reddeden isteğe bağlı katı mod.
+- **Süresi dolan kullanıcıları silme** — bir gelen bağlantının biten kullanıcılarını satır menüsünden temizleyin ya da panelin bitişten belirli gün sonra otomatik silmesine izin verin (varsayılan kapalı; 0 gün asla silmez).
+- **Abonelik sayfası markası** — kullanıcılarınızın tarayıcıda açtığı sayfayı panelden oluşturun: marka adı, slogan, logo, duyuru, renkler, arka plan, görünen bölümler, destek/Telegram/web sitesi düğmeleri ve özel CSS, canlı önizlemeyle.
 - **Güçlendirilmiş güvenlik** — CSRF koruması, güvenlik başlıkları ve yapılandırılabilir oturum ömrü.
 
 ## Hızlı Başlangıç (çevrimiçi)

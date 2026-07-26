@@ -2010,56 +2010,75 @@
       "errTrafficQuota": "Traffic quota exhausted for your account. Ask an administrator to raise your traffic quota."
     },
     "tutorials": {
-      "title": "Hướng dẫn Bảng điều khiển",
-      "subtitle": "Hướng dẫn nhanh để sử dụng mọi phần của bảng điều khiển.",
+      "title": "Hướng dẫn bảng điều khiển",
+      "subtitle": "Mọi thứ bảng điều khiển làm được, trình bày theo đúng thứ tự bạn sẽ cần — từ lần đăng nhập đầu tiên đến sao lưu.",
+      "searchPlaceholder": "Tìm trong hướng dẫn…",
+      "noResults": "Không có mục nào khớp với tìm kiếm đó.",
+      "footerTip": "Mẹo: mọi thao tác xóa đều hỏi xác nhận, và cài đặt chỉ có hiệu lực sau khi bạn bấm Lưu.",
       "sections": {
         "overview": {
-          "title": "Bắt đầu",
-          "body": "Đăng nhập bằng tài khoản quản trị, sau đó mở Cài đặt Bảng điều khiển để đổi tên đăng nhập, mật khẩu và cổng bảng điều khiển. Hãy giữ an toàn cho các thông tin này."
+          "title": "Bước đầu tiên",
+          "body": "Đăng nhập bằng tài khoản quản trị tạo lúc cài đặt, rồi bảo vệ bảng điều khiển trước khi thêm người dùng.\n- Đổi tên đăng nhập, mật khẩu và cổng trong Cài đặt → Chung.\n- Đặt đường dẫn URL khó đoán để trang đăng nhập không nằm ở /.\n- Bật HTTPS với chứng chỉ hoặc đặt bảng điều khiển sau proxy ngược.\n- Bấm Lưu rồi khởi động lại — cài đặt chỉ áp dụng sau khi khởi động lại."
         },
         "dashboard": {
-          "title": "Tổng quan (Bảng điều khiển)",
-          "body": "Bảng điều khiển hiển thị tài nguyên hệ thống, trạng thái Xray và tổng lưu lượng. Dùng nó để theo dõi tình trạng máy chủ và khởi động lại hoặc dừng lõi Xray khi cần."
+          "title": "Tổng quan",
+          "body": "Trang đầu tiên là bản kiểm tra sức khỏe: tải hệ thống, trạng thái Xray và tổng lưu lượng.\n- CPU, bộ nhớ, ổ đĩa và mạng cho biết máy chủ có kham nổi hay không.\n- Thẻ Xray hiển thị phiên bản lõi và cho phép khởi động lại hoặc dừng.\n- Tổng lưu lượng là của toàn bảng; mức dùng từng người ở trang Người dùng.\n- Tải bản sao lưu từ đây trước mọi thay đổi rủi ro."
         },
         "inbounds": {
-          "title": "Inbound (Inbounds)",
-          "body": "Inbound là các kết nối mà máy chủ của bạn chấp nhận. Tạo một inbound bằng cách chọn giao thức (VLESS, VMess, Trojan, Shadowsocks), cổng, phương thức truyền và tùy chọn TLS/Reality."
+          "title": "Inbound",
+          "body": "Inbound là cánh cửa máy chủ mở cho lưu lượng: một giao thức trên một cổng.\n- Chọn giao thức (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), cổng và transport.\n- Bật TLS hoặc Reality trừ khi inbound nằm sau một dịch vụ khác.\n- Menu ba chấm sao chép liên kết, hiện mã QR, đặt lại lưu lượng và nhân bản inbound."
         },
         "clients": {
-          "title": "Người dùng (Clients)",
-          "body": "Người dùng là những người kết nối qua một inbound. Thêm người dùng với giới hạn lưu lượng, ngày hết hạn và giới hạn IP, rồi chia sẻ liên kết đăng ký hoặc cấu hình của họ."
+          "title": "Người dùng",
+          "body": "Người dùng là những người kết nối. Một người có thể gắn với nhiều inbound mà vẫn dùng chung một liên kết đăng ký.\n- Đặt dung lượng, ngày hết hạn và nếu cần thì giới hạn IP hoặc thiết bị.\n- Giá trị 0 cho dung lượng hoặc hạn dùng nghĩa là không giới hạn.\n- Thao tác hàng loạt giúp tạo, chỉnh hoặc xóa nhiều người dùng một lần."
         },
         "plans": {
-          "title": "Gói (Plans)",
-          "body": "Gói là các mẫu tái sử dụng cho cài đặt người dùng phổ biến (lưu lượng, thời hạn, giới hạn) để bạn tạo người dùng mới nhanh chóng và nhất quán."
+          "title": "Gói",
+          "body": "Gói chính là sản phẩm bạn bán, lưu một lần và dùng lại để mọi người dùng mới được tạo giống nhau.\n- Gói gồm thời hạn, dung lượng, giới hạn IP và chu kỳ đặt lại.\n- Chọn gói trong biểu mẫu sẽ điền sẵn các trường, bạn vẫn chỉnh được.\n- Sửa gói chỉ ảnh hưởng người dùng tạo sau này, không đụng người đã có."
         },
         "groups": {
-          "title": "Nhóm (Groups)",
-          "body": "Nhóm gộp nhiều inbound lại với nhau để một đăng ký của người dùng có thể cung cấp nhiều cấu hình cùng lúc."
-        },
-        "nodes": {
-          "title": "Node (Nodes)",
-          "body": "Node cho phép bạn quản lý nhiều máy chủ từ một bảng điều khiển. Thêm một node để đồng bộ inbound và người dùng trên nhiều máy."
+          "title": "Nhóm",
+          "body": "Nhóm gán nhãn cho người dùng để bạn làm việc với cả tập thay vì từng dòng.\n- Lọc trang Người dùng theo nhóm để chỉ xem người của một đại lý hoặc một sản phẩm.\n- Thao tác hàng loạt nhận nhóm, nên gia hạn hay đặt lại cả lô chỉ mất một bước.\n- Mỗi người dùng thuộc một nhóm; để trống nếu không cần."
         },
         "hosts": {
-          "title": "Host (Hosts)",
-          "body": "Host xác định địa chỉ, cổng và tên (Remark) hiển thị trong liên kết đăng ký. Dùng chúng để công bố các điểm cuối gọn gàng và tên tùy chỉnh cho người dùng của bạn."
+          "title": "Host",
+          "body": "Host quyết định địa chỉ mà người dùng thực sự kết nối tới, mà không đụng tới inbound.\n- Công bố CDN hoặc tên miền gọn gàng thay vì IP thô của máy chủ.\n- Gán nhiều host cho một inbound để phát nhiều điểm vào khác nhau.\n- Mỗi host có thể mang tên, cổng và cấu hình TLS riêng trong liên kết tạo ra."
         },
         "subscription": {
-          "title": "Đăng ký & Cài đặt",
-          "body": "Trong Cài đặt Bảng điều khiển → Đăng ký, bật dịch vụ đăng ký, đặt đường dẫn và cổng, và tùy chỉnh Mẫu Remark dùng trong liên kết của người dùng."
+          "title": "Đăng ký",
+          "body": "Máy chủ đăng ký cung cấp danh sách cấu hình luôn mới nhất qua một liên kết.\n- Bật trong Cài đặt → Đăng ký và đặt cổng, đường dẫn, tên miền.\n- Các định dạng thường, JSON và Clash/Mihomo có thể phục vụ song song.\n- Mẫu Remark quyết định tên hiển thị trong ứng dụng, với biến như email và dung lượng còn lại.\n- Mở liên kết bằng trình duyệt sẽ thấy trang trạng thái kèm mức dùng, hạn dùng và nút ứng dụng."
+        },
+        "branding": {
+          "title": "Thương hiệu trang đăng ký",
+          "body": "Cài đặt → Đăng ký → Thương hiệu biến trang đó thành của bạn, có xem trước ngay bên cạnh.\n- Đặt tên thương hiệu, khẩu hiệu, logo và thông báo cho tin tức hay nhắc gia hạn.\n- Chọn màu nhấn, nền, độ bo góc và cố định giao diện sáng hay tối.\n- Ẩn phần người dùng không cần và thêm nút hỗ trợ, Telegram hoặc trang web.\n- Người dùng chưa thấy gì thay đổi cho tới khi bạn bật công tắc chính và lưu."
+        },
+        "limits": {
+          "title": "Giới hạn IP và thiết bị",
+          "body": "Hai giới hạn độc lập ngăn việc chia sẻ một đăng ký. Hãy dùng cả hai.\n- Giới hạn IP chặn số địa chỉ kết nối cùng lúc; phần vượt bị fail2ban chặn nên cần cài fail2ban.\n- Giới hạn thiết bị chặn số máy tải đăng ký, dựa trên HWID mà ứng dụng gửi.\n- Đặt mặc định trong Cài đặt → Chính sách người dùng và chỉnh riêng cho từng người khi cần.\n- Biểu mẫu người dùng liệt kê thiết bị đã đăng ký để bạn giải phóng chỗ khi họ đổi máy."
+        },
+        "cleanup": {
+          "title": "Người dùng hết hạn",
+          "body": "Người dùng đã kết thúc — hết hạn hoặc hết dung lượng — có thể dọn thủ công hoặc tự động.\n- Menu ba chấm trên inbound chỉ xóa những người đã kết thúc của inbound đó.\n- Trang Người dùng xóa toàn bộ người đã kết thúc trên cả bảng trong một thao tác.\n- Tự động xóa trong Cài đặt → Chính sách người dùng sẽ xóa sau số ngày đã đặt kể từ khi hết hạn.\n- Nó nằm im cho tới khi bạn vừa bật vừa đặt số ngày khác 0; 0 ngày là không bao giờ xóa."
+        },
+        "nodes": {
+          "title": "Node",
+          "body": "Node cho phép một bảng điều khiển quản lý nhiều máy chủ, giữ người dùng và inbound ở cùng một nơi.\n- Thêm node bằng địa chỉ và API token; bảng sẽ đồng bộ inbound và người dùng của nó.\n- Lưu lượng đo trên node được cộng vào tổng của người dùng trên bảng này.\n- Có sẵn mTLS nếu bạn muốn kênh bảng–node được xác thực hai chiều."
+        },
+        "backup": {
+          "title": "Sao lưu và khôi phục",
+          "body": "Hộp thoại Sao lưu ở trang Tổng quan tải toàn bộ cơ sở dữ liệu — quản trị viên, inbound, người dùng và cài đặt.\n- Hãy sao lưu trước khi nâng cấp, di chuyển hay thay đổi hàng loạt.\n- Khôi phục thay thế mọi thứ, kể cả thông tin đăng nhập quản trị lưu trong bản sao.\n- Sau khi khôi phục, bảng khởi động lại và trang tải lại; hãy đăng nhập bằng thông tin trong bản sao.\n- Giữ bản sao ở ngoài máy chủ — bản chỉ nằm trên cùng máy thì không phải bản sao lưu."
         },
         "xray": {
           "title": "Cấu hình Xray",
-          "body": "Phần Xray cho phép kiểm soát nâng cao lõi: outbound, quy tắc định tuyến, DNS và bộ cân bằng. Hãy chỉnh sửa cẩn thận — cấu hình sai có thể làm dừng dịch vụ."
+          "body": "Mục Xray là truy cập trực tiếp vào lõi cho những gì inbound không lo được.\n- Outbound, luật định tuyến, DNS và balancer đều có trình sửa riêng.\n- Bảng kiểm tra cấu hình trước khi áp dụng, nhưng cấu hình hợp lệ vẫn có thể sai ý.\n- Sao lưu trước khi sửa lớn — một luật sai có thể cắt kết nối của tất cả."
         },
         "admins": {
-          "title": "Quản trị viên (Admins)",
-          "body": "Tạo thêm quản trị viên với vai trò (quản lý, đại lý, chỉ đọc) để nhóm của bạn giúp quản lý bảng điều khiển với quyền hạn giới hạn."
+          "title": "Quản trị viên và vai trò",
+          "body": "Tài khoản quản trị bổ sung giúp người khác hỗ trợ mà không phải giao cả bảng.\n- Manager: mọi thứ trừ cài đặt bảng và quản lý quản trị viên.\n- Đại lý: chỉ những inbound được giao, với hạn mức lưu lượng và người dùng riêng.\n- Chỉ đọc: xem được nhưng không sửa được.\n- Nhật ký kiểm toán ghi lại ai đã tạo, sửa hay xóa tài khoản quản trị."
         },
         "security": {
-          "title": "Mẹo bảo mật",
-          "body": "Bật xác thực hai yếu tố, đặt đường dẫn gốc tùy chỉnh cho bảng điều khiển, dùng HTTPS và sao lưu cơ sở dữ liệu thường xuyên để giữ an toàn cho bảng điều khiển của bạn."
+          "title": "Giữ bảng điều khiển an toàn",
+          "body": "Một bảng điều khiển mở ra Internet xứng đáng được bảo vệ tử tế.\n- Bật xác thực hai lớp cho mọi tài khoản quản trị.\n- Phục vụ bảng qua HTTPS và rời khỏi cổng cùng đường dẫn mặc định.\n- Thu hồi các API token không dùng và để ý thông báo về lần đăng nhập đáng ngờ.\n- Cập nhật đều đặn và sao lưu trước mỗi lần cập nhật."
         }
       }
     }

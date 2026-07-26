@@ -55,6 +55,9 @@ Además de lo anterior, el panel también incluye:
 - **Soporte de proxy MTProto (Telegram)** mediante el sidecar `mtg` incluido.
 - **Calendario Jalali (persa) / Gregoriano** conmutable para todas las fechas.
 - **Página de Tutoriales en el panel** (solo super_admin) — una guía rápida multilingüe de cada sección del panel.
+- **Límite de dispositivos (HWID)** — limita cuántos dispositivos pueden descargar la suscripción de un cliente mediante la cabecera `x-hwid` que envían apps tipo Happ/Hiddify. Valor por defecto del panel con anulación por cliente, lista de dispositivos que puedes vaciar y un modo estricto opcional que rechaza apps sin identificador.
+- **Eliminar clientes caducados** — limpia los clientes terminados de una entrada desde el menú de su fila, o deja que el panel los borre automáticamente pasados X días desde su caducidad (desactivado por defecto; 0 días no borra nunca).
+- **Marca de la página de suscripción** — construye desde el panel la página que tus usuarios abren en el navegador: nombre, lema, logotipo, aviso, colores, fondo, secciones visibles, botones de soporte/Telegram/web y CSS propio, con vista previa en vivo.
 - **Seguridad reforzada** — protección CSRF, cabeceras de seguridad y duración de sesión configurable.
 
 ## Inicio rápido (en línea)
