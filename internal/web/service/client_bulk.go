@@ -707,6 +707,9 @@ func (s *ClientService) BulkDelete(inboundSvc *InboundService, emails []string, 
 					if e := tx.Where("client_email IN ?", batch).Delete(&model.InboundClientIps{}).Error; e != nil {
 						return e
 					}
+					if e := tx.Where("client_email IN ?", batch).Delete(&model.ClientDevice{}).Error; e != nil {
+						return e
+					}
 				}
 			}
 			for _, batch := range chunkInts(successIds, sqlInChunk) {
@@ -1166,6 +1169,56 @@ func (s *ClientService) BulkCreate(inboundSvc *InboundService, payloads []Client
 		}
 	}
 	return result, needRestart, nil
+}
+
+// ExpiredEmailsOlderThan returns the emails of clients whose expiry date passed
+// more than graceDays ago. Auto-renew rows (reset != 0) are excluded — they are
+// scheduled to come back — and so are clients that merely ran out of traffic:
+// a quota is exhausted at an unrecorded moment, so there is no honest way to
+// age it, and silently deleting on "0 days" would be a data-loss trap.
+//
+// A grace of zero returns nothing: callers use that as "never delete".
+func (s *ClientService) ExpiredEmailsOlderThan(graceDays int) ([]string, error) {
+	if graceDays <= 0 {
+		return nil, nil
+	}
+	cutoff := time.Now().AddDate(0, 0, -graceDays).UnixMilli()
+	db := database.GetDB()
+
+	var rows []xray.ClientTraffic
+	err := db.Model(xray.ClientTraffic{}).
+		Where("reset = 0 and expiry_time > 0 and expiry_time <= ?", cutoff).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(rows))
+	emails := make([]string, 0, len(rows))
+	for _, r := range rows {
+		email := strings.TrimSpace(r.Email)
+		if email == "" {
+			continue
+		}
+		key := strings.ToLower(email)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		emails = append(emails, email)
+	}
+	return emails, nil
+}
+
+// DeleteExpiredOlderThan removes every client that has been expired for longer
+// than graceDays and reports how many went. Zero grace deletes nothing.
+func (s *ClientService) DeleteExpiredOlderThan(inboundSvc *InboundService, graceDays int) (int, bool, error) {
+	emails, err := s.ExpiredEmailsOlderThan(graceDays)
+	if err != nil || len(emails) == 0 {
+		return 0, false, err
+	}
+	res, needRestart, err := s.BulkDelete(inboundSvc, emails, false)
+	return res.Deleted, needRestart, err
 }
 
 func (s *ClientService) DelDepleted(inboundSvc *InboundService) (int, bool, error) {

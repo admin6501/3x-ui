@@ -130,6 +130,16 @@ var defaultValueMap = map[string]string{
 	"ldapDefaultExpiryDays": "0",
 	"ldapDefaultLimitIP":    "0",
 
+	// Device (HWID) limit
+	"hwidEnable":         "false",
+	"hwidForced":         "false",
+	"hwidGuardManualSub": "false",
+	"hwidDefaultLimit":   "0",
+
+	// Auto-delete of long-expired clients (0 days = never)
+	"autoDeleteExpiredEnable": "false",
+	"autoDeleteExpiredDays":   "0",
+
 	// Event bus — per-subscriber event filtering (empty = all disabled)
 	"tgEnabledEvents":   "login.attempt,cpu.high",
 	"smtpEnabledEvents": "login.attempt,cpu.high",
@@ -943,6 +953,34 @@ func (s *SettingService) GetLdapDefaultExpiryDays() (int, error) {
 
 func (s *SettingService) GetLdapDefaultLimitIP() (int, error) {
 	return s.getInt("ldapDefaultLimitIP")
+}
+
+// Device (HWID) limit
+
+func (s *SettingService) GetHwidEnable() (bool, error) {
+	return s.getBool("hwidEnable")
+}
+
+func (s *SettingService) GetHwidForced() (bool, error) {
+	return s.getBool("hwidForced")
+}
+
+func (s *SettingService) GetHwidGuardManualSub() (bool, error) {
+	return s.getBool("hwidGuardManualSub")
+}
+
+func (s *SettingService) GetHwidDefaultLimit() (int, error) {
+	return s.getInt("hwidDefaultLimit")
+}
+
+// Auto-delete of expired clients
+
+func (s *SettingService) GetAutoDeleteExpiredEnable() (bool, error) {
+	return s.getBool("autoDeleteExpiredEnable")
+}
+
+func (s *SettingService) GetAutoDeleteExpiredDays() (int, error) {
+	return s.getInt("autoDeleteExpiredDays")
 }
 
 // Event bus — per-subscriber event filtering

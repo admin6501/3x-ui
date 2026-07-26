@@ -775,6 +775,34 @@ export const sections: readonly Section[] = [
         ],
       },
       {
+        method: 'GET',
+        path: '/panel/api/clients/devices/:email',
+        summary: 'List the devices registered against a client by the device (HWID) limit, newest activity first, along with the cap in force for it — the client’s own hwidLimit when set, otherwise the panel default. A limit of 0 means unlimited; devices are still recorded so you can see what connected. `enabled` reflects the panel-wide switch.',
+        params: [
+          { name: 'email', in: 'path', type: 'string', desc: 'Client email.' },
+        ],
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "enabled": true,\n    "limit": 3,\n    "devices": [\n      {\n        "id": 7,\n        "clientEmail": "alice",\n        "hwid": "0f1c…",\n        "deviceOs": "android",\n        "osVersion": "14",\n        "deviceModel": "Pixel 8",\n        "userAgent": "Happ/1.0",\n        "ip": "203.0.113.4",\n        "firstSeen": 1735689600000,\n        "lastSeen": 1735776000000\n      }\n    ]\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/clients/devices/:email/del/:id',
+        summary: 'Forget one registered device, freeing a slot so a replacement device can register on its next subscription fetch.',
+        params: [
+          { name: 'email', in: 'path', type: 'string', desc: 'Client email.' },
+          { name: 'id', in: 'path', type: 'number', desc: 'Device row ID from the devices listing.' },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/clients/devices/:email/clear',
+        summary: 'Forget every device of a client, letting them re-register from scratch. Returns how many rows were removed.',
+        params: [
+          { name: 'email', in: 'path', type: 'string', desc: 'Client email.' },
+        ],
+        response: '{\n  "success": true,\n  "obj": {\n    "deleted": 3\n  }\n}',
+      },
+      {
         method: 'POST',
         path: '/panel/api/clients/onlines',
         summary: 'List the emails of currently connected clients (last seen within the heartbeat window), deduped across every node.',

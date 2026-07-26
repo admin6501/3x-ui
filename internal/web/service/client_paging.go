@@ -21,6 +21,7 @@ type ClientSlim struct {
 	TotalGB    int64               `json:"totalGB"`
 	ExpiryTime int64               `json:"expiryTime"`
 	LimitIP    int                 `json:"limitIp"`
+	HwidLimit  int                 `json:"hwidLimit"`
 	Reset      int                 `json:"reset"`
 	Group      string              `json:"group,omitempty"`
 	Comment    string              `json:"comment,omitempty"`
@@ -299,6 +300,7 @@ func toClientSlim(c ClientWithAttachments) ClientSlim {
 		TotalGB:    c.TotalGB,
 		ExpiryTime: c.ExpiryTime,
 		LimitIP:    c.LimitIP,
+		HwidLimit:  c.HwidLimit,
 		Reset:      c.Reset,
 		Group:      c.Group,
 		Comment:    c.Comment,

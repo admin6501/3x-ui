@@ -61,6 +61,7 @@ type SUBController struct {
 	subJsonService  *SubJsonService
 	subClashService *SubClashService
 	settingService  service.SettingService
+	deviceService   service.ClientDeviceService
 
 	subTemplateMu    sync.RWMutex
 	subTemplateCache map[string]*cachedSubTemplate
@@ -146,6 +147,9 @@ func (a *SUBController) subs(c *gin.Context) {
 	accept := c.GetHeader("Accept")
 	wantsHTML := strings.Contains(strings.ToLower(accept), "text/html") || c.Query("html") == "1" || strings.EqualFold(c.Query("view"), "html")
 	subReq.subscriptionBody = !wantsHTML
+	if !a.allowDevice(c, subId, wantsHTML) {
+		return
+	}
 	subs, emails, lastOnline, traffic, err := subReq.getSubs(subId)
 	if err != nil || len(subs) == 0 {
 		writeSubError(c, err)
@@ -297,6 +301,57 @@ func (a *SUBController) serveSubPage(c *gin.Context, basePath string, page PageD
 	c.Data(http.StatusOK, "text/html; charset=utf-8", out)
 }
 
+// allowDevice enforces the per-client device (HWID) limit for one subscription
+// fetch. It returns true when the request may proceed; when it returns false it
+// has already written the refusal, and the caller must return immediately.
+//
+// manualView marks the browser-facing HTML page, which is only gated when an
+// admin has explicitly asked for it — a browser sends no HWID, so gating it by
+// default would lock everyone out of the info page.
+func (a *SUBController) allowDevice(c *gin.Context, subId string, manualView bool) bool {
+	if !a.deviceService.Enabled() {
+		return true
+	}
+	if manualView && !a.deviceService.GuardManualSub() {
+		return true
+	}
+	email, err := a.deviceService.EmailBySubID(subId)
+	if err != nil {
+		// Never turn a database hiccup into a lockout: the subscription itself
+		// is still authenticated by its unguessable id.
+		logger.Warning("sub: device limit lookup failed, allowing request:", err)
+		return true
+	}
+	if email == "" {
+		return true
+	}
+
+	info := service.DeviceInfo{
+		Hwid:        c.GetHeader(service.HeaderHwid),
+		DeviceOS:    c.GetHeader(service.HeaderDeviceOS),
+		OSVersion:   c.GetHeader(service.HeaderOSVersion),
+		DeviceModel: c.GetHeader(service.HeaderDeviceModel),
+		UserAgent:   c.GetHeader("User-Agent"),
+		Ip:          c.ClientIP(),
+	}
+	result, err := a.deviceService.Check(email, info)
+	if err != nil {
+		logger.Warning("sub: device limit check failed, allowing request:", err)
+		return true
+	}
+	switch result {
+	case service.DeviceLimitReached:
+		logger.Warningf("sub: device limit reached for %q, refusing hwid %q", email, info.Hwid)
+		c.String(http.StatusForbidden, "device limit reached")
+		return false
+	case service.DeviceMissingHwid:
+		logger.Warningf("sub: subscription fetch for %q carried no %s header", email, service.HeaderHwid)
+		c.String(http.StatusForbidden, "device identification required")
+		return false
+	}
+	return true
+}
+
 // setNoCacheHeaders marks a subscription page response as non-cacheable so VPN
 // clients and browsers always fetch fresh traffic/expiry data.
 func setNoCacheHeaders(c *gin.Context) {
@@ -351,6 +406,9 @@ func (a *SUBController) loadSubTemplate(themeDir string) (*template.Template, er
 // subJsons handles HTTP requests for JSON subscription configurations.
 func (a *SUBController) subJsons(c *gin.Context) {
 	subId := c.Param("subid")
+	if !a.allowDevice(c, subId, false) {
+		return
+	}
 	scheme, host, hostWithPort, _ := a.subService.ResolveRequest(c)
 	jsonSub, header, err := a.subJsonService.GetJson(subId, host)
 	if err != nil || len(jsonSub) == 0 {
@@ -368,6 +426,9 @@ func (a *SUBController) subJsons(c *gin.Context) {
 
 func (a *SUBController) subClashs(c *gin.Context) {
 	subId := c.Param("subid")
+	if !a.allowDevice(c, subId, false) {
+		return
+	}
 	scheme, host, hostWithPort, _ := a.subService.ResolveRequest(c)
 	clashSub, header, err := a.subClashService.GetClash(subId, host)
 	if err != nil || len(clashSub) == 0 {

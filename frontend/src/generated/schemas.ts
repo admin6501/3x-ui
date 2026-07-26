@@ -3,6 +3,15 @@ export const SCHEMAS: Record<string, unknown> = {
   "AllSetting": {
     "description": "AllSetting contains all configuration settings for the 3x-ui panel including web server, Telegram bot, and subscription settings.",
     "properties": {
+      "autoDeleteExpiredDays": {
+        "description": "Days a client must stay expired before deletion; 0 = never delete",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "autoDeleteExpiredEnable": {
+        "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
+        "type": "boolean"
+      },
       "datepicker": {
         "description": "Date picker format",
         "type": "string"
@@ -19,6 +28,23 @@ export const SCHEMAS: Record<string, unknown> = {
       "externalTrafficInformURI": {
         "description": "URI for external traffic reporting",
         "type": "string"
+      },
+      "hwidDefaultLimit": {
+        "description": "Device cap for clients that don't set their own; 0 = unlimited",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "hwidEnable": {
+        "description": "Device (HWID) limit — caps how many distinct devices may pull a client's\nsubscription. Devices identify themselves with the x-hwid header that\nHapp/Hiddify-family apps send.\nMaster switch for device-limit enforcement",
+        "type": "boolean"
+      },
+      "hwidForced": {
+        "description": "Reject subscription fetches that carry no HWID header",
+        "type": "boolean"
+      },
+      "hwidGuardManualSub": {
+        "description": "Also gate the browser (HTML) subscription page",
+        "type": "boolean"
       },
       "ldapAutoCreate": {
         "type": "boolean"
@@ -380,10 +406,16 @@ export const SCHEMAS: Record<string, unknown> = {
       }
     },
     "required": [
+      "autoDeleteExpiredDays",
+      "autoDeleteExpiredEnable",
       "datepicker",
       "expireDiff",
       "externalTrafficInformEnable",
       "externalTrafficInformURI",
+      "hwidDefaultLimit",
+      "hwidEnable",
+      "hwidForced",
+      "hwidGuardManualSub",
       "ldapAutoCreate",
       "ldapAutoDelete",
       "ldapBaseDN",
@@ -477,6 +509,15 @@ export const SCHEMAS: Record<string, unknown> = {
   "AllSettingView": {
     "description": "AllSettingView is the browser-safe settings read model. Secret values\nare redacted from the embedded write model and represented by presence\nflags so the UI can show configured/not configured state.",
     "properties": {
+      "autoDeleteExpiredDays": {
+        "description": "Days a client must stay expired before deletion; 0 = never delete",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "autoDeleteExpiredEnable": {
+        "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
+        "type": "boolean"
+      },
       "datepicker": {
         "description": "Date picker format",
         "type": "string"
@@ -513,6 +554,23 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "boolean"
       },
       "hasWarpSecret": {
+        "type": "boolean"
+      },
+      "hwidDefaultLimit": {
+        "description": "Device cap for clients that don't set their own; 0 = unlimited",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "hwidEnable": {
+        "description": "Device (HWID) limit — caps how many distinct devices may pull a client's\nsubscription. Devices identify themselves with the x-hwid header that\nHapp/Hiddify-family apps send.\nMaster switch for device-limit enforcement",
+        "type": "boolean"
+      },
+      "hwidForced": {
+        "description": "Reject subscription fetches that carry no HWID header",
+        "type": "boolean"
+      },
+      "hwidGuardManualSub": {
+        "description": "Also gate the browser (HTML) subscription page",
         "type": "boolean"
       },
       "ldapAutoCreate": {
@@ -875,6 +933,8 @@ export const SCHEMAS: Record<string, unknown> = {
       }
     },
     "required": [
+      "autoDeleteExpiredDays",
+      "autoDeleteExpiredEnable",
       "datepicker",
       "expireDiff",
       "externalTrafficInformEnable",
@@ -886,6 +946,10 @@ export const SCHEMAS: Record<string, unknown> = {
       "hasTgBotToken",
       "hasTwoFactorToken",
       "hasWarpSecret",
+      "hwidDefaultLimit",
+      "hwidEnable",
+      "hwidForced",
+      "hwidGuardManualSub",
       "ldapAutoCreate",
       "ldapAutoDelete",
       "ldapBaseDN",
@@ -1070,6 +1134,10 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Logical grouping label",
         "type": "string"
       },
+      "hwidLimit": {
+        "description": "Device (HWID) limit; 0 = use the panel-wide default",
+        "type": "integer"
+      },
       "id": {
         "description": "Unique client identifier",
         "type": "string"
@@ -1179,6 +1247,9 @@ export const SCHEMAS: Record<string, unknown> = {
       "group": {
         "type": "string"
       },
+      "hwidLimit": {
+        "type": "integer"
+      },
       "id": {
         "type": "integer"
       },
@@ -1220,6 +1291,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "expiryTime",
       "flow",
       "group",
+      "hwidLimit",
       "id",
       "limitIp",
       "password",

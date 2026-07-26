@@ -334,6 +334,11 @@ func (s *ClientService) Update(inboundSvc *InboundService, id int, updated model
 			Update("email", updated.Email).Error; err != nil {
 			return false, err
 		}
+		// Devices are keyed by email, so carry them across the rename instead
+		// of silently resetting the client's device list.
+		if err := (&ClientDeviceService{}).RenameEmail(nil, existing.Email, updated.Email); err != nil {
+			return false, err
+		}
 	}
 
 	if updated.SubID != "" {
@@ -473,6 +478,9 @@ func (s *ClientService) Delete(inboundSvc *InboundService, id int, keepTraffic b
 			return needRestart, err
 		}
 		if err := db.Where("client_email = ?", existing.Email).Delete(&model.InboundClientIps{}).Error; err != nil {
+			return needRestart, err
+		}
+		if err := (&ClientDeviceService{}).DeleteForEmails(db, []string{existing.Email}); err != nil {
 			return needRestart, err
 		}
 	}
@@ -615,6 +623,9 @@ func (s *ClientService) DeleteByEmail(inboundSvc *InboundService, email string, 
 			return needRestart, err
 		}
 		if err := db.Where("client_email = ?", email).Delete(&model.InboundClientIps{}).Error; err != nil {
+			return needRestart, err
+		}
+		if err := (&ClientDeviceService{}).DeleteForEmails(db, []string{email}); err != nil {
 			return needRestart, err
 		}
 	}

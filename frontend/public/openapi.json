@@ -29,6 +29,15 @@
       "AllSetting": {
         "description": "AllSetting contains all configuration settings for the 3x-ui panel including web server, Telegram bot, and subscription settings.",
         "properties": {
+          "autoDeleteExpiredDays": {
+            "description": "Days a client must stay expired before deletion; 0 = never delete",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "autoDeleteExpiredEnable": {
+            "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
+            "type": "boolean"
+          },
           "datepicker": {
             "description": "Date picker format",
             "type": "string"
@@ -45,6 +54,23 @@
           "externalTrafficInformURI": {
             "description": "URI for external traffic reporting",
             "type": "string"
+          },
+          "hwidDefaultLimit": {
+            "description": "Device cap for clients that don't set their own; 0 = unlimited",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hwidEnable": {
+            "description": "Device (HWID) limit — caps how many distinct devices may pull a client's\nsubscription. Devices identify themselves with the x-hwid header that\nHapp/Hiddify-family apps send.\nMaster switch for device-limit enforcement",
+            "type": "boolean"
+          },
+          "hwidForced": {
+            "description": "Reject subscription fetches that carry no HWID header",
+            "type": "boolean"
+          },
+          "hwidGuardManualSub": {
+            "description": "Also gate the browser (HTML) subscription page",
+            "type": "boolean"
           },
           "ldapAutoCreate": {
             "type": "boolean"
@@ -406,10 +432,16 @@
           }
         },
         "required": [
+          "autoDeleteExpiredDays",
+          "autoDeleteExpiredEnable",
           "datepicker",
           "expireDiff",
           "externalTrafficInformEnable",
           "externalTrafficInformURI",
+          "hwidDefaultLimit",
+          "hwidEnable",
+          "hwidForced",
+          "hwidGuardManualSub",
           "ldapAutoCreate",
           "ldapAutoDelete",
           "ldapBaseDN",
@@ -503,6 +535,15 @@
       "AllSettingView": {
         "description": "AllSettingView is the browser-safe settings read model. Secret values\nare redacted from the embedded write model and represented by presence\nflags so the UI can show configured/not configured state.",
         "properties": {
+          "autoDeleteExpiredDays": {
+            "description": "Days a client must stay expired before deletion; 0 = never delete",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "autoDeleteExpiredEnable": {
+            "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
+            "type": "boolean"
+          },
           "datepicker": {
             "description": "Date picker format",
             "type": "string"
@@ -539,6 +580,23 @@
             "type": "boolean"
           },
           "hasWarpSecret": {
+            "type": "boolean"
+          },
+          "hwidDefaultLimit": {
+            "description": "Device cap for clients that don't set their own; 0 = unlimited",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hwidEnable": {
+            "description": "Device (HWID) limit — caps how many distinct devices may pull a client's\nsubscription. Devices identify themselves with the x-hwid header that\nHapp/Hiddify-family apps send.\nMaster switch for device-limit enforcement",
+            "type": "boolean"
+          },
+          "hwidForced": {
+            "description": "Reject subscription fetches that carry no HWID header",
+            "type": "boolean"
+          },
+          "hwidGuardManualSub": {
+            "description": "Also gate the browser (HTML) subscription page",
             "type": "boolean"
           },
           "ldapAutoCreate": {
@@ -901,6 +959,8 @@
           }
         },
         "required": [
+          "autoDeleteExpiredDays",
+          "autoDeleteExpiredEnable",
           "datepicker",
           "expireDiff",
           "externalTrafficInformEnable",
@@ -912,6 +972,10 @@
           "hasTgBotToken",
           "hasTwoFactorToken",
           "hasWarpSecret",
+          "hwidDefaultLimit",
+          "hwidEnable",
+          "hwidForced",
+          "hwidGuardManualSub",
           "ldapAutoCreate",
           "ldapAutoDelete",
           "ldapBaseDN",
@@ -1096,6 +1160,10 @@
             "description": "Logical grouping label",
             "type": "string"
           },
+          "hwidLimit": {
+            "description": "Device (HWID) limit; 0 = use the panel-wide default",
+            "type": "integer"
+          },
           "id": {
             "description": "Unique client identifier",
             "type": "string"
@@ -1205,6 +1273,9 @@
           "group": {
             "type": "string"
           },
+          "hwidLimit": {
+            "type": "integer"
+          },
           "id": {
             "type": "integer"
           },
@@ -1246,6 +1317,7 @@
           "expiryTime",
           "flow",
           "group",
+          "hwidLimit",
           "id",
           "limitIp",
           "password",
@@ -6427,6 +6499,165 @@
                       "type": "string"
                     },
                     "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/clients/devices/{email}": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "List the devices registered against a client by the device (HWID) limit, newest activity first, along with the cap in force for it — the client’s own hwidLimit when set, otherwise the panel default. A limit of 0 means unlimited; devices are still recorded so you can see what connected. `enabled` reflects the panel-wide switch.",
+        "operationId": "get_panel_api_clients_devices_email",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "description": "Client email.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "enabled": true,
+                    "limit": 3,
+                    "devices": [
+                      {
+                        "id": 7,
+                        "clientEmail": "alice",
+                        "hwid": "0f1c…",
+                        "deviceOs": "android",
+                        "osVersion": "14",
+                        "deviceModel": "Pixel 8",
+                        "userAgent": "Happ/1.0",
+                        "ip": "203.0.113.4",
+                        "firstSeen": 1735689600000,
+                        "lastSeen": 1735776000000
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/clients/devices/{email}/del/{id}": {
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Forget one registered device, freeing a slot so a replacement device can register on its next subscription fetch.",
+        "operationId": "post_panel_api_clients_devices_email_del_id",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "description": "Client email.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Device row ID from the devices listing.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/clients/devices/{email}/clear": {
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Forget every device of a client, letting them re-register from scratch. Returns how many rows were removed.",
+        "operationId": "post_panel_api_clients_devices_email_clear",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "description": "Client email.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "deleted": 3
                   }
                 }
               }

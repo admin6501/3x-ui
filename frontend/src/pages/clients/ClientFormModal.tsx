@@ -19,12 +19,13 @@ import {
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, RetweetOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EyeOutlined, MobileOutlined, PlusOutlined, ReloadOutlined, RetweetOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { HttpUtil, RandomUtil } from '@/utils';
 import { formatInboundLabel } from '@/lib/inbounds/label';
 import { normalizeClientIps, type ClientIpInfo } from '@/lib/clients/ip-log';
+import { deviceLabel, type ClientDevice, type DevicesPayload } from '@/lib/clients/devices';
 import { DateTimePicker, SelectAllClearButtons } from '@/components/form';
 import { TLS_FLOW_CONTROL } from '@/schemas/primitives';
 import type { ClientRecord, InboundOption, ExternalLink, ExternalLinkInput } from '@/hooks/useClients';
@@ -117,6 +118,7 @@ interface FormState {
   delayedDays: number;
   reset: number;
   limitIp: number;
+  hwidLimit: number;
   tgId: number;
   group: string;
   comment: string;
@@ -141,6 +143,7 @@ function emptyForm(): FormState {
     delayedDays: 0,
     reset: 0,
     limitIp: 0,
+    hwidLimit: 0,
     tgId: 0,
     group: '',
     comment: '',
@@ -193,6 +196,11 @@ export default function ClientFormModal({
   const [ipsLoading, setIpsLoading] = useState(false);
   const [ipsClearing, setIpsClearing] = useState(false);
   const [ipsModalOpen, setIpsModalOpen] = useState(false);
+  const [devices, setDevices] = useState<ClientDevice[]>([]);
+  const [deviceLimitInForce, setDeviceLimitInForce] = useState(0);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [devicesClearing, setDevicesClearing] = useState(false);
+  const [devicesModalOpen, setDevicesModalOpen] = useState(false);
   const fail2ban = useFail2banStatusQuery();
   const limitIpDisabled = !fail2ban.usable;
   const limitIpNotice = getLimitIpNotice(fail2ban, t);
@@ -265,6 +273,7 @@ export default function ClientFormModal({
         totalGB: bytesToGB(client.totalGB || 0),
         reset: Number(client.reset) || 0,
         limitIp: client.limitIp || 0,
+        hwidLimit: client.hwidLimit || 0,
         tgId: Number(client.tgId) || 0,
         group: client.group || '',
         comment: client.comment || '',
@@ -416,6 +425,49 @@ export default function ClientFormModal({
     }
   }
 
+  async function loadDevices() {
+    if (!isEdit || !client?.email) return;
+    setDevicesLoading(true);
+    try {
+      const msg = await HttpUtil.get<DevicesPayload>(
+        `/panel/api/clients/devices/${encodeURIComponent(client.email)}`,
+        undefined,
+        { silent: true },
+      );
+      if (!msg?.success) { setDevices([]); return; }
+      setDevices(msg.obj?.devices ?? []);
+      setDeviceLimitInForce(msg.obj?.limit ?? 0);
+    } finally {
+      setDevicesLoading(false);
+    }
+  }
+
+  function openDevicesModal() {
+    setDevicesModalOpen(true);
+    void loadDevices();
+  }
+
+  async function deleteDevice(id: number) {
+    if (!isEdit || !client?.email) return;
+    const msg = await HttpUtil.post(
+      `/panel/api/clients/devices/${encodeURIComponent(client.email)}/del/${id}`,
+    ) as ApiMsg;
+    if (msg?.success) setDevices((prev) => prev.filter((d) => d.id !== id));
+  }
+
+  async function clearDevices() {
+    if (!isEdit || !client?.email) return;
+    setDevicesClearing(true);
+    try {
+      const msg = await HttpUtil.post(
+        `/panel/api/clients/devices/${encodeURIComponent(client.email)}/clear`,
+      ) as ApiMsg;
+      if (msg?.success) setDevices([]);
+    } finally {
+      setDevicesClearing(false);
+    }
+  }
+
   function close() {
     onOpenChange(false);
   }
@@ -451,6 +503,7 @@ export default function ClientFormModal({
       delayedDays: form.delayedDays,
       reset: form.reset,
       limitIp: form.limitIp,
+      hwidLimit: form.hwidLimit,
       tgId: form.tgId,
       group: form.group,
       comment: form.comment,
@@ -477,6 +530,7 @@ export default function ClientFormModal({
       expiryTime,
       reset: Number(form.reset) || 0,
       limitIp: Number(form.limitIp) || 0,
+      hwidLimit: Number(form.hwidLimit) || 0,
       tgId: Number(form.tgId) || 0,
       group: form.group,
       comment: form.comment,
@@ -618,6 +672,28 @@ export default function ClientFormModal({
                               </Space.Compact>
                             </span>
                           </Tooltip>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item label={t('pages.clients.hwidLimit')} tooltip={t('pages.clients.hwidLimitDesc')}>
+                          <Space.Compact style={{ display: 'flex', width: '100%' }}>
+                            <InputNumber
+                              value={form.hwidLimit}
+                              min={0}
+                              style={{ flex: 1 }}
+                              onChange={(v) => update('hwidLimit', Number(v) || 0)}
+                            />
+                            {isEdit && (
+                              <Tooltip title={t('pages.clients.devices')}>
+                                <Button icon={<MobileOutlined />} loading={devicesLoading} onClick={openDevicesModal}>
+                                  {devices.length > 0 ? devices.length : ''}
+                                </Button>
+                              </Tooltip>
+                            )}
+                          </Space.Compact>
                         </Form.Item>
                       </Col>
                     </Row>
@@ -885,6 +961,77 @@ export default function ClientFormModal({
           </div>
         ) : (
           <Tag>{t('tgbot.noIpRecord')}</Tag>
+        )}
+      </Modal>
+
+      <Modal
+        open={devicesModalOpen}
+        title={`${t('pages.clients.devices')}${client?.email ? ` — ${client.email}` : ''}`}
+        width={520}
+        zIndex={CLIENT_IP_LOG_MODAL_Z_INDEX}
+        onCancel={() => setDevicesModalOpen(false)}
+        footer={[
+          <Button key="refresh" icon={<ReloadOutlined />} loading={devicesLoading} onClick={loadDevices}>
+            {t('refresh')}
+          </Button>,
+          <Button key="clear" danger loading={devicesClearing} disabled={devices.length === 0} onClick={clearDevices}>
+            {t('pages.clients.clearAll')}
+          </Button>,
+          <Button key="close" type="primary" onClick={() => setDevicesModalOpen(false)}>
+            {t('close')}
+          </Button>,
+        ]}
+      >
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+          {deviceLimitInForce > 0
+            ? t('pages.clients.devicesUsage', { used: devices.length, limit: deviceLimitInForce })
+            : t('pages.clients.devicesUnlimited', { used: devices.length })}
+        </Typography.Paragraph>
+        {devices.length > 0 ? (
+          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+            {devices.map((entry) => (
+              <div
+                key={entry.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  padding: '6px 0',
+                  borderBottom: '1px solid rgba(128,128,128,0.2)',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{deviceLabel(entry)}</div>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      fontSize: 12,
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {entry.hwid}
+                  </div>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>
+                    {[entry.ip, entry.lastSeen ? new Date(entry.lastSeen).toLocaleString() : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </div>
+                </div>
+                <Popconfirm
+                  title={t('pages.clients.deviceDeleteConfirm')}
+                  okText={t('delete')}
+                  cancelText={t('cancel')}
+                  onConfirm={() => deleteDevice(entry.id)}
+                >
+                  <Button size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Tag>{t('pages.clients.noDevices')}</Tag>
         )}
       </Modal>
     </>

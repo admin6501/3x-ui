@@ -75,6 +75,7 @@ type ClientController struct {
 	xrayService    service.XrayService
 	settingService service.SettingService
 	adminService   service.AdminService
+	deviceService  service.ClientDeviceService
 }
 
 func NewClientController(g *gin.RouterGroup) *ClientController {
@@ -112,6 +113,9 @@ func (a *ClientController) initRouter(g *gin.RouterGroup) {
 	g.POST("/updateTraffic/:email", a.updateTrafficByEmail)
 	g.POST("/ips/:email", a.getIps)
 	g.POST("/clearIps/:email", a.clearIps)
+	g.GET("/devices/:email", a.getDevices)
+	g.POST("/devices/:email/del/:id", a.deleteDevice)
+	g.POST("/devices/:email/clear", a.clearDevices)
 	g.POST("/onlines", a.onlines)
 	g.POST("/onlinesByGuid", a.onlinesByGuid)
 	g.POST("/clientIpsByGuid", a.clientIpsByGuid)
@@ -535,6 +539,65 @@ func (a *ClientController) getIps(c *gin.Context) {
 	}
 	infos, err := a.inboundService.GetClientIpsWithNodes(email)
 	jsonObj(c, infos, err)
+}
+
+// getDevices lists the devices (HWIDs) registered against a client, together
+// with the cap in force for it, so the UI can show "3 of 5 devices used"
+// without deriving the effective limit itself.
+func (a *ClientController) getDevices(c *gin.Context) {
+	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
+	devices, err := a.deviceService.List(email)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	limit, err := a.deviceService.EffectiveLimit(email)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonObj(c, gin.H{
+		"devices": devices,
+		"limit":   limit,
+		"enabled": a.deviceService.Enabled(),
+	}, nil)
+}
+
+// deleteDevice releases a single device slot — the usual fix when a user
+// replaced a phone and cannot register the new one.
+func (a *ClientController) deleteDevice(c *gin.Context) {
+	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	if err := a.deviceService.Delete(email, id); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.updateSuccess"), nil)
+}
+
+// clearDevices forgets every device of a client, letting them re-register from
+// scratch on the next subscription fetch.
+func (a *ClientController) clearDevices(c *gin.Context) {
+	email := c.Param("email")
+	if !guardClientEmailScope(c, &a.clientService, email) {
+		return
+	}
+	removed, err := a.deviceService.Clear(email)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonObj(c, gin.H{"deleted": removed}, nil)
 }
 
 func (a *ClientController) clientIpsByGuid(c *gin.Context) {

@@ -82,6 +82,12 @@ export class AllSetting {
   ldapDefaultTotalGB = 0;
   ldapDefaultExpiryDays = 0;
   ldapDefaultLimitIP = 0;
+  hwidEnable = false;
+  hwidForced = false;
+  hwidGuardManualSub = false;
+  hwidDefaultLimit = 0;
+  autoDeleteExpiredEnable = false;
+  autoDeleteExpiredDays = 0;
   tgEnabledEvents = '';
   smtpEnable = false;
   smtpHost = '';

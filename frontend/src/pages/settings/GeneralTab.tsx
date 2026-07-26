@@ -12,6 +12,7 @@ import {
   BellOutlined,
   ClockCircleOutlined,
   GlobalOutlined,
+  MobileOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
@@ -252,6 +253,38 @@ export default function GeneralTab({ allSetting, updateSetting }: GeneralTabProp
             </SettingListItem>
             <SettingListItem paddings="small" title={t('pages.settings.privateKeyPath')} description={t('pages.settings.privateKeyPathDesc')}>
               <Input value={allSetting.webKeyFile} onChange={(e) => updateSetting({ webKeyFile: e.target.value })} />
+            </SettingListItem>
+          </>
+        ),
+      },
+      {
+        key: 'clients',
+        label: catTabLabel(<MobileOutlined />, t('pages.settings.clientPolicies'), isMobile),
+        children: (
+          <>
+            <SettingListItem paddings="small" title={t('pages.settings.hwidEnable')} description={t('pages.settings.hwidEnableDesc')}>
+              <Switch checked={allSetting.hwidEnable} onChange={(v) => updateSetting({ hwidEnable: v })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.hwidDefaultLimit')} description={t('pages.settings.hwidDefaultLimitDesc')}>
+              <InputNumber value={allSetting.hwidDefaultLimit} min={0} disabled={!allSetting.hwidEnable} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ hwidDefaultLimit: Number(v) || 0 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.hwidForced')} description={t('pages.settings.hwidForcedDesc')}>
+              <Switch checked={allSetting.hwidForced} disabled={!allSetting.hwidEnable}
+                onChange={(v) => updateSetting({ hwidForced: v })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.hwidGuardManualSub')} description={t('pages.settings.hwidGuardManualSubDesc')}>
+              <Switch checked={allSetting.hwidGuardManualSub} disabled={!allSetting.hwidEnable}
+                onChange={(v) => updateSetting({ hwidGuardManualSub: v })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.autoDeleteExpiredEnable')} description={t('pages.settings.autoDeleteExpiredEnableDesc')}>
+              <Switch checked={allSetting.autoDeleteExpiredEnable}
+                onChange={(v) => updateSetting({ autoDeleteExpiredEnable: v })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.autoDeleteExpiredDays')} description={t('pages.settings.autoDeleteExpiredDaysDesc')}>
+              <InputNumber value={allSetting.autoDeleteExpiredDays} min={0} disabled={!allSetting.autoDeleteExpiredEnable}
+                style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ autoDeleteExpiredDays: Number(v) || 0 })} />
             </SettingListItem>
           </>
         ),

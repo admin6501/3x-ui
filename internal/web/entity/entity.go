@@ -128,6 +128,19 @@ type AllSetting struct {
 
 	// WARP
 	WarpUpdateInterval int `json:"warpUpdateInterval" form:"warpUpdateInterval" validate:"gte=0"`
+
+	// Device (HWID) limit — caps how many distinct devices may pull a client's
+	// subscription. Devices identify themselves with the x-hwid header that
+	// Happ/Hiddify-family apps send.
+	HwidEnable              bool `json:"hwidEnable" form:"hwidEnable"`                                          // Master switch for device-limit enforcement
+	HwidForced              bool `json:"hwidForced" form:"hwidForced"`                                          // Reject subscription fetches that carry no HWID header
+	HwidGuardManualSub      bool `json:"hwidGuardManualSub" form:"hwidGuardManualSub"`                          // Also gate the browser (HTML) subscription page
+	HwidDefaultLimit        int  `json:"hwidDefaultLimit" form:"hwidDefaultLimit" validate:"gte=0"`             // Device cap for clients that don't set their own; 0 = unlimited
+	// Auto-delete of expired clients. Both guards must pass for anything to be
+	// removed: the switch must be on AND the grace period must be greater than
+	// zero, so a stray toggle can never wipe clients on its own.
+	AutoDeleteExpiredEnable bool `json:"autoDeleteExpiredEnable" form:"autoDeleteExpiredEnable"`                // Master switch for the auto-delete job
+	AutoDeleteExpiredDays   int  `json:"autoDeleteExpiredDays" form:"autoDeleteExpiredDays" validate:"gte=0"`   // Days a client must stay expired before deletion; 0 = never delete
 }
 
 // AllSettingView is the browser-safe settings read model. Secret values

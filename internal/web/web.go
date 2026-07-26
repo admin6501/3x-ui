@@ -336,6 +336,10 @@ func (s *Server) startTask(restartXray bool) {
 	// Outbound subscription auto-refresh (respects per-sub updateInterval)
 	s.cron.AddJob(cadenceOutboundSub, job.NewOutboundSubscriptionJob())
 
+	// Sweep clients that have been expired past the configured grace period.
+	// No-op unless an admin switched it on and set a non-zero number of days.
+	s.cron.AddJob("@hourly", job.NewAutoDeleteExpiredClientsJob())
+
 	// check client ips from log file every day
 	s.cron.AddJob("@daily", job.NewClearLogsJob())
 	s.cron.AddJob("@hourly", job.NewWarpIpJob())

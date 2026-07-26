@@ -186,6 +186,30 @@ type InboundClientIps struct {
         Ips         string `json:"ips" form:"ips"`
 }
 
+// ClientDevice is one device that fetched a client's subscription, identified
+// by the HWID header the client app sends. Rows are the enforcement surface for
+// the per-client device limit: a subscription fetch from an unknown device is
+// refused once the client already has as many devices as it is allowed.
+//
+// Keyed on (client_email, hwid) so a returning device refreshes its row instead
+// of consuming another slot. Email — not subId — is the key, matching how every
+// other per-client table in the panel (traffic, IPs) is addressed; rotating a
+// subId therefore keeps the device list, and admins clear it explicitly.
+type ClientDevice struct {
+        Id          int    `json:"id" gorm:"primaryKey;autoIncrement"`
+        ClientEmail string `json:"clientEmail" gorm:"column:client_email;not null;index:idx_client_devices_email_hwid,unique,priority:1"`
+        Hwid        string `json:"hwid" gorm:"column:hwid;not null;index:idx_client_devices_email_hwid,unique,priority:2"`
+        DeviceOS    string `json:"deviceOs" gorm:"column:device_os"`
+        OSVersion   string `json:"osVersion" gorm:"column:os_version"`
+        DeviceModel string `json:"deviceModel" gorm:"column:device_model"`
+        UserAgent   string `json:"userAgent" gorm:"column:user_agent"`
+        Ip          string `json:"ip" gorm:"column:ip"`
+        FirstSeen   int64  `json:"firstSeen" gorm:"column:first_seen"`
+        LastSeen    int64  `json:"lastSeen" gorm:"column:last_seen"`
+}
+
+func (ClientDevice) TableName() string { return "client_devices" }
+
 // MarshalJSON emits the Ips column as a real JSON array instead of an escaped
 // JSON-text string. Empty or unparseable storage renders as null so API
 // consumers don't have to special-case the legacy double-encoded shape.
@@ -671,6 +695,7 @@ type Client struct {
         Auth       string         `json:"auth,omitempty"`               // Auth password (Hysteria)
         Email      string         `json:"email"`                        // Client email identifier
         LimitIP    int            `json:"limitIp"`                      // IP limit for this client
+        HwidLimit  int            `json:"hwidLimit,omitempty"`          // Device (HWID) limit; 0 = use the panel-wide default
         TotalGB    int64          `json:"totalGB" form:"totalGB"`       // Total traffic limit in GB
         ExpiryTime int64          `json:"expiryTime" form:"expiryTime"` // Expiration timestamp
         Enable     bool           `json:"enable" form:"enable"`         // Whether the client is enabled
@@ -694,6 +719,7 @@ type ClientRecord struct {
         Security   string `json:"security"`
         Reverse    string `json:"reverse" gorm:"column:reverse"`
         LimitIP    int    `json:"limitIp" gorm:"column:limit_ip"`
+        HwidLimit  int    `json:"hwidLimit" gorm:"column:hwid_limit;default:0"`
         TotalGB    int64  `json:"totalGB" gorm:"column:total_gb"`
         ExpiryTime int64  `json:"expiryTime" gorm:"column:expiry_time"`
         Enable     bool   `json:"enable" gorm:"default:true"`
@@ -859,6 +885,7 @@ func (c *Client) ToRecord() *ClientRecord {
                 Flow:       c.Flow,
                 Security:   c.Security,
                 LimitIP:    c.LimitIP,
+                HwidLimit:  c.HwidLimit,
                 TotalGB:    c.TotalGB,
                 ExpiryTime: c.ExpiryTime,
                 Enable:     c.Enable,
@@ -887,6 +914,7 @@ func (r *ClientRecord) ToClient() *Client {
                 Flow:       r.Flow,
                 Security:   r.Security,
                 LimitIP:    r.LimitIP,
+                HwidLimit:  r.HwidLimit,
                 TotalGB:    r.TotalGB,
                 ExpiryTime: r.ExpiryTime,
                 Enable:     r.Enable,
@@ -1009,6 +1037,16 @@ func MergeClientRecord(existing *ClientRecord, incoming *ClientRecord) []ClientM
                 if picked != existing.LimitIP {
                         keep("limitIp", existing.LimitIP, incoming.LimitIP, picked)
                         existing.LimitIP = picked
+                }
+        }
+        if existing.HwidLimit != incoming.HwidLimit && incoming.HwidLimit != 0 {
+                picked := existing.HwidLimit
+                if existing.HwidLimit == 0 || incoming.HwidLimit > existing.HwidLimit {
+                        picked = incoming.HwidLimit
+                }
+                if picked != existing.HwidLimit {
+                        keep("hwidLimit", existing.HwidLimit, incoming.HwidLimit, picked)
+                        existing.HwidLimit = picked
                 }
         }
         if existing.TgID != incoming.TgID && incoming.TgID != 0 {
