@@ -1,0 +1,58 @@
+/* The preview reuses the subscription page's stylesheet, so it needs to undo
+ * the few rules that only make sense on a full page of its own. */
+.subscription-page.brand-preview {
+  min-height: 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  overflow: hidden;
+}
+
+.subscription-page.brand-preview.has-brand-bg {
+  background-attachment: scroll;
+}
+
+.subscription-page.brand-preview .subscription-card {
+  margin-top: 0;
+}
+
+.brand-preview-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.brand-preview-table > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.brand-preview-usage {
+  margin-bottom: 12px;
+}
+
+.brand-preview-usage-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.brand-preview-links {
+  margin-bottom: 12px;
+}
+
+.brand-preview-apps {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}

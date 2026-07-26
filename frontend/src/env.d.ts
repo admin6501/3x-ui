@@ -21,6 +21,9 @@ interface SubPageData {
   downloadByte?: string | number;
   uploadByte?: string | number;
   usedByte?: string | number;
+  // Branding document authored in the panel. Present only when branding is
+  // switched on; shape is validated client-side by normalizeSubBranding.
+  branding?: unknown;
 }
 
 interface Window {

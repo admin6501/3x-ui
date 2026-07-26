@@ -29,13 +29,14 @@ import TelegramTab from './TelegramTab';
 import EmailTab from './EmailTab';
 import SubscriptionGeneralTab from './SubscriptionGeneralTab';
 import SubscriptionFormatsTab from './SubscriptionFormatsTab';
+import SubscriptionBrandingTab from './SubscriptionBrandingTab';
 import './SettingsPage.css';
 
 interface ApiMsg {
   success?: boolean;
 }
 
-const tabSlugs = ['general', 'security', 'telegram', 'email', 'subscription', 'subscription-formats'];
+const tabSlugs = ['general', 'security', 'telegram', 'email', 'subscription', 'subscription-branding', 'subscription-formats'];
 
 function isIp(h: string): boolean {
   if (typeof h !== 'string') return false;
@@ -200,6 +201,7 @@ export default function SettingsPage() {
       case 'telegram': return <TelegramTab allSetting={allSetting} updateSetting={updateSetting} />;
       case 'email': return <EmailTab allSetting={allSetting} updateSetting={updateSetting} />;
       case 'subscription': return <SubscriptionGeneralTab allSetting={allSetting} updateSetting={updateSetting} />;
+      case 'subscription-branding': return <SubscriptionBrandingTab allSetting={allSetting} updateSetting={updateSetting} />;
       case 'subscription-formats': return <SubscriptionFormatsTab allSetting={allSetting} updateSetting={updateSetting} />;
       default: return <GeneralTab allSetting={allSetting} updateSetting={updateSetting} />;
     }

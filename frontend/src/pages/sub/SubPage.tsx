@@ -31,6 +31,13 @@ import {
 } from '@ant-design/icons';
 
 import { ClipboardManager, IntlUtil, LanguageManager } from '@/utils';
+import {
+  brandingCssVars,
+  hasBrandingHeader,
+  normalizeSubBranding,
+  safeAssetUrl,
+  safeLinkUrl,
+} from '@/lib/sub/branding';
 import { isPostQuantumLink } from '@/lib/xray/inbound-link';
 import { LinkTags, parseLinkParts } from '@/lib/xray/link-label';
 import { setMessageInstance } from '@/utils/messageBus';
@@ -60,6 +67,12 @@ const links: string[] = Array.isArray(subData.links) ? subData.links : [];
 const linkEmails: string[] = Array.isArray(subData.emails) ? subData.emails : [];
 const subEmail = [...new Set(linkEmails.filter(Boolean))].join(', ');
 const datepicker = subData.datepicker || 'gregorian';
+const branding = normalizeSubBranding(subData.branding);
+const brandLogo = safeAssetUrl(branding.logoUrl);
+const brandSupportUrl = safeLinkUrl(branding.supportUrl);
+const brandTelegramUrl = safeLinkUrl(branding.telegramUrl);
+const brandWebsiteUrl = safeLinkUrl(branding.websiteUrl);
+const hasBrandLinks = !!(brandSupportUrl || brandTelegramUrl || brandWebsiteUrl);
 
 const isUnlimited = totalByte <= 0 && expireMs === 0;
 const isActive = (() => {
@@ -86,6 +99,16 @@ export default function SubPage() {
     const onResize = () => setIsMobile(window.innerWidth < 576);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // A branding that pins the theme wins over whatever the visitor last chose:
+  // the point of pinning it is that every visitor sees the same page. 'auto'
+  // (the default) leaves their preference alone.
+  useEffect(() => {
+    if (branding.theme === 'light' && isDark) toggleTheme();
+    if (branding.theme === 'dark' && !isDark) toggleTheme();
+    // Runs on mount only; re-running on every toggle would fight the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onLangChange = useCallback((next: string) => {
@@ -144,8 +167,21 @@ export default function SubPage() {
     const classes = ['subscription-page'];
     if (isDark) classes.push('is-dark');
     if (isUltra) classes.push('is-ultra');
+    if (branding.bgImageUrl) classes.push('has-brand-bg');
+    if (branding.cardOpacity < 100) classes.push('has-brand-glass');
     return classes.join(' ');
   }, [isDark, isUltra]);
+
+  // The branding's accent colour has to reach antd's own components (buttons,
+  // progress, tags), so it is merged into the theme config rather than only
+  // set as a CSS variable.
+  const themeConfig = useMemo(() => {
+    if (!branding.primaryColor) return antdThemeConfig;
+    return {
+      ...antdThemeConfig,
+      token: { ...antdThemeConfig.token, colorPrimary: branding.primaryColor },
+    };
+  }, [antdThemeConfig]);
 
   const descriptionsItems = useMemo(() => {
     const items = [
@@ -226,7 +262,15 @@ export default function SubPage() {
 
   const themeIcon = !isDark ? <SunOutlined /> : !isUltra ? <MoonOutlined /> : <MoonFilled />;
 
-  const cardTitle = (
+  const cardTitle = hasBrandingHeader(branding) ? (
+    <div className="brand-header">
+      {brandLogo && <img className="brand-logo" src={brandLogo} alt="" />}
+      <div className="brand-header-text">
+        <span className="brand-name">{branding.brandName || t('subscription.title')}</span>
+        {branding.tagline && <span className="brand-tagline">{branding.tagline}</span>}
+      </div>
+    </div>
+  ) : (
     <Space>
       <span>{t('subscription.title')}</span>
       <Tag>{sId}</Tag>
@@ -235,15 +279,18 @@ export default function SubPage() {
 
   const cardExtra = (
     <Space size={8} align="center">
-      <Button
-        shape="circle"
-        size="large"
-        className="toolbar-btn"
-        aria-label={t('menu.theme')}
-        title={t('menu.theme')}
-        icon={themeIcon}
-        onClick={cycleTheme}
-      />
+      {branding.showThemeToggle && branding.theme === 'auto' && (
+        <Button
+          shape="circle"
+          size="large"
+          className="toolbar-btn"
+          aria-label={t('menu.theme')}
+          title={t('menu.theme')}
+          icon={themeIcon}
+          onClick={cycleTheme}
+        />
+      )}
+      {branding.showLangToggle && (
       <Popover
         rootClassName={isDark ? 'dark' : 'light'}
         placement="bottomRight"
@@ -268,25 +315,39 @@ export default function SubPage() {
           icon={<TranslationOutlined />}
         />
       </Popover>
+      )}
     </Space>
   );
 
   return (
-    <ConfigProvider theme={antdThemeConfig}>
+    <ConfigProvider theme={themeConfig}>
       {messageContextHolder}
-      <Layout className={pageClass}>
+      {branding.customCss && (
+        // Admin-authored CSS, the escape hatch for anything the controls don't
+        // cover. `</style>` is stripped so the block cannot close itself early
+        // and turn the rest of the document into markup.
+        <style>{branding.customCss.replace(/<\/style/gi, '')}</style>
+      )}
+      <Layout className={pageClass} style={brandingCssVars(branding)}>
         <Layout.Content className="content">
           <Row justify="center">
             <Col xs={24} sm={22} md={18} lg={14} xl={12}>
               <Card hoverable className="subscription-card" title={cardTitle} extra={cardExtra}>
-                <Descriptions
-                  bordered
-                  column={1}
-                  size="small"
-                  className="info-table"
-                  items={descriptionsItems}
-                />
+                {branding.announcement && (
+                  <div className="brand-announcement">{branding.announcement}</div>
+                )}
 
+                {branding.showDetails && (
+                  <Descriptions
+                    bordered
+                    column={1}
+                    size="small"
+                    className="info-table"
+                    items={descriptionsItems}
+                  />
+                )}
+
+                {branding.showUsage && (
                 <SubUsageSummary
                   usedByte={Number(subData.usedByte || 0)
                     || (Number(subData.downloadByte || 0) + Number(subData.uploadByte || 0))}
@@ -297,8 +358,9 @@ export default function SubPage() {
                   expireMs={expireMs}
                   isActive={isActive}
                 />
+                )}
 
-                {(subUrl || subJsonUrl || subClashUrl) && (
+                {branding.showSubLinks && (subUrl || subJsonUrl || subClashUrl) && (
                   <>
                     <Divider>{t('subscription.title')}</Divider>
                     <div className="links-section">
@@ -398,7 +460,7 @@ export default function SubPage() {
                   </>
                 )}
 
-                {links.length > 0 && (
+                {branding.showConfigLinks && links.length > 0 && (
                   <>
                     <Divider>{t('pages.inbounds.copyLink')}</Divider>
                     <div className="links-section">
@@ -471,22 +533,48 @@ export default function SubPage() {
                   </>
                 )}
 
-                <Row gutter={[8, 8]} justify="center" className="apps-row">
-                  <Col xs={24} sm={12} className="app-col">
-                    <Dropdown trigger={['click']} menu={{ items: androidMenuItems }}>
-                      <Button block={isMobile} size="large" type="primary">
-                        <AndroidOutlined /> Android <DownOutlined />
+                {branding.showApps && (
+                  <Row gutter={[8, 8]} justify="center" className="apps-row">
+                    <Col xs={24} sm={12} className="app-col">
+                      <Dropdown trigger={['click']} menu={{ items: androidMenuItems }}>
+                        <Button block={isMobile} size="large" type="primary">
+                          <AndroidOutlined /> Android <DownOutlined />
+                        </Button>
+                      </Dropdown>
+                    </Col>
+                    <Col xs={24} sm={12} className="app-col">
+                      <Dropdown trigger={['click']} menu={{ items: iosMenuItems }}>
+                        <Button block={isMobile} size="large" type="primary">
+                          <AppleOutlined /> iOS <DownOutlined />
+                        </Button>
+                      </Dropdown>
+                    </Col>
+                  </Row>
+                )}
+
+                {hasBrandLinks && (
+                  <div className="brand-links">
+                    {brandSupportUrl && (
+                      <Button type="primary" size="large" href={brandSupportUrl} target="_blank" rel="noopener noreferrer">
+                        {branding.supportText || t('subscription.support')}
                       </Button>
-                    </Dropdown>
-                  </Col>
-                  <Col xs={24} sm={12} className="app-col">
-                    <Dropdown trigger={['click']} menu={{ items: iosMenuItems }}>
-                      <Button block={isMobile} size="large" type="primary">
-                        <AppleOutlined /> iOS <DownOutlined />
+                    )}
+                    {brandTelegramUrl && (
+                      <Button size="large" href={brandTelegramUrl} target="_blank" rel="noopener noreferrer">
+                        Telegram
                       </Button>
-                    </Dropdown>
-                  </Col>
-                </Row>
+                    )}
+                    {brandWebsiteUrl && (
+                      <Button size="large" href={brandWebsiteUrl} target="_blank" rel="noopener noreferrer">
+                        {t('subscription.website')}
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {branding.footerText && (
+                  <div className="brand-footer">{branding.footerText}</div>
+                )}
               </Card>
             </Col>
           </Row>

@@ -128,3 +128,91 @@
   font-size: 18px;
 }
 
+/* ---- Branding ------------------------------------------------------------
+ * Everything below reacts to the custom properties brandingCssVars() sets on
+ * the page wrapper. All of them have a fallback, so a page with no branding
+ * (or a partial one) renders exactly as it did before the feature existed. */
+
+.subscription-page.has-brand-bg {
+  background-image: var(--brand-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* The card is what floats over a background image, so the opacity control
+ * applies to its surface rather than the whole page — text stays readable. */
+.subscription-page.has-brand-glass .subscription-card {
+  background-color: color-mix(in srgb, var(--bg-card) calc(var(--brand-card-opacity, 1) * 100%), transparent);
+  backdrop-filter: blur(10px);
+}
+
+.subscription-page .subscription-card {
+  border-radius: var(--brand-card-radius, 12px);
+}
+
+.subscription-page[style*="--brand-text"] .subscription-card,
+.subscription-page[style*="--brand-text"] .subscription-card .ant-card-head-title {
+  color: var(--brand-text);
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.brand-header-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.brand-tagline {
+  font-size: 12px;
+  opacity: 0.7;
+  font-weight: 400;
+  white-space: normal;
+}
+
+.brand-announcement {
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary, #1677ff) 35%, transparent);
+  background: color-mix(in srgb, var(--brand-primary, #1677ff) 12%, transparent);
+  white-space: pre-wrap;
+}
+
+.brand-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.brand-footer {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.65;
+  white-space: pre-wrap;
+}
+

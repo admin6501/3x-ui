@@ -98,6 +98,8 @@ var defaultValueMap = map[string]string{
 	"subJsonRules":                "",
 	"subJsonFinalMask":            "",
 	"subThemeDir":                 "",
+	"subBrandingEnable":           "false",
+	"subBranding":                 "",
 	"datepicker":                  "gregorian",
 	"warp":                        "",
 	"warpUpdateInterval":          "0",
@@ -685,6 +687,18 @@ func (s *SettingService) GetTimeLocation() (*time.Location, error) {
 
 func (s *SettingService) GetSubEnable() (bool, error) {
 	return s.getBool("subEnable")
+}
+
+// GetSubBrandingEnable reports whether the panel-authored branding is applied
+// to the subscription page.
+func (s *SettingService) GetSubBrandingEnable() (bool, error) {
+	return s.getBool("subBrandingEnable")
+}
+
+// GetSubBranding returns the raw branding document (JSON as authored by the
+// editor). Empty means "never configured".
+func (s *SettingService) GetSubBranding() (string, error) {
+	return s.getString("subBranding")
 }
 
 func (s *SettingService) GetSubJsonEnable() (bool, error) {

@@ -231,7 +231,24 @@ func (a *SUBController) serveSubPage(c *gin.Context, basePath string, page PageD
 		datepicker = "gregorian"
 	}
 
+	// Panel-authored branding. Injected only when switched on, so an untouched
+	// panel keeps the stock page byte for byte. A document that fails to parse
+	// is dropped rather than shipped: the page falls back to its defaults
+	// instead of rendering half a theme.
+	var branding any
+	if enabled, _ := a.settingService.GetSubBrandingEnable(); enabled {
+		if raw, err := a.settingService.GetSubBranding(); err == nil && strings.TrimSpace(raw) != "" {
+			var parsed any
+			if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+				logger.Warning("sub: branding document is not valid JSON, ignoring:", err)
+			} else {
+				branding = parsed
+			}
+		}
+	}
+
 	subData := map[string]any{
+		"branding":      branding,
 		"sId":           page.SId,
 		"enabled":       page.Enabled,
 		"download":      page.Download,

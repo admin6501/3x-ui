@@ -188,6 +188,14 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Subscription announce",
         "type": "string"
       },
+      "subBranding": {
+        "description": "Branding document (JSON) authored by the branding editor",
+        "type": "string"
+      },
+      "subBrandingEnable": {
+        "description": "Apply the visual branding built in the panel to the subscription page",
+        "type": "boolean"
+      },
       "subCertFile": {
         "description": "SSL certificate file for subscription server",
         "type": "string"
@@ -452,6 +460,8 @@ export const SCHEMAS: Record<string, unknown> = {
       "smtpTo",
       "smtpUsername",
       "subAnnounce",
+      "subBranding",
+      "subBrandingEnable",
       "subCertFile",
       "subClashEnable",
       "subClashEnableRouting",
@@ -714,6 +724,14 @@ export const SCHEMAS: Record<string, unknown> = {
       "subAnnounce": {
         "description": "Subscription announce",
         "type": "string"
+      },
+      "subBranding": {
+        "description": "Branding document (JSON) authored by the branding editor",
+        "type": "string"
+      },
+      "subBrandingEnable": {
+        "description": "Apply the visual branding built in the panel to the subscription page",
+        "type": "boolean"
       },
       "subCertFile": {
         "description": "SSL certificate file for subscription server",
@@ -986,6 +1004,8 @@ export const SCHEMAS: Record<string, unknown> = {
       "smtpTo",
       "smtpUsername",
       "subAnnounce",
+      "subBranding",
+      "subBrandingEnable",
       "subCertFile",
       "subClashEnable",
       "subClashEnableRouting",

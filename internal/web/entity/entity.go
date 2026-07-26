@@ -98,9 +98,11 @@ type AllSetting struct {
 	SubClashRules               string `json:"subClashRules" form:"subClashRules"`                             // Clash/Mihomo global routing rules
 	SubJsonMux                  string `json:"subJsonMux" form:"subJsonMux"`                                   // JSON subscription mux configuration
 	SubJsonRules                string `json:"subJsonRules" form:"subJsonRules"`
-	SubJsonFinalMask            string `json:"subJsonFinalMask" form:"subJsonFinalMask"` // JSON subscription global finalmask (tcp/udp masks + quicParams)
-	SubThemeDir                 string `json:"subThemeDir" form:"subThemeDir"`           // Absolute path to a folder containing a custom subscription page template
-	SubHideSettings             bool   `json:"subHideSettings" form:"subHideSettings"`   // Hide server settings in happ subscription (Only for Happ)
+	SubJsonFinalMask            string `json:"subJsonFinalMask" form:"subJsonFinalMask"`   // JSON subscription global finalmask (tcp/udp masks + quicParams)
+	SubThemeDir                 string `json:"subThemeDir" form:"subThemeDir"`             // Absolute path to a folder containing a custom subscription page template
+	SubBrandingEnable           bool   `json:"subBrandingEnable" form:"subBrandingEnable"` // Apply the visual branding built in the panel to the subscription page
+	SubBranding                 string `json:"subBranding" form:"subBranding"`             // Branding document (JSON) authored by the branding editor
+	SubHideSettings             bool   `json:"subHideSettings" form:"subHideSettings"`     // Hide server settings in happ subscription (Only for Happ)
 
 	// LDAP settings
 	LdapEnable     bool   `json:"ldapEnable" form:"ldapEnable"`
@@ -132,15 +134,15 @@ type AllSetting struct {
 	// Device (HWID) limit — caps how many distinct devices may pull a client's
 	// subscription. Devices identify themselves with the x-hwid header that
 	// Happ/Hiddify-family apps send.
-	HwidEnable              bool `json:"hwidEnable" form:"hwidEnable"`                                          // Master switch for device-limit enforcement
-	HwidForced              bool `json:"hwidForced" form:"hwidForced"`                                          // Reject subscription fetches that carry no HWID header
-	HwidGuardManualSub      bool `json:"hwidGuardManualSub" form:"hwidGuardManualSub"`                          // Also gate the browser (HTML) subscription page
-	HwidDefaultLimit        int  `json:"hwidDefaultLimit" form:"hwidDefaultLimit" validate:"gte=0"`             // Device cap for clients that don't set their own; 0 = unlimited
+	HwidEnable         bool `json:"hwidEnable" form:"hwidEnable"`                              // Master switch for device-limit enforcement
+	HwidForced         bool `json:"hwidForced" form:"hwidForced"`                              // Reject subscription fetches that carry no HWID header
+	HwidGuardManualSub bool `json:"hwidGuardManualSub" form:"hwidGuardManualSub"`              // Also gate the browser (HTML) subscription page
+	HwidDefaultLimit   int  `json:"hwidDefaultLimit" form:"hwidDefaultLimit" validate:"gte=0"` // Device cap for clients that don't set their own; 0 = unlimited
 	// Auto-delete of expired clients. Both guards must pass for anything to be
 	// removed: the switch must be on AND the grace period must be greater than
 	// zero, so a stray toggle can never wipe clients on its own.
-	AutoDeleteExpiredEnable bool `json:"autoDeleteExpiredEnable" form:"autoDeleteExpiredEnable"`                // Master switch for the auto-delete job
-	AutoDeleteExpiredDays   int  `json:"autoDeleteExpiredDays" form:"autoDeleteExpiredDays" validate:"gte=0"`   // Days a client must stay expired before deletion; 0 = never delete
+	AutoDeleteExpiredEnable bool `json:"autoDeleteExpiredEnable" form:"autoDeleteExpiredEnable"`              // Master switch for the auto-delete job
+	AutoDeleteExpiredDays   int  `json:"autoDeleteExpiredDays" form:"autoDeleteExpiredDays" validate:"gte=0"` // Days a client must stay expired before deletion; 0 = never delete
 }
 
 // AllSettingView is the browser-safe settings read model. Secret values

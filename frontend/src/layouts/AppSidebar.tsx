@@ -7,6 +7,7 @@ import type { MenuProps } from 'antd';
 import {
   ApiOutlined,
   CloseOutlined,
+  BgColorsOutlined,
   CloudServerOutlined,
   ClusterOutlined,
   CodeOutlined,
@@ -220,6 +221,7 @@ export default function AppSidebar() {
       { key: '/settings#telegram', icon: <MessageOutlined />, label: t('pages.settings.TGBotSettings') },
       { key: '/settings#email', icon: <MailOutlined />, label: t('pages.settings.emailSettings') },
       { key: '/settings#subscription', icon: <CloudServerOutlined />, label: t('pages.settings.subSettings') },
+      { key: '/settings#subscription-branding', icon: <BgColorsOutlined />, label: t('pages.settings.branding.title') },
     ];
     if (showSubFormats) {
       children.push({ key: '/settings#subscription-formats', icon: <CodeOutlined />, label: 'Sub Formats' });

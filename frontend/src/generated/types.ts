@@ -54,6 +54,8 @@ export interface AllSetting {
   smtpTo: string;
   smtpUsername: string;
   subAnnounce: string;
+  subBranding: string;
+  subBrandingEnable: boolean;
   subCertFile: string;
   subClashEnable: boolean;
   subClashEnableRouting: boolean;
@@ -161,6 +163,8 @@ export interface AllSettingView {
   smtpTo: string;
   smtpUsername: string;
   subAnnounce: string;
+  subBranding: string;
+  subBrandingEnable: boolean;
   subCertFile: string;
   subClashEnable: boolean;
   subClashEnableRouting: boolean;

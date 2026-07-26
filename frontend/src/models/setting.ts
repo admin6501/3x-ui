@@ -82,6 +82,8 @@ export class AllSetting {
   ldapDefaultTotalGB = 0;
   ldapDefaultExpiryDays = 0;
   ldapDefaultLimitIP = 0;
+  subBrandingEnable = false;
+  subBranding = '';
   hwidEnable = false;
   hwidForced = false;
   hwidGuardManualSub = false;
