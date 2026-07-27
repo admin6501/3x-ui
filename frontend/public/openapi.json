@@ -196,6 +196,50 @@
             "minimum": 1,
             "type": "integer"
           },
+          "shopConfigDays": {
+            "description": "Validity of a new config in days; 0 = no expiry",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopInboundId": {
+            "description": "Inbound the shop creates configs on",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopJoinChannel": {
+            "description": "Channel the user must join first; empty = no requirement",
+            "type": "string"
+          },
+          "shopMaxTopUp": {
+            "description": "Largest accepted wallet top-up; 0 = no ceiling",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopMaxVolumeGB": {
+            "description": "Largest traffic cap a user may request; 0 = no ceiling",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopMinBalance": {
+            "description": "Balance required before a config may be created",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopMinTopUp": {
+            "description": "Smallest accepted wallet top-up",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopPricePerDay": {
+            "description": "Optional daily fee per live config; 0 = none",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopPricePerGB": {
+            "description": "Telegram shop — wallet-funded, pay-as-you-go config sales.\nCost of one consumed GB; 0 = usage is free",
+            "minimum": 0,
+            "type": "integer"
+          },
           "smtpCpu": {
             "description": "CPU threshold for email notifications",
             "maximum": 100,
@@ -515,6 +559,15 @@
           "salesBotToken",
           "salesBotWelcome",
           "sessionMaxAge",
+          "shopConfigDays",
+          "shopInboundId",
+          "shopJoinChannel",
+          "shopMaxTopUp",
+          "shopMaxVolumeGB",
+          "shopMinBalance",
+          "shopMinTopUp",
+          "shopPricePerDay",
+          "shopPricePerGB",
           "smtpCpu",
           "smtpEnable",
           "smtpEnabledEvents",
@@ -774,6 +827,50 @@
             "description": "Session maximum age in minutes (cap at one year)",
             "maximum": 525600,
             "minimum": 1,
+            "type": "integer"
+          },
+          "shopConfigDays": {
+            "description": "Validity of a new config in days; 0 = no expiry",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopInboundId": {
+            "description": "Inbound the shop creates configs on",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopJoinChannel": {
+            "description": "Channel the user must join first; empty = no requirement",
+            "type": "string"
+          },
+          "shopMaxTopUp": {
+            "description": "Largest accepted wallet top-up; 0 = no ceiling",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopMaxVolumeGB": {
+            "description": "Largest traffic cap a user may request; 0 = no ceiling",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopMinBalance": {
+            "description": "Balance required before a config may be created",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopMinTopUp": {
+            "description": "Smallest accepted wallet top-up",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopPricePerDay": {
+            "description": "Optional daily fee per live config; 0 = none",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shopPricePerGB": {
+            "description": "Telegram shop — wallet-funded, pay-as-you-go config sales.\nCost of one consumed GB; 0 = usage is free",
+            "minimum": 0,
             "type": "integer"
           },
           "smtpCpu": {
@@ -1103,6 +1200,15 @@
           "salesBotToken",
           "salesBotWelcome",
           "sessionMaxAge",
+          "shopConfigDays",
+          "shopInboundId",
+          "shopJoinChannel",
+          "shopMaxTopUp",
+          "shopMaxVolumeGB",
+          "shopMinBalance",
+          "shopMinTopUp",
+          "shopPricePerDay",
+          "shopPricePerGB",
           "smtpCpu",
           "smtpEnable",
           "smtpEnabledEvents",
@@ -2443,6 +2549,10 @@
     {
       "name": "Plans",
       "description": "Reusable client package/template definitions (e.g. \"1 month / 30GB / 1 IP\"). Picking a plan in the client form prefills traffic quota, expiry and IP limit — plans never auto-mutate existing clients. All endpoints live under /panel/api/plans. <strong>Listing is open to any authenticated admin</strong> (so the client form can offer plans, including for resellers); creating, updating and deleting are restricted to super_admin / manager (resellers are rejected)."
+    },
+    {
+      "name": "Telegram Shop (wallet)",
+      "description": "The wallet-funded, pay-as-you-go side of the Telegram bot: users top a wallet up, create configs with whatever traffic cap they like, and are charged for what they actually consume at the panel's per-GB price. Lives under /panel/api/sales/shop and requires the <code>admins.manage</code> permission. Metering runs on a schedule; when a wallet empties the owner's configs are disabled, and they come back the moment it is credited again. Charging works off a running total rather than a delta, so a run is exactly idempotent and no fraction of a gigabyte is lost to rounding."
     },
     {
       "name": "Custom Roles",
@@ -10997,6 +11107,494 @@
                   "success": true,
                   "obj": {
                     "id": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/users": {
+      "get": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "List shop users and their wallets, richest first.",
+        "operationId": "get_panel_api_sales_shop_users",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum rows (default 200).",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "telegramId": 123456789,
+                      "username": "ali",
+                      "firstName": "Ali",
+                      "balance": 96000,
+                      "totalPaid": 100000,
+                      "totalSpent": 4000,
+                      "blocked": false
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/users/{id}/adjust": {
+      "post": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Credit or debit a wallet by hand and write the ledger entry. The sign of the amount is the direction, so one endpoint covers a refund and a correction alike. Configs are switched on or off to match the new balance right away.",
+        "operationId": "post_panel_api_sales_shop_users_id_adjust",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Telegram user id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "balance": 146000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/users/{id}/block": {
+      "post": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Block or unblock a shop user. Blocking also takes their configs down, not just their ability to buy.",
+        "operationId": "post_panel_api_sales_shop_users_id_block",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Telegram user id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "msg": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/topups": {
+      "get": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "List wallet top-up requests, newest first.",
+        "operationId": "get_panel_api_sales_shop_topups",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "pending, review, approved or rejected.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum rows (default 100).",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "id": 4,
+                      "telegramId": 123456789,
+                      "telegramName": "Ali",
+                      "amount": 100000,
+                      "status": "review",
+                      "receiptFileId": "AgACAgQ..."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/topups/approve/{id}": {
+      "post": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Credit the wallet and re-enable the user's configs. Approving twice is refused, so a double-tap cannot pay somebody twice.",
+        "operationId": "post_panel_api_sales_shop_topups_approve_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Top-up id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "telegramId": 123456789,
+                    "amount": 100000,
+                    "balance": 100000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/topups/reject/{id}": {
+      "post": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Turn a top-up down. The optional note is forwarded to the user in Telegram; nothing is credited.",
+        "operationId": "post_panel_api_sales_shop_topups_reject_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Top-up id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "msg": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/configs": {
+      "get": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Every config the shop sold, with its live meter reading and what it has cost so far.",
+        "operationId": "get_panel_api_sales_shop_configs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum rows (default 200).",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "config": {
+                        "id": 7,
+                        "telegramId": 123456789,
+                        "email": "tg123456789_a1b2",
+                        "volumeGB": 10,
+                        "chargedTraffic": 4000,
+                        "chargedDays": 0,
+                        "active": true
+                      },
+                      "usedBytes": 2147483648,
+                      "totalGB": 10
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/configs/del/{id}": {
+      "post": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Delete a config and its panel client. What it already consumed stays charged — the ledger is history, not a reservation.",
+        "operationId": "post_panel_api_sales_shop_configs_del_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Config id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "msg": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/stats": {
+      "get": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Headline shop figures: users, configs, money in wallets, total topped up and total consumed.",
+        "operationId": "get_panel_api_sales_shop_stats",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "users": 12,
+                    "configs": 15,
+                    "activeConfigs": 11,
+                    "walletBalance": 840000,
+                    "totalPaid": 1200000,
+                    "totalSpent": 360000,
+                    "pendingTopUps": 2,
+                    "suspendedUsers": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/shop/bill": {
+      "post": {
+        "tags": [
+          "Telegram Shop (wallet)"
+        ],
+        "summary": "Run the metering on demand instead of waiting for the scheduled run, so the effect of a price change is visible immediately.",
+        "operationId": "post_panel_api_sales_shop_bill",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "charged": 6000,
+                    "wallets": 3
                   }
                 }
               }

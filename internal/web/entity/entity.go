@@ -154,6 +154,17 @@ type AllSetting struct {
 	SalesBotPayText  string `json:"salesBotPayText" form:"salesBotPayText"`   // Payment instructions shown before the receipt upload
 	SalesBotSupport  string `json:"salesBotSupport" form:"salesBotSupport"`   // Support contact shown in the bot
 	SalesBotCurrency string `json:"salesBotCurrency" form:"salesBotCurrency"` // Currency label shown next to prices
+
+	// Telegram shop — wallet-funded, pay-as-you-go config sales.
+	ShopPricePerGB  int64  `json:"shopPricePerGB" form:"shopPricePerGB" validate:"gte=0"`   // Cost of one consumed GB; 0 = usage is free
+	ShopPricePerDay int64  `json:"shopPricePerDay" form:"shopPricePerDay" validate:"gte=0"` // Optional daily fee per live config; 0 = none
+	ShopInboundId   int    `json:"shopInboundId" form:"shopInboundId" validate:"gte=0"`     // Inbound the shop creates configs on
+	ShopMinTopUp    int64  `json:"shopMinTopUp" form:"shopMinTopUp" validate:"gte=0"`       // Smallest accepted wallet top-up
+	ShopMaxTopUp    int64  `json:"shopMaxTopUp" form:"shopMaxTopUp" validate:"gte=0"`       // Largest accepted wallet top-up; 0 = no ceiling
+	ShopMinBalance  int64  `json:"shopMinBalance" form:"shopMinBalance" validate:"gte=0"`   // Balance required before a config may be created
+	ShopMaxVolumeGB int64  `json:"shopMaxVolumeGB" form:"shopMaxVolumeGB" validate:"gte=0"` // Largest traffic cap a user may request; 0 = no ceiling
+	ShopJoinChannel string `json:"shopJoinChannel" form:"shopJoinChannel"`                  // Channel the user must join first; empty = no requirement
+	ShopConfigDays  int    `json:"shopConfigDays" form:"shopConfigDays" validate:"gte=0"`   // Validity of a new config in days; 0 = no expiry
 }
 
 // AllSettingView is the browser-safe settings read model. Secret values

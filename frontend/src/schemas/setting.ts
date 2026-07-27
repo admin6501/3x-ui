@@ -99,6 +99,15 @@ export const AllSettingSchema = z.object({
   salesBotSupport: z.string().optional(),
   salesBotCurrency: z.string().optional(),
   hasSalesBotToken: z.boolean().optional(),
+  shopPricePerGB: nonNegativeInt.optional(),
+  shopPricePerDay: nonNegativeInt.optional(),
+  shopInboundId: nonNegativeInt.optional(),
+  shopMinTopUp: nonNegativeInt.optional(),
+  shopMaxTopUp: nonNegativeInt.optional(),
+  shopMinBalance: nonNegativeInt.optional(),
+  shopMaxVolumeGB: nonNegativeInt.optional(),
+  shopJoinChannel: z.string().optional(),
+  shopConfigDays: nonNegativeInt.optional(),
 }).loose();
 
 export type AllSettingInput = z.infer<typeof AllSettingSchema>;

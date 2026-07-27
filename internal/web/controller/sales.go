@@ -20,6 +20,7 @@ import (
 type SalesController struct {
 	BaseController
 	salesService   service.SalesService
+	shopService    service.ShopService
 	inboundService service.InboundService
 	xrayService    service.XrayService
 }
@@ -40,6 +41,7 @@ func (a *SalesController) initRouter(g *gin.RouterGroup) {
 	g.POST("/orders/approve/:id", a.approveOrder)
 	g.POST("/orders/reject/:id", a.rejectOrder)
 	g.GET("/stats", a.stats)
+	a.initShopRouter(g)
 }
 
 func (a *SalesController) listPackages(c *gin.Context) {
@@ -185,4 +187,160 @@ func (a *SalesController) rejectOrder(c *gin.Context) {
 
 func (a *SalesController) stats(c *gin.Context) {
 	jsonObj(c, a.salesService.Stats(), nil)
+}
+
+// --------------------------------------------------------------- the shop --
+//
+// The Telegram shop's own surface: wallets, top-up requests and the configs
+// bought with them. It shares the /panel/api/sales prefix and the same gate,
+// since both are ways of selling access.
+
+func (a *SalesController) initShopRouter(g *gin.RouterGroup) {
+	g.GET("/shop/users", a.shopUsers)
+	g.POST("/shop/users/:id/adjust", a.shopAdjust)
+	g.POST("/shop/users/:id/block", a.shopBlock)
+	g.GET("/shop/topups", a.shopTopUps)
+	g.POST("/shop/topups/approve/:id", a.shopApproveTopUp)
+	g.POST("/shop/topups/reject/:id", a.shopRejectTopUp)
+	g.GET("/shop/configs", a.shopConfigs)
+	g.POST("/shop/configs/del/:id", a.shopDeleteConfig)
+	g.GET("/shop/stats", a.shopStats)
+	g.POST("/shop/bill", a.shopBillNow)
+}
+
+func (a *SalesController) shopUsers(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "200"))
+	rows, err := a.shopService.ListUsers(limit)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonObj(c, rows, nil)
+}
+
+// shopAdjust credits or debits a wallet by hand. The sign of the amount is the
+// direction, so one endpoint covers a refund and a correction alike.
+func (a *SalesController) shopAdjust(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.adjustFailed"), err)
+		return
+	}
+	var body struct {
+		Amount  int64  `json:"amount" form:"amount"`
+		Details string `json:"details" form:"details"`
+	}
+	if err := c.ShouldBind(&body); err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.adjustFailed"), err)
+		return
+	}
+	balance, err := a.shopService.Adjust(id, body.Amount, body.Details)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.adjustFailed"), err)
+		return
+	}
+	// A correction in either direction can switch the user's configs on or off.
+	a.shopService.BillAll(&a.inboundService)
+	jsonObj(c, map[string]any{"balance": balance}, nil)
+}
+
+func (a *SalesController) shopBlock(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	var body struct {
+		Blocked bool `json:"blocked" form:"blocked"`
+	}
+	_ = c.ShouldBind(&body)
+	if err := a.shopService.SetBlocked(id, body.Blocked); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	a.shopService.BillAll(&a.inboundService)
+	jsonObj(c, nil, nil)
+}
+
+func (a *SalesController) shopTopUps(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	rows, err := a.shopService.ListTopUps(c.Query("status"), limit)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonObj(c, rows, nil)
+}
+
+func (a *SalesController) shopApproveTopUp(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.approveFailed"), err)
+		return
+	}
+	row, balance, err := a.shopService.ApproveTopUp(id)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.approveFailed"), err)
+		return
+	}
+	// Paying puts the user's configs back on without waiting for the next tick.
+	a.shopService.BillAll(&a.inboundService)
+	jsonObj(c, map[string]any{"telegramId": row.TelegramId, "amount": row.Amount, "balance": balance}, nil)
+}
+
+func (a *SalesController) shopRejectTopUp(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.rejectFailed"), err)
+		return
+	}
+	var body struct {
+		Note string `json:"note" form:"note"`
+	}
+	_ = c.ShouldBind(&body)
+	if _, err := a.shopService.RejectTopUp(id, body.Note); err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.rejectFailed"), err)
+		return
+	}
+	jsonObj(c, nil, nil)
+}
+
+// shopConfigs lists every config the shop sold, with its live meter reading and
+// what it has cost so far.
+func (a *SalesController) shopConfigs(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "200"))
+	rows, err := a.shopService.ListAllConfigs(limit)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	out := make([]service.ConfigUsage, 0, len(rows))
+	for i := range rows {
+		out = append(out, a.shopService.Usage(&rows[i]))
+	}
+	jsonObj(c, out, nil)
+}
+
+func (a *SalesController) shopDeleteConfig(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.deleteFailed"), err)
+		return
+	}
+	if err := a.shopService.DeleteConfig(&a.inboundService, id); err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.shop.deleteFailed"), err)
+		return
+	}
+	jsonObj(c, nil, nil)
+}
+
+func (a *SalesController) shopStats(c *gin.Context) {
+	jsonObj(c, a.shopService.Stats(), nil)
+}
+
+// shopBillNow runs the metering on demand, so an admin can see the effect of a
+// price change without waiting for the next scheduled run.
+func (a *SalesController) shopBillNow(c *gin.Context) {
+	result := a.shopService.BillAll(&a.inboundService)
+	jsonObj(c, map[string]any{"charged": result.Charged, "wallets": result.ChargedUsers}, nil)
 }

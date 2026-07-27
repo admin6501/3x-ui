@@ -117,6 +117,15 @@ export class AllSetting {
   salesBotSupport = '';
   salesBotCurrency = 'تومان';
   hasSalesBotToken = false;
+  shopPricePerGB = 0;
+  shopPricePerDay = 0;
+  shopInboundId = 0;
+  shopMinTopUp = 0;
+  shopMaxTopUp = 0;
+  shopMinBalance = 0;
+  shopMaxVolumeGB = 0;
+  shopJoinChannel = '';
+  shopConfigDays = 0;
 
   constructor(data?: unknown) {
     if (data != null) {

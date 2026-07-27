@@ -125,3 +125,26 @@
 .sales-page .ant-card {
   border-radius: 12px;
 }
+
+/* Usage cell — shared shape with the Admins page's quota column. */
+.sales-page .admin-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+}
+
+.sales-page .admin-usage .ant-progress {
+  margin: 0;
+}
+
+.sales-page .admin-usage-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.sales-page .admin-usage-label {
+  opacity: 0.66;
+}

@@ -170,6 +170,50 @@ export const SCHEMAS: Record<string, unknown> = {
         "minimum": 1,
         "type": "integer"
       },
+      "shopConfigDays": {
+        "description": "Validity of a new config in days; 0 = no expiry",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopInboundId": {
+        "description": "Inbound the shop creates configs on",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopJoinChannel": {
+        "description": "Channel the user must join first; empty = no requirement",
+        "type": "string"
+      },
+      "shopMaxTopUp": {
+        "description": "Largest accepted wallet top-up; 0 = no ceiling",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopMaxVolumeGB": {
+        "description": "Largest traffic cap a user may request; 0 = no ceiling",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopMinBalance": {
+        "description": "Balance required before a config may be created",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopMinTopUp": {
+        "description": "Smallest accepted wallet top-up",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopPricePerDay": {
+        "description": "Optional daily fee per live config; 0 = none",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopPricePerGB": {
+        "description": "Telegram shop — wallet-funded, pay-as-you-go config sales.\nCost of one consumed GB; 0 = usage is free",
+        "minimum": 0,
+        "type": "integer"
+      },
       "smtpCpu": {
         "description": "CPU threshold for email notifications",
         "maximum": 100,
@@ -489,6 +533,15 @@ export const SCHEMAS: Record<string, unknown> = {
       "salesBotToken",
       "salesBotWelcome",
       "sessionMaxAge",
+      "shopConfigDays",
+      "shopInboundId",
+      "shopJoinChannel",
+      "shopMaxTopUp",
+      "shopMaxVolumeGB",
+      "shopMinBalance",
+      "shopMinTopUp",
+      "shopPricePerDay",
+      "shopPricePerGB",
       "smtpCpu",
       "smtpEnable",
       "smtpEnabledEvents",
@@ -748,6 +801,50 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Session maximum age in minutes (cap at one year)",
         "maximum": 525600,
         "minimum": 1,
+        "type": "integer"
+      },
+      "shopConfigDays": {
+        "description": "Validity of a new config in days; 0 = no expiry",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopInboundId": {
+        "description": "Inbound the shop creates configs on",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopJoinChannel": {
+        "description": "Channel the user must join first; empty = no requirement",
+        "type": "string"
+      },
+      "shopMaxTopUp": {
+        "description": "Largest accepted wallet top-up; 0 = no ceiling",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopMaxVolumeGB": {
+        "description": "Largest traffic cap a user may request; 0 = no ceiling",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopMinBalance": {
+        "description": "Balance required before a config may be created",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopMinTopUp": {
+        "description": "Smallest accepted wallet top-up",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopPricePerDay": {
+        "description": "Optional daily fee per live config; 0 = none",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopPricePerGB": {
+        "description": "Telegram shop — wallet-funded, pay-as-you-go config sales.\nCost of one consumed GB; 0 = usage is free",
+        "minimum": 0,
         "type": "integer"
       },
       "smtpCpu": {
@@ -1077,6 +1174,15 @@ export const SCHEMAS: Record<string, unknown> = {
       "salesBotToken",
       "salesBotWelcome",
       "sessionMaxAge",
+      "shopConfigDays",
+      "shopInboundId",
+      "shopJoinChannel",
+      "shopMaxTopUp",
+      "shopMaxVolumeGB",
+      "shopMinBalance",
+      "shopMinTopUp",
+      "shopPricePerDay",
+      "shopPricePerGB",
       "smtpCpu",
       "smtpEnable",
       "smtpEnabledEvents",

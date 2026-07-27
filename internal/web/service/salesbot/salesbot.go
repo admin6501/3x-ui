@@ -29,7 +29,7 @@ import (
 // starts, stops or restarts it to match the current settings.
 type Bot struct {
 	settingService service.SettingService
-	salesService   service.SalesService
+	shopService    service.ShopService
 	inboundService *service.InboundService
 	xrayService    *service.XrayService
 
@@ -373,22 +373,12 @@ func splitForTelegram(text string) []string {
 
 // state is one in-progress multi-step conversation.
 type state struct {
-	step    string
+	step string
+	// orderId is the top-up the conversation is about.
 	orderId int
-	pkg     pkgDraft
-	touched time.Time
-}
-
-// pkgDraft accumulates a package as the admin fills it in step by step.
-type pkgDraft struct {
-	Id           int
-	Name         string
-	Description  string
-	Price        int64
-	TrafficGB    int64
-	ClientQuota  int
-	DurationDays int
-	Inbounds     string
+	// targetUser is the shop user an admin action applies to.
+	targetUser int64
+	touched    time.Time
 }
 
 // stateStore keeps per-chat conversation state. Handlers run on the dispatch

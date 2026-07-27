@@ -280,6 +280,103 @@ type ResellerOrder struct {
 
 func (ResellerOrder) TableName() string { return "reseller_orders" }
 
+// ---------------------------------------------------------------------------
+// Telegram shop: wallet-funded, pay-as-you-go config sales.
+//
+// A buyer tops their wallet up, creates a config with a traffic cap, and is
+// charged for what they actually consume at the panel's per-GB price. Nothing
+// is taken up front — the billing job meters each config and debits the wallet
+// as the bytes go by.
+
+// BotUser is one Telegram user of the shop and their wallet.
+type BotUser struct {
+        TelegramId int64  `json:"telegramId" gorm:"primaryKey;column:telegram_id"`
+        Username   string `json:"username" gorm:"type:varchar(128);default:''"`
+        FirstName  string `json:"firstName" gorm:"type:varchar(128);default:''"`
+        // Balance in whole units of the configured currency. May go negative by
+        // at most the last billing tick — the job disables configs as soon as it
+        // does, but it cannot un-send bytes already delivered.
+        Balance    int64 `json:"balance" gorm:"default:0"`
+        TotalSpent int64 `json:"totalSpent" gorm:"default:0"`
+        TotalPaid  int64 `json:"totalPaid" gorm:"default:0"`
+        Blocked    bool  `json:"blocked" gorm:"default:false"`
+        CreatedAt  int64 `json:"createdAt" gorm:"autoCreateTime:milli"`
+        UpdatedAt  int64 `json:"updatedAt" gorm:"autoUpdateTime:milli"`
+}
+
+func (BotUser) TableName() string { return "bot_users" }
+
+// Wallet top-up lifecycle. Same shape as an order: opened when the buyer names
+// an amount, handed to the admin once a receipt is attached.
+const (
+        TopUpPending  = "pending"
+        TopUpReview   = "review"
+        TopUpApproved = "approved"
+        TopUpRejected = "rejected"
+)
+
+// WalletTopUp is one request to put money into a wallet.
+type WalletTopUp struct {
+        Id            int    `json:"id" gorm:"primaryKey;autoIncrement"`
+        TelegramId    int64  `json:"telegramId" gorm:"column:telegram_id;index"`
+        TelegramName  string `json:"telegramName" gorm:"type:varchar(128);default:''"`
+        Amount        int64  `json:"amount" gorm:"default:0"`
+        Status        string `json:"status" gorm:"type:varchar(16);index;default:pending"`
+        ReceiptFileId string `json:"receiptFileId" gorm:"type:varchar(256);default:''"`
+        Note          string `json:"note" gorm:"type:varchar(512);default:''"`
+        CreatedAt     int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
+        DecidedAt     int64  `json:"decidedAt" gorm:"default:0"`
+}
+
+func (WalletTopUp) TableName() string { return "wallet_topups" }
+
+// Ledger entry kinds. Every movement of money is written here, so a balance can
+// always be explained.
+const (
+        TxTopUp  = "topup"  // an approved wallet top-up
+        TxUsage  = "usage"  // metered traffic consumption
+        TxRent   = "rent"   // the optional per-day fee for keeping a config
+        TxAdjust = "adjust" // a manual correction by an admin
+        TxRefund = "refund"
+)
+
+// WalletTransaction is one line of the wallet ledger. Amount is signed: credits
+// are positive, charges negative.
+type WalletTransaction struct {
+        Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+        TelegramId int64  `json:"telegramId" gorm:"column:telegram_id;index"`
+        Amount     int64  `json:"amount"`
+        Kind       string `json:"kind" gorm:"type:varchar(16);index"`
+        Details    string `json:"details" gorm:"type:varchar(256);default:''"`
+        Balance    int64  `json:"balance"` // balance after this entry
+        CreatedAt  int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
+}
+
+func (WalletTransaction) TableName() string { return "wallet_transactions" }
+
+// BotConfig is a config a shop user created: a panel client, plus the meter
+// readings that say how much of it has already been paid for.
+type BotConfig struct {
+        Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+        TelegramId int64  `json:"telegramId" gorm:"column:telegram_id;index"`
+        Email      string `json:"email" gorm:"type:varchar(128);uniqueIndex"`
+        SubID      string `json:"subId" gorm:"type:varchar(128);column:sub_id;default:''"`
+        InboundId  int    `json:"inboundId"`
+        VolumeGB   int64  `json:"volumeGB" gorm:"column:volume_gb;default:0"`
+        // ChargedTraffic is how much money this config's traffic has already
+        // cost. Billing charges the difference between what the meter says the
+        // total should be and this, which makes it exact and idempotent — no
+        // fraction of a gigabyte is ever lost or double-charged.
+        ChargedTraffic int64 `json:"chargedTraffic" gorm:"default:0"`
+        // ChargedDays is the same idea for the optional per-day rental fee.
+        ChargedDays int64 `json:"chargedDays" gorm:"default:0"`
+        Active      bool  `json:"active" gorm:"default:true"`
+        CreatedAt   int64 `json:"createdAt" gorm:"autoCreateTime:milli"`
+        UpdatedAt   int64 `json:"updatedAt" gorm:"autoUpdateTime:milli"`
+}
+
+func (BotConfig) TableName() string { return "bot_configs" }
+
 // PermissionList splits the stored CSV into its permission keys, dropping
 // blanks and anything the panel no longer recognises.
 func (r *AdminRole) PermissionList() []string {

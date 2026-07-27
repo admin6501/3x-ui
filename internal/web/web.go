@@ -342,6 +342,12 @@ func (s *Server) startTask(restartXray bool) {
 	// No-op unless an admin switched it on and set a non-zero number of days.
 	s.cron.AddJob("@hourly", job.NewAutoDeleteExpiredClientsJob())
 
+	// The Telegram shop bills for traffic as it is consumed, so it has to meter
+	// often enough that a wallet cannot go far negative between runs.
+	s.cron.AddJob("@every 2m", job.NewShopBillingJob(func(ids []int64) {
+		salesbot.Manager(&s.inboundService, &s.xrayService).NotifySuspended(ids)
+	}))
+
 	// check client ips from log file every day
 	s.cron.AddJob("@daily", job.NewClearLogsJob())
 	s.cron.AddJob("@hourly", job.NewWarpIpJob())

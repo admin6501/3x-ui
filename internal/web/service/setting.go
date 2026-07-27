@@ -153,6 +153,17 @@ var defaultValueMap = map[string]string{
 	"salesBotSupport":  "",
 	"salesBotCurrency": "تومان",
 
+	// Telegram shop — wallet-funded, pay-as-you-go config sales.
+	"shopPricePerGB":    "0",
+	"shopPricePerDay":   "0",
+	"shopInboundId":     "0",
+	"shopMinTopUp":      "0",
+	"shopMaxTopUp":      "0",
+	"shopMinBalance":    "0",
+	"shopMaxVolumeGB":   "0",
+	"shopJoinChannel":   "",
+	"shopConfigDays":    "0",
+
 	// Event bus — per-subscriber event filtering (empty = all disabled)
 	"tgEnabledEvents":   "login.attempt,cpu.high",
 	"smtpEnabledEvents": "login.attempt,cpu.high",
@@ -219,7 +230,9 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 
 		fieldV := v.FieldByName(field.Name)
 		switch t := fieldV.Interface().(type) {
-		case int:
+		// int and int64 read the same way; money and byte counts are int64 so
+		// they cannot overflow on a 32-bit build.
+		case int, int64:
 			n, err := strconv.ParseInt(effectiveSettingValue(key, value), 10, 64)
 			if err != nil {
 				return err
@@ -1042,6 +1055,62 @@ func (s *SettingService) GetSalesBotSupport() (string, error) {
 
 func (s *SettingService) GetSalesBotCurrency() (string, error) {
 	return s.getString("salesBotCurrency")
+}
+
+// Telegram shop — wallet + pay-as-you-go
+
+// GetShopPricePerGB is what one gigabyte of consumed traffic costs. 0 disables
+// usage billing, which makes every config free.
+func (s *SettingService) GetShopPricePerGB() (int64, error) {
+	v, err := s.getInt("shopPricePerGB")
+	return int64(v), err
+}
+
+// GetShopPricePerDay is an optional daily fee charged for keeping a config
+// alive, on top of what its traffic costs. 0 = no rental fee.
+func (s *SettingService) GetShopPricePerDay() (int64, error) {
+	v, err := s.getInt("shopPricePerDay")
+	return int64(v), err
+}
+
+// GetShopInboundId is the inbound the shop creates its configs on.
+func (s *SettingService) GetShopInboundId() (int, error) {
+	return s.getInt("shopInboundId")
+}
+
+func (s *SettingService) GetShopMinTopUp() (int64, error) {
+	v, err := s.getInt("shopMinTopUp")
+	return int64(v), err
+}
+
+// GetShopMaxTopUp caps a single top-up. 0 = no ceiling.
+func (s *SettingService) GetShopMaxTopUp() (int64, error) {
+	v, err := s.getInt("shopMaxTopUp")
+	return int64(v), err
+}
+
+// GetShopMinBalance is how much has to be in the wallet before a user may
+// create a config, so nobody starts consuming with nothing to pay from.
+func (s *SettingService) GetShopMinBalance() (int64, error) {
+	v, err := s.getInt("shopMinBalance")
+	return int64(v), err
+}
+
+// GetShopMaxVolumeGB caps the traffic cap a user may ask for. 0 = no ceiling.
+func (s *SettingService) GetShopMaxVolumeGB() (int64, error) {
+	v, err := s.getInt("shopMaxVolumeGB")
+	return int64(v), err
+}
+
+// GetShopJoinChannel is the channel a user must be a member of before the shop
+// serves them. Empty = no requirement.
+func (s *SettingService) GetShopJoinChannel() (string, error) {
+	return s.getString("shopJoinChannel")
+}
+
+// GetShopConfigDays is how long a new config stays valid. 0 = no expiry.
+func (s *SettingService) GetShopConfigDays() (int, error) {
+	return s.getInt("shopConfigDays")
 }
 
 // Auto-delete of expired clients

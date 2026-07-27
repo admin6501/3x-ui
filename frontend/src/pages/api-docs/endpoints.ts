@@ -1631,6 +1631,100 @@ export const sections: readonly Section[] = [
   },
 
   {
+    id: 'shop',
+    title: 'Telegram Shop (wallet)',
+    description:
+      'The wallet-funded, pay-as-you-go side of the Telegram bot: users top a wallet up, create configs with whatever traffic cap they like, and are charged for what they actually consume at the panel\'s per-GB price. Lives under /panel/api/sales/shop and requires the <code>admins.manage</code> permission. Metering runs on a schedule; when a wallet empties the owner\'s configs are disabled, and they come back the moment it is credited again. Charging works off a running total rather than a delta, so a run is exactly idempotent and no fraction of a gigabyte is lost to rounding.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/sales/shop/users',
+        summary: 'List shop users and their wallets, richest first.',
+        params: [{ name: 'limit', in: 'query', type: 'integer', desc: 'Maximum rows (default 200).', optional: true }],
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "telegramId": 123456789,\n      "username": "ali",\n      "firstName": "Ali",\n      "balance": 96000,\n      "totalPaid": 100000,\n      "totalSpent": 4000,\n      "blocked": false\n    }\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/shop/users/:id/adjust',
+        summary: 'Credit or debit a wallet by hand and write the ledger entry. The sign of the amount is the direction, so one endpoint covers a refund and a correction alike. Configs are switched on or off to match the new balance right away.',
+        params: [
+          { name: 'id', in: 'path', type: 'integer', desc: 'Telegram user id.' },
+          { name: 'amount', in: 'body (json)', type: 'integer', desc: 'Positive credits, negative debits.' },
+          { name: 'details', in: 'body (json)', type: 'string', desc: 'Reason recorded in the ledger.', optional: true },
+        ],
+        response: '{\n  "success": true,\n  "obj": {\n    "balance": 146000\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/shop/users/:id/block',
+        summary: 'Block or unblock a shop user. Blocking also takes their configs down, not just their ability to buy.',
+        params: [
+          { name: 'id', in: 'path', type: 'integer', desc: 'Telegram user id.' },
+          { name: 'blocked', in: 'body (json)', type: 'boolean', desc: 'New state.' },
+        ],
+        response: '{\n  "success": true,\n  "msg": ""\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/sales/shop/topups',
+        summary: 'List wallet top-up requests, newest first.',
+        params: [
+          { name: 'status', in: 'query', type: 'string', desc: 'pending, review, approved or rejected.', optional: true },
+          { name: 'limit', in: 'query', type: 'integer', desc: 'Maximum rows (default 100).', optional: true },
+        ],
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 4,\n      "telegramId": 123456789,\n      "telegramName": "Ali",\n      "amount": 100000,\n      "status": "review",\n      "receiptFileId": "AgACAgQ..."\n    }\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/shop/topups/approve/:id',
+        summary: 'Credit the wallet and re-enable the user\'s configs. Approving twice is refused, so a double-tap cannot pay somebody twice.',
+        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Top-up id.' }],
+        response: '{\n  "success": true,\n  "obj": {\n    "telegramId": 123456789,\n    "amount": 100000,\n    "balance": 100000\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/shop/topups/reject/:id',
+        summary: 'Turn a top-up down. The optional note is forwarded to the user in Telegram; nothing is credited.',
+        params: [
+          { name: 'id', in: 'path', type: 'integer', desc: 'Top-up id.' },
+          { name: 'note', in: 'body (json)', type: 'string', desc: 'Reason sent to the user.', optional: true },
+        ],
+        response: '{\n  "success": true,\n  "msg": ""\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/sales/shop/configs',
+        summary: 'Every config the shop sold, with its live meter reading and what it has cost so far.',
+        params: [{ name: 'limit', in: 'query', type: 'integer', desc: 'Maximum rows (default 200).', optional: true }],
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "config": {\n        "id": 7,\n        "telegramId": 123456789,\n        "email": "tg123456789_a1b2",\n        "volumeGB": 10,\n        "chargedTraffic": 4000,\n        "chargedDays": 0,\n        "active": true\n      },\n      "usedBytes": 2147483648,\n      "totalGB": 10\n    }\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/shop/configs/del/:id',
+        summary: 'Delete a config and its panel client. What it already consumed stays charged — the ledger is history, not a reservation.',
+        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Config id.' }],
+        response: '{\n  "success": true,\n  "msg": ""\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/sales/shop/stats',
+        summary: 'Headline shop figures: users, configs, money in wallets, total topped up and total consumed.',
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "users": 12,\n    "configs": 15,\n    "activeConfigs": 11,\n    "walletBalance": 840000,\n    "totalPaid": 1200000,\n    "totalSpent": 360000,\n    "pendingTopUps": 2,\n    "suspendedUsers": 1\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/shop/bill',
+        summary: 'Run the metering on demand instead of waiting for the scheduled run, so the effect of a price change is visible immediately.',
+        response: '{\n  "success": true,\n  "obj": {\n    "charged": 6000,\n    "wallets": 3\n  }\n}',
+      },
+    ],
+  },
+
+  {
     id: 'roles',
     title: 'Custom Roles',
     description:

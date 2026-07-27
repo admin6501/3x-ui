@@ -46,15 +46,15 @@ func TestParseNumberAcceptsWhatPeopleActuallyType(t *testing.T) {
 	}
 }
 
-// TestEscapeKeepsMarkupOutOfMessages: a package name is admin-supplied text
-// that lands inside an HTML-parse-mode message. Unescaped, a stray "<" breaks
-// every message the package appears in.
+// TestEscapeKeepsMarkupOutOfMessages: a config's name and the currency label
+// are admin- or user-influenced text that lands inside an HTML-parse-mode
+// message. Unescaped, a stray "<" breaks every message it appears in.
 func TestEscapeKeepsMarkupOutOfMessages(t *testing.T) {
-	card := packageCard("<b>Gold</b> & Co", "a & b", 100, "تومان", 50, 10, 30)
-	if strings.Contains(card, "<b>Gold</b> & Co") {
-		t.Error("the package name was interpolated as raw markup")
+	card := configCard("<b>evil</b>&co", 10, 0, 0, true, "تومان", "")
+	if strings.Contains(card, "<b>evil</b>&co") {
+		t.Error("the config name was interpolated as raw markup")
 	}
-	if !strings.Contains(card, "&lt;b&gt;Gold&lt;/b&gt; &amp; Co") {
+	if !strings.Contains(card, "&lt;b&gt;evil&lt;/b&gt;&amp;co") {
 		t.Errorf("name not escaped in:\n%s", card)
 	}
 }
@@ -64,9 +64,6 @@ func TestEscapeKeepsMarkupOutOfMessages(t *testing.T) {
 func TestQuotaWordingSpeaksUnlimited(t *testing.T) {
 	if got := quotaGB(0); got != "نامحدود" {
 		t.Errorf("quotaGB(0) = %q, want نامحدود", got)
-	}
-	if got := quotaCount(0); got != "نامحدود" {
-		t.Errorf("quotaCount(0) = %q, want نامحدود", got)
 	}
 	if got := quotaGB(100); !strings.Contains(got, "گیگابایت") {
 		t.Errorf("quotaGB(100) = %q, want a gigabyte figure", got)
@@ -167,15 +164,15 @@ func TestOnlyConfiguredAdminsAreAdmins(t *testing.T) {
 // into another's conversation.
 func TestStateStoreIsPerChat(t *testing.T) {
 	s := newStateStore()
-	s.set(1, &state{step: stepAwaitReceipt, orderId: 7})
-	s.set(2, &state{step: stepPkgName})
+	s.set(1, &state{step: stepTopUpReceipt, orderId: 7})
+	s.set(2, &state{step: stepBuyVolume})
 
 	first, ok := s.get(1)
-	if !ok || first.orderId != 7 || first.step != stepAwaitReceipt {
+	if !ok || first.orderId != 7 || first.step != stepTopUpReceipt {
 		t.Fatalf("chat 1 state = %+v", first)
 	}
 	second, ok := s.get(2)
-	if !ok || second.step != stepPkgName {
+	if !ok || second.step != stepBuyVolume {
 		t.Fatalf("chat 2 state = %+v", second)
 	}
 
@@ -197,5 +194,39 @@ func TestStateStoreIsPerChat(t *testing.T) {
 	s.reset()
 	if _, ok := s.get(2); ok {
 		t.Error("reset left state behind")
+	}
+}
+
+// TestSignedNumbersForBalanceCorrections: an admin fixing a balance downwards
+// types a negative number, and may well type it with Persian digits.
+func TestSignedNumbersForBalanceCorrections(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int64
+		ok   bool
+	}{
+		{"50000", 50000, true},
+		{"-50000", -50000, true},
+		{"−۵۰۰۰۰", -50000, true}, // Unicode minus with Persian digits
+		{"-۵۰٬۰۰۰", -50000, true},
+		{"0", 0, true},
+		{"abc", 0, false},
+		{"-", 0, false},
+	}
+	for _, tc := range cases {
+		got, ok := parseSignedNumber(tc.in)
+		if ok != tc.ok || (ok && got != tc.want) {
+			t.Errorf("parseSignedNumber(%q) = %d,%v; want %d,%v", tc.in, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+// TestChannelNamesNormalise: the join-channel setting is typed by hand, so a
+// link, a bare name and an @name all have to reach the same chat.
+func TestChannelNamesNormalise(t *testing.T) {
+	for _, in := range []string{"mychan", "@mychan", "t.me/mychan", "https://t.me/mychan", " @mychan "} {
+		if got := normalizeChannel(in); got != "@mychan" {
+			t.Errorf("normalizeChannel(%q) = %q, want @mychan", in, got)
+		}
 	}
 }

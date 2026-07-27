@@ -8,16 +8,14 @@ import {
   Col,
   ConfigProvider,
   Empty,
-  Form,
   Input,
   InputNumber,
   Layout,
   Modal,
   Popconfirm,
+  Progress,
   Row,
-  Select,
   Space,
-  Switch,
   Table,
   Tag,
   Tooltip,
@@ -29,62 +27,64 @@ import {
   CloseOutlined,
   DeleteOutlined,
   DollarOutlined,
-  EditOutlined,
   InboxOutlined,
-  PlusOutlined,
   ReloadOutlined,
-  ShoppingOutlined,
-  TeamOutlined,
+  StopOutlined,
+  ThunderboltOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 
-import { HttpUtil } from '@/utils';
+import { HttpUtil, SizeFormatter } from '@/utils';
 import AppSidebar from '@/layouts/AppSidebar';
 import { useTheme } from '@/hooks/useTheme';
 import { useAllSettings } from '@/api/queries/useAllSettings';
 import '@/styles/page-shell.css';
 import './SalesPage.css';
 
-interface ResellerPackage {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  trafficGB: number;
-  clientQuota: number;
-  durationDays: number;
-  allowedInbounds: string;
-  enable: boolean;
-  sortOrder: number;
+interface ShopUser {
+  telegramId: number;
+  username: string;
+  firstName: string;
+  balance: number;
+  totalPaid: number;
+  totalSpent: number;
+  blocked: boolean;
 }
 
-interface ResellerOrder {
+interface TopUp {
   id: number;
   telegramId: number;
   telegramName: string;
-  packageName: string;
-  price: number;
-  kind: string;
+  amount: number;
   status: string;
   receiptFileId: string;
-  panelUsername: string;
   note: string;
   createdAt: number;
 }
 
-interface SalesStats {
-  revenue: number;
-  approvedOrders: number;
-  pendingReview: number;
-  rejectedOrders: number;
-  buyers: number;
-  resellers: number;
+interface ConfigUsage {
+  config: {
+    id: number;
+    telegramId: number;
+    email: string;
+    volumeGB: number;
+    chargedTraffic: number;
+    chargedDays: number;
+    active: boolean;
+  };
+  usedBytes: number;
+  totalGB: number;
 }
 
-interface InboundOption {
-  id: number;
-  remark: string;
-  protocol: string;
-  port: number;
+interface ShopStats {
+  users: number;
+  configs: number;
+  activeConfigs: number;
+  walletBalance: number;
+  totalPaid: number;
+  totalSpent: number;
+  pendingTopUps: number;
+  suspendedUsers: number;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -94,22 +94,7 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: 'red',
 };
 
-function csvToIds(csv: string): number[] {
-  if (!csv) return [];
-  return csv.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n) && n > 0);
-}
-
-interface PackageForm {
-  name: string;
-  description?: string;
-  price: number;
-  trafficGB: number;
-  clientQuota: number;
-  durationDays: number;
-  allowedInbounds: number[];
-  enable: boolean;
-  sortOrder: number;
-}
+const GB = 1024 * 1024 * 1024;
 
 export default function SalesPage() {
   const { t } = useTranslation();
@@ -125,186 +110,133 @@ export default function SalesPage() {
     return classes.join(' ');
   }, [isDark, isUltra]);
 
-  const packagesQ = useQuery({
-    queryKey: ['salesPackages'],
+  const usersQ = useQuery({
+    queryKey: ['shopUsers'],
     queryFn: async () =>
-      (await HttpUtil.get<ResellerPackage[]>('/panel/api/sales/packages', undefined, { silent: true })).obj ?? [],
+      (await HttpUtil.get<ShopUser[]>('/panel/api/sales/shop/users', undefined, { silent: true })).obj ?? [],
+    refetchInterval: 30000,
   });
-  const ordersQ = useQuery({
-    queryKey: ['salesOrders'],
+  const topupsQ = useQuery({
+    queryKey: ['shopTopUps'],
     queryFn: async () =>
-      (await HttpUtil.get<ResellerOrder[]>('/panel/api/sales/orders', undefined, { silent: true })).obj ?? [],
+      (await HttpUtil.get<TopUp[]>('/panel/api/sales/shop/topups', undefined, { silent: true })).obj ?? [],
+    refetchInterval: 30000,
+  });
+  const configsQ = useQuery({
+    queryKey: ['shopConfigs'],
+    queryFn: async () =>
+      (await HttpUtil.get<ConfigUsage[]>('/panel/api/sales/shop/configs', undefined, { silent: true })).obj ?? [],
     refetchInterval: 30000,
   });
   const statsQ = useQuery({
-    queryKey: ['salesStats'],
+    queryKey: ['shopStats'],
     queryFn: async () =>
-      (await HttpUtil.get<SalesStats>('/panel/api/sales/stats', undefined, { silent: true })).obj,
+      (await HttpUtil.get<ShopStats>('/panel/api/sales/shop/stats', undefined, { silent: true })).obj,
     refetchInterval: 30000,
   });
-  const inboundsQ = useQuery({
-    queryKey: ['inboundOptions'],
-    queryFn: async () =>
-      (await HttpUtil.get<InboundOption[]>('/panel/api/inbounds/options', undefined, { silent: true })).obj ?? [],
-  });
-
-  const inboundOptions = useMemo(
-    () => (inboundsQ.data ?? []).map((ib) => ({
-      value: ib.id,
-      label: `#${ib.id} · ${ib.remark || ib.protocol} (:${ib.port})`,
-    })),
-    [inboundsQ.data],
-  );
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ['salesPackages'] });
-    qc.invalidateQueries({ queryKey: ['salesOrders'] });
-    qc.invalidateQueries({ queryKey: ['salesStats'] });
+    for (const key of ['shopUsers', 'shopTopUps', 'shopConfigs', 'shopStats']) {
+      qc.invalidateQueries({ queryKey: [key] });
+    }
   };
 
-  // ---- package modal ----
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<ResellerPackage | null>(null);
-  const [form] = Form.useForm<PackageForm>();
-
-  const openAdd = () => {
-    setEditing(null);
-    form.resetFields();
-    form.setFieldsValue({
-      name: '', price: 0, trafficGB: 0, clientQuota: 0, durationDays: 30,
-      allowedInbounds: [], enable: true, sortOrder: 0,
-    });
-    setModalOpen(true);
-  };
-  const openEdit = (row: ResellerPackage) => {
-    setEditing(row);
-    form.setFieldsValue({
-      name: row.name,
-      description: row.description,
-      price: row.price,
-      trafficGB: row.trafficGB,
-      clientQuota: row.clientQuota,
-      durationDays: row.durationDays,
-      allowedInbounds: csvToIds(row.allowedInbounds),
-      enable: row.enable,
-      sortOrder: row.sortOrder,
-    });
-    setModalOpen(true);
-  };
-
-  const saveMut = useMutation({
-    mutationFn: async (values: PackageForm) => {
-      const body = { ...values, allowedInbounds: (values.allowedInbounds ?? []).join(',') };
-      return editing
-        ? HttpUtil.post(`/panel/api/sales/packages/update/${editing.id}`, body)
-        : HttpUtil.post('/panel/api/sales/packages/add', body);
-    },
-    onSuccess: (res) => {
-      if (res.success) {
-        setModalOpen(false);
-        refresh();
-      }
-    },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: async (id: number) => HttpUtil.post(`/panel/api/sales/packages/del/${id}`),
+  const billMut = useMutation({
+    mutationFn: async () => HttpUtil.post('/panel/api/sales/shop/bill'),
     onSuccess: () => refresh(),
   });
-
-  // ---- order decisions ----
-  const [credentials, setCredentials] = useState<{ username: string; password: string } | null>(null);
-
   const approveMut = useMutation({
-    mutationFn: async (id: number) =>
-      HttpUtil.post<{ username: string; password: string; isNew: boolean }>(`/panel/api/sales/orders/approve/${id}`),
-    onSuccess: (res) => {
-      refresh();
-      if (res.success && res.obj?.isNew && res.obj.password) {
-        setCredentials({ username: res.obj.username, password: res.obj.password });
-      }
-    },
+    mutationFn: async (id: number) => HttpUtil.post(`/panel/api/sales/shop/topups/approve/${id}`),
+    onSuccess: () => refresh(),
   });
   const rejectMut = useMutation({
     mutationFn: async ({ id, note }: { id: number; note: string }) =>
-      HttpUtil.post(`/panel/api/sales/orders/reject/${id}`, { note }),
+      HttpUtil.post(`/panel/api/sales/shop/topups/reject/${id}`, { note }),
+    onSuccess: () => refresh(),
+  });
+  const adjustMut = useMutation({
+    mutationFn: async ({ id, amount, details }: { id: number; amount: number; details: string }) =>
+      HttpUtil.post(`/panel/api/sales/shop/users/${id}/adjust`, { amount, details }),
+    onSuccess: () => refresh(),
+  });
+  const blockMut = useMutation({
+    mutationFn: async ({ id, blocked }: { id: number; blocked: boolean }) =>
+      HttpUtil.post(`/panel/api/sales/shop/users/${id}/block`, { blocked }),
+    onSuccess: () => refresh(),
+  });
+  const deleteConfigMut = useMutation({
+    mutationFn: async (id: number) => HttpUtil.post(`/panel/api/sales/shop/configs/del/${id}`),
     onSuccess: () => refresh(),
   });
 
-  const [rejecting, setRejecting] = useState<ResellerOrder | null>(null);
+  const [rejecting, setRejecting] = useState<TopUp | null>(null);
   const [rejectNote, setRejectNote] = useState('');
+  const [adjusting, setAdjusting] = useState<ShopUser | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState<number>(0);
+  const [adjustNote, setAdjustNote] = useState('');
 
   const money = (n: number) => `${(n ?? 0).toLocaleString()} ${currency}`;
-  const quota = (n: number, unit: string) => (n > 0 ? `${n} ${unit}` : t('pages.sales.unlimited'));
 
-  const packageColumns: ColumnsType<ResellerPackage> = [
+  const userColumns: ColumnsType<ShopUser> = [
     {
-      title: t('pages.sales.package'),
-      dataIndex: 'name',
-      render: (name: string, row) => (
+      title: t('pages.shop.user'),
+      dataIndex: 'telegramId',
+      render: (id: number, row) => (
         <div className="sales-cell">
-          <span className="sales-cell-title">{name}</span>
-          {row.description && <span className="sales-cell-meta">{row.description}</span>}
+          <span className="sales-cell-title">{row.firstName || row.username || id}</span>
+          <span className="sales-cell-meta">
+            {id}{row.username ? ` · @${row.username}` : ''}
+          </span>
         </div>
       ),
     },
-    { title: t('pages.sales.price'), dataIndex: 'price', width: 160, render: (v: number) => <b>{money(v)}</b> },
     {
-      title: t('pages.sales.traffic'),
-      dataIndex: 'trafficGB',
-      width: 130,
-      render: (v: number) => quota(v, 'GB'),
+      title: t('pages.shop.balance'),
+      dataIndex: 'balance',
+      width: 170,
+      render: (v: number) => <b style={{ color: v > 0 ? undefined : '#ff4d4f' }}>{money(v)}</b>,
     },
+    { title: t('pages.shop.paid'), dataIndex: 'totalPaid', width: 150, render: (v: number) => money(v) },
+    { title: t('pages.shop.spent'), dataIndex: 'totalSpent', width: 150, render: (v: number) => money(v) },
     {
-      title: t('pages.sales.clients'),
-      dataIndex: 'clientQuota',
-      width: 130,
-      render: (v: number) => quota(v, t('pages.sales.clientsUnit')),
-    },
-    {
-      title: t('pages.sales.inbounds'),
-      dataIndex: 'allowedInbounds',
-      render: (csv: string) =>
-        csvToIds(csv).length > 0
-          ? <Space size={[4, 4]} wrap>{csvToIds(csv).map((id) => <Tag key={id}>#{id}</Tag>)}</Space>
-          : <Typography.Text type="secondary">—</Typography.Text>,
-    },
-    {
-      title: t('pages.sales.status'),
-      dataIndex: 'enable',
+      title: t('pages.shop.status'),
+      dataIndex: 'blocked',
       width: 110,
-      render: (enable: boolean) =>
-        enable ? <Tag color="green">{t('enabled')}</Tag> : <Tag color="red">{t('disabled')}</Tag>,
+      render: (blocked: boolean) =>
+        blocked ? <Tag color="red">{t('pages.shop.blocked')}</Tag> : <Tag color="green">{t('pages.shop.active')}</Tag>,
     },
     {
-      title: t('pages.sales.actions'),
+      title: t('pages.shop.actions'),
       key: 'actions',
-      width: 120,
+      width: 130,
       align: 'right',
       render: (_: unknown, row) => (
         <Space size={4}>
-          <Tooltip title={t('edit')}>
-            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)} />
+          <Tooltip title={t('pages.shop.adjust')}>
+            <Button
+              size="small"
+              icon={<DollarOutlined />}
+              data-testid={`adjust-${row.telegramId}`}
+              onClick={() => { setAdjusting(row); setAdjustAmount(0); setAdjustNote(''); }}
+            />
           </Tooltip>
-          <Popconfirm
-            title={t('pages.sales.confirmDeletePackage')}
-            onConfirm={() => deleteMut.mutate(row.id)}
-            okText={t('confirm')}
-            cancelText={t('cancel')}
-          >
-            <Tooltip title={t('delete')}>
-              <Button size="small" danger icon={<DeleteOutlined />} />
-            </Tooltip>
-          </Popconfirm>
+          <Tooltip title={row.blocked ? t('pages.shop.unblock') : t('pages.shop.block')}>
+            <Button
+              size="small"
+              danger={!row.blocked}
+              icon={row.blocked ? <CheckOutlined /> : <StopOutlined />}
+              onClick={() => blockMut.mutate({ id: row.telegramId, blocked: !row.blocked })}
+            />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
-  const orderColumns: ColumnsType<ResellerOrder> = [
+  const topupColumns: ColumnsType<TopUp> = [
     { title: '#', dataIndex: 'id', width: 64 },
     {
-      title: t('pages.sales.buyer'),
+      title: t('pages.shop.user'),
       dataIndex: 'telegramName',
       render: (name: string, row) => (
         <div className="sales-cell">
@@ -313,34 +245,22 @@ export default function SalesPage() {
         </div>
       ),
     },
+    { title: t('pages.shop.amount'), dataIndex: 'amount', width: 160, render: (v: number) => <b>{money(v)}</b> },
     {
-      title: t('pages.sales.package'),
-      dataIndex: 'packageName',
-      render: (name: string, row) => (
-        <div className="sales-cell">
-          <span className="sales-cell-title">{name}</span>
-          <span className="sales-cell-meta">
-            {row.kind === 'renew' ? t('pages.sales.kindRenew') : t('pages.sales.kindNew')}
-          </span>
-        </div>
-      ),
-    },
-    { title: t('pages.sales.price'), dataIndex: 'price', width: 150, render: (v: number) => money(v) },
-    {
-      title: t('pages.sales.status'),
+      title: t('pages.shop.status'),
       dataIndex: 'status',
-      width: 140,
+      width: 150,
       render: (status: string, row) => (
         <Space direction="vertical" size={0}>
-          <Tag color={STATUS_COLORS[status] ?? 'default'}>{t(`pages.sales.statuses.${status}`, status)}</Tag>
-          {row.panelUsername && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{row.panelUsername}</Typography.Text>}
+          <Tag color={STATUS_COLORS[status] ?? 'default'}>{t(`pages.shop.statuses.${status}`, status)}</Tag>
+          {row.note && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{row.note}</Typography.Text>}
         </Space>
       ),
     },
     {
-      title: t('pages.sales.actions'),
+      title: t('pages.shop.actions'),
       key: 'actions',
-      width: 150,
+      width: 130,
       align: 'right',
       render: (_: unknown, row) => {
         if (row.status === 'approved' || row.status === 'rejected') {
@@ -349,26 +269,86 @@ export default function SalesPage() {
         return (
           <Space size={4}>
             <Popconfirm
-              title={t('pages.sales.confirmApprove')}
+              title={t('pages.shop.confirmApprove')}
               onConfirm={() => approveMut.mutate(row.id)}
               okText={t('confirm')}
               cancelText={t('cancel')}
             >
-              <Tooltip title={t('pages.sales.approve')}>
+              <Tooltip title={t('pages.shop.approve')}>
                 <Button size="small" type="primary" icon={<CheckOutlined />} loading={approveMut.isPending} />
               </Tooltip>
             </Popconfirm>
-            <Tooltip title={t('pages.sales.reject')}>
-              <Button
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => { setRejecting(row); setRejectNote(''); }}
-              />
+            <Tooltip title={t('pages.shop.reject')}>
+              <Button size="small" danger icon={<CloseOutlined />}
+                onClick={() => { setRejecting(row); setRejectNote(''); }} />
             </Tooltip>
           </Space>
         );
       },
+    },
+  ];
+
+  const configColumns: ColumnsType<ConfigUsage> = [
+    {
+      title: t('pages.shop.config'),
+      key: 'email',
+      render: (_: unknown, row) => (
+        <div className="sales-cell">
+          <span className="sales-cell-title">{row.config.email}</span>
+          <span className="sales-cell-meta">{row.config.telegramId}</span>
+        </div>
+      ),
+    },
+    {
+      title: t('pages.shop.usage'),
+      key: 'usage',
+      width: 260,
+      render: (_: unknown, row) => {
+        const total = row.config.volumeGB * GB;
+        const pct = total > 0 ? Math.min(100, Math.round((row.usedBytes / total) * 100)) : 0;
+        return (
+          <div className="admin-usage">
+            <div className="admin-usage-row">
+              <span>{SizeFormatter.sizeFormat(row.usedBytes)}</span>
+              <span className="admin-usage-label">
+                {row.config.volumeGB > 0 ? `${row.config.volumeGB} GB` : '∞'}
+              </span>
+            </div>
+            {total > 0 && <Progress percent={pct} size="small" />}
+          </div>
+        );
+      },
+    },
+    {
+      title: t('pages.shop.cost'),
+      key: 'cost',
+      width: 150,
+      render: (_: unknown, row) => <b>{money(row.config.chargedTraffic + row.config.chargedDays)}</b>,
+    },
+    {
+      title: t('pages.shop.status'),
+      key: 'active',
+      width: 110,
+      render: (_: unknown, row) =>
+        row.config.active ? <Tag color="green">{t('enabled')}</Tag> : <Tag color="red">{t('disabled')}</Tag>,
+    },
+    {
+      title: t('pages.shop.actions'),
+      key: 'actions',
+      width: 90,
+      align: 'right',
+      render: (_: unknown, row) => (
+        <Popconfirm
+          title={t('pages.shop.deleteConfig')}
+          onConfirm={() => deleteConfigMut.mutate(row.config.id)}
+          okText={t('confirm')}
+          cancelText={t('cancel')}
+        >
+          <Tooltip title={t('delete')}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Tooltip>
+        </Popconfirm>
+      ),
     },
   ];
 
@@ -383,30 +363,36 @@ export default function SalesPage() {
             <div className="sales-shell">
               <div className="sales-header">
                 <div>
-                  <Typography.Title level={3} style={{ margin: 0 }}>{t('pages.sales.title')}</Typography.Title>
-                  <Typography.Text type="secondary">{t('pages.sales.subtitle')}</Typography.Text>
+                  <Typography.Title level={3} style={{ margin: 0 }}>{t('pages.shop.title')}</Typography.Title>
+                  <Typography.Text type="secondary">{t('pages.shop.subtitle')}</Typography.Text>
                 </div>
                 <Space wrap>
-                  <Button icon={<ReloadOutlined />} onClick={refresh}>{t('pages.sales.refresh')}</Button>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={openAdd} data-testid="add-package">
-                    {t('pages.sales.addPackage')}
+                  <Button icon={<ReloadOutlined />} onClick={refresh}>{t('pages.shop.refresh')}</Button>
+                  <Button type="primary" icon={<ThunderboltOutlined />} loading={billMut.isPending}
+                    onClick={() => billMut.mutate()} data-testid="bill-now">
+                    {t('pages.shop.billNow')}
                   </Button>
                 </Space>
               </div>
 
-              {!allSetting.salesBotEnable && (
-                <Alert type="warning" showIcon message={t('pages.sales.botOff')} />
+              {!allSetting.salesBotEnable && <Alert type="warning" showIcon message={t('pages.shop.botOff')} />}
+              {allSetting.salesBotEnable && !allSetting.shopPricePerGB && (
+                <Alert type="warning" showIcon message={t('pages.shop.noPrice')} />
+              )}
+              {allSetting.salesBotEnable && !allSetting.shopInboundId && (
+                <Alert type="error" showIcon message={t('pages.shop.noInbound')} />
               )}
 
               <Row gutter={[16, 16]}>
                 {([
-                  ['revenue', <DollarOutlined key="r" />, t('pages.sales.revenue'), money(stats?.revenue ?? 0), 'green'],
-                  ['approved', <ShoppingOutlined key="a" />, t('pages.sales.soldOrders'), String(stats?.approvedOrders ?? 0), 'blue'],
-                  ['pending', <InboxOutlined key="p" />, t('pages.sales.pending'), String(stats?.pendingReview ?? 0), 'orange'],
-                  ['resellers', <TeamOutlined key="t" />, t('pages.sales.resellers'), String(stats?.resellers ?? 0), 'purple'],
+                  ['balance', <WalletOutlined key="w" />, t('pages.shop.walletBalance'), money(stats?.walletBalance ?? 0), 'green'],
+                  ['spent', <DollarOutlined key="d" />, t('pages.shop.spent'), money(stats?.totalSpent ?? 0), 'blue'],
+                  ['configs', <ThunderboltOutlined key="c" />, t('pages.shop.activeConfigs'),
+                    `${stats?.activeConfigs ?? 0} / ${stats?.configs ?? 0}`, 'purple'],
+                  ['pending', <InboxOutlined key="p" />, t('pages.shop.pendingTopUps'), String(stats?.pendingTopUps ?? 0), 'orange'],
                 ] as const).map(([key, icon, label, value, color]) => (
                   <Col xs={12} md={6} key={key}>
-                    <Card className={`sales-stat is-${color}`} data-testid={`sales-stat-${key}`}>
+                    <Card className={`sales-stat is-${color}`} data-testid={`shop-stat-${key}`}>
                       <span className="sales-stat-icon">{icon}</span>
                       <div>
                         <div className="sales-stat-value">{value}</div>
@@ -417,137 +403,68 @@ export default function SalesPage() {
                 ))}
               </Row>
 
-              <Card title={<span><ShoppingOutlined /> {t('pages.sales.packages')}</span>}>
-                {(packagesQ.data?.length ?? 0) > 0 ? (
-                  <Table<ResellerPackage>
-                    rowKey="id"
-                    size="small"
-                    loading={packagesQ.isLoading}
-                    dataSource={packagesQ.data ?? []}
-                    columns={packageColumns}
-                    pagination={false}
-                    scroll={{ x: 'max-content' }}
-                  />
+              <Card title={<span><InboxOutlined /> {t('pages.shop.topups')}</span>}>
+                {(topupsQ.data?.length ?? 0) > 0 ? (
+                  <Table<TopUp> rowKey="id" size="small" loading={topupsQ.isLoading}
+                    dataSource={topupsQ.data ?? []} columns={topupColumns}
+                    pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 'max-content' }} />
                 ) : (
-                  <Empty description={t('pages.sales.noPackages')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  <Empty description={t('pages.shop.noTopUps')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 )}
               </Card>
 
-              <Card title={<span><InboxOutlined /> {t('pages.sales.orders')}</span>}>
-                {(ordersQ.data?.length ?? 0) > 0 ? (
-                  <Table<ResellerOrder>
-                    rowKey="id"
-                    size="small"
-                    loading={ordersQ.isLoading}
-                    dataSource={ordersQ.data ?? []}
-                    columns={orderColumns}
-                    pagination={{ pageSize: 20, hideOnSinglePage: true }}
-                    scroll={{ x: 'max-content' }}
-                  />
+              <Card title={<span><WalletOutlined /> {t('pages.shop.users')}</span>}>
+                {(usersQ.data?.length ?? 0) > 0 ? (
+                  <Table<ShopUser> rowKey="telegramId" size="small" loading={usersQ.isLoading}
+                    dataSource={usersQ.data ?? []} columns={userColumns}
+                    pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 'max-content' }} />
                 ) : (
-                  <Empty description={t('pages.sales.noOrders')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  <Empty description={t('pages.shop.noUsers')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+              </Card>
+
+              <Card title={<span><ThunderboltOutlined /> {t('pages.shop.configs')}</span>}>
+                {(configsQ.data?.length ?? 0) > 0 ? (
+                  <Table<ConfigUsage> rowKey={(row) => row.config.id} size="small" loading={configsQ.isLoading}
+                    dataSource={configsQ.data ?? []} columns={configColumns}
+                    pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 'max-content' }} />
+                ) : (
+                  <Empty description={t('pages.shop.noConfigs')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 )}
               </Card>
             </div>
 
             <Modal
-              title={editing ? t('pages.sales.editPackage') : t('pages.sales.addPackage')}
-              open={modalOpen}
-              onCancel={() => setModalOpen(false)}
-              onOk={() => form.submit()}
-              confirmLoading={saveMut.isPending}
-              okText={t('confirm')}
-              cancelText={t('cancel')}
-              destroyOnHidden
-            >
-              <Form form={form} layout="vertical" onFinish={(v) => saveMut.mutate(v)} preserve={false}>
-                <Form.Item name="name" label={t('pages.sales.packageName')} rules={[{ required: true }]}>
-                  <Input autoComplete="off" data-testid="package-name" />
-                </Form.Item>
-                <Form.Item name="description" label={t('pages.sales.packageDesc')}>
-                  <Input.TextArea rows={2} />
-                </Form.Item>
-                <Row gutter={12}>
-                  <Col span={12}>
-                    <Form.Item name="price" label={`${t('pages.sales.price')} (${currency})`}>
-                      <InputNumber min={0} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item name="durationDays" label={t('pages.sales.durationDays')} extra={t('pages.sales.durationDesc')}>
-                      <InputNumber min={0} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Row gutter={12}>
-                  <Col span={12}>
-                    <Form.Item name="trafficGB" label={t('pages.sales.trafficGB')} extra={t('pages.sales.zeroUnlimited')}>
-                      <InputNumber min={0} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item name="clientQuota" label={t('pages.sales.clientQuota')} extra={t('pages.sales.zeroUnlimited')}>
-                      <InputNumber min={0} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Form.Item name="allowedInbounds" label={t('pages.sales.inbounds')} extra={t('pages.sales.inboundsDesc')}>
-                  <Select
-                    mode="multiple"
-                    allowClear
-                    options={inboundOptions}
-                    loading={inboundsQ.isLoading}
-                    optionFilterProp="label"
-                  />
-                </Form.Item>
-                <Row gutter={12}>
-                  <Col span={12}>
-                    <Form.Item name="sortOrder" label={t('pages.sales.sortOrder')}>
-                      <InputNumber min={0} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item name="enable" label={t('pages.sales.onSale')} valuePropName="checked">
-                      <Switch />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              </Form>
-            </Modal>
-
-            <Modal
-              title={t('pages.sales.reject')}
+              title={t('pages.shop.reject')}
               open={!!rejecting}
               onCancel={() => setRejecting(null)}
               onOk={() => {
                 if (rejecting) rejectMut.mutate({ id: rejecting.id, note: rejectNote });
                 setRejecting(null);
               }}
-              okText={t('confirm')}
-              cancelText={t('cancel')}
-              okButtonProps={{ danger: true }}
-              destroyOnHidden
+              okText={t('confirm')} cancelText={t('cancel')} okButtonProps={{ danger: true }} destroyOnHidden
             >
-              <Typography.Paragraph>{t('pages.sales.rejectNoteDesc')}</Typography.Paragraph>
+              <Typography.Paragraph>{t('pages.shop.rejectNoteDesc')}</Typography.Paragraph>
               <Input.TextArea rows={3} value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} />
             </Modal>
 
             <Modal
-              title={t('pages.sales.credentialsTitle')}
-              open={!!credentials}
-              onCancel={() => setCredentials(null)}
-              onOk={() => setCredentials(null)}
-              okText={t('confirm')}
-              cancelText={t('cancel')}
-              destroyOnHidden
+              title={`${t('pages.shop.adjust')}${adjusting ? ` — ${adjusting.telegramId}` : ''}`}
+              open={!!adjusting}
+              onCancel={() => setAdjusting(null)}
+              onOk={() => {
+                if (adjusting) adjustMut.mutate({ id: adjusting.telegramId, amount: adjustAmount, details: adjustNote });
+                setAdjusting(null);
+              }}
+              okText={t('confirm')} cancelText={t('cancel')} destroyOnHidden
             >
-              <Alert type="success" showIcon message={t('pages.sales.credentialsSent')} style={{ marginBottom: 12 }} />
-              <Typography.Paragraph>
-                <b>{t('pages.admins.username')}:</b> <Typography.Text code copyable>{credentials?.username}</Typography.Text>
+              <Typography.Paragraph>{t('pages.shop.adjustDesc')}</Typography.Paragraph>
+              <InputNumber style={{ width: '100%' }} value={adjustAmount} data-testid="adjust-amount"
+                onChange={(v) => setAdjustAmount(Number(v) || 0)} />
+              <Typography.Paragraph style={{ marginTop: 12, marginBottom: 4 }}>
+                {t('pages.shop.adjustNote')}
               </Typography.Paragraph>
-              <Typography.Paragraph>
-                <b>{t('pages.admins.password')}:</b> <Typography.Text code copyable>{credentials?.password}</Typography.Text>
-              </Typography.Paragraph>
+              <Input value={adjustNote} onChange={(e) => setAdjustNote(e.target.value)} />
             </Modal>
           </Layout.Content>
         </Layout>

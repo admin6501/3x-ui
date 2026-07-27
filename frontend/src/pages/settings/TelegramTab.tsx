@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Input, InputNumber, Select, Space, Switch, Tabs } from 'antd';
+import { Alert, Button, Divider, Input, InputNumber, Select, Space, Switch, Tabs } from 'antd';
 import { BellOutlined, SendOutlined, SettingOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { LanguageManager } from '@/utils';
 import { HttpUtil } from '@/utils';
@@ -151,6 +151,28 @@ interface SalesBotStatus {
 }
 
 export default function TelegramTab({ allSetting, updateSetting }: TelegramTabProps) {
+  // The shop attaches every config it sells to one inbound, so the admin picks
+  // it from the real list rather than typing an id.
+  const [inboundOptions, setInboundOptions] = useState<{ value: number; label: string }[]>([]);
+  const [inboundsLoading, setInboundsLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setInboundsLoading(true);
+    HttpUtil.get<{ id: number; remark: string; protocol: string; port: number }[]>(
+      '/panel/api/inbounds/options', undefined, { silent: true },
+    )
+      .then((msg) => {
+        if (cancelled) return;
+        setInboundOptions((msg.obj ?? []).map((ib) => ({
+          value: ib.id,
+          label: `#${ib.id} · ${ib.remark || ib.protocol} (:${ib.port})`,
+        })));
+      })
+      .catch(() => null)
+      .finally(() => { if (!cancelled) setInboundsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   // Saving a bad token leaves the bot down with only a log line to show for it,
   // so the tab asks the server whether it is actually polling Telegram.
   const [salesStatus, setSalesStatus] = useState<SalesBotStatus | null>(null);
@@ -357,6 +379,72 @@ export default function TelegramTab({ allSetting, updateSetting }: TelegramTabPr
                 disabled={!allSetting.salesBotEnable}
                 onChange={(e) => updateSetting({ salesBotCurrency: e.target.value })}
               />
+            </SettingListItem>
+
+            <Divider style={{ marginTop: 24 }}>{t('pages.settings.shopSection')}</Divider>
+            <Alert type="info" showIcon title={t('pages.settings.shopIntro')} style={{ marginBottom: 12 }} />
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopPricePerGB')} description={t('pages.settings.shopPricePerGBDesc')}>
+              <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopPricePerGB}
+                disabled={!allSetting.salesBotEnable} data-testid="shop-price-per-gb"
+                onChange={(v) => updateSetting({ shopPricePerGB: Number(v) || 0 })} />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopPricePerDay')} description={t('pages.settings.shopPricePerDayDesc')}>
+              <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopPricePerDay}
+                disabled={!allSetting.salesBotEnable}
+                onChange={(v) => updateSetting({ shopPricePerDay: Number(v) || 0 })} />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopInboundId')} description={t('pages.settings.shopInboundIdDesc')}>
+              <Select
+                style={{ width: '100%' }}
+                value={allSetting.shopInboundId || undefined}
+                disabled={!allSetting.salesBotEnable}
+                loading={inboundsLoading}
+                options={inboundOptions}
+                optionFilterProp="label"
+                showSearch
+                allowClear
+                data-testid="shop-inbound"
+                onChange={(v) => updateSetting({ shopInboundId: Number(v) || 0 })}
+              />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopConfigDays')} description={t('pages.settings.shopConfigDaysDesc')}>
+              <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopConfigDays}
+                disabled={!allSetting.salesBotEnable}
+                onChange={(v) => updateSetting({ shopConfigDays: Number(v) || 0 })} />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopMinTopUp')} description={t('pages.settings.shopMinTopUpDesc')}>
+              <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopMinTopUp}
+                disabled={!allSetting.salesBotEnable} data-testid="shop-min-topup"
+                onChange={(v) => updateSetting({ shopMinTopUp: Number(v) || 0 })} />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopMaxTopUp')} description={t('pages.settings.shopMaxTopUpDesc')}>
+              <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopMaxTopUp}
+                disabled={!allSetting.salesBotEnable} data-testid="shop-max-topup"
+                onChange={(v) => updateSetting({ shopMaxTopUp: Number(v) || 0 })} />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopMinBalance')} description={t('pages.settings.shopMinBalanceDesc')}>
+              <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopMinBalance}
+                disabled={!allSetting.salesBotEnable}
+                onChange={(v) => updateSetting({ shopMinBalance: Number(v) || 0 })} />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopMaxVolumeGB')} description={t('pages.settings.shopMaxVolumeGBDesc')}>
+              <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopMaxVolumeGB}
+                disabled={!allSetting.salesBotEnable}
+                onChange={(v) => updateSetting({ shopMaxVolumeGB: Number(v) || 0 })} />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.shopJoinChannel')} description={t('pages.settings.shopJoinChannelDesc')}>
+              <Input value={allSetting.shopJoinChannel} placeholder="@mychannel"
+                disabled={!allSetting.salesBotEnable} data-testid="shop-channel"
+                onChange={(e) => updateSetting({ shopJoinChannel: e.target.value })} />
             </SettingListItem>
           </>
         ),
