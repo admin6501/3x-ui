@@ -479,6 +479,9 @@ func (s *Server) start(restartXray bool, startTgBot bool) (err error) {
 		return err
 	}
 	service.StartTrafficWriter()
+	// Load the admin-defined roles before the first request: every permission
+	// check resolves through this cache.
+	service.ReloadRoleCache()
 
 	// SkipIfStillRunning stops a slow job (e.g. the 5s traffic poll on a large
 	// install) from overlapping itself: two concurrent runs of the same job race

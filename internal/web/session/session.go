@@ -3,6 +3,7 @@ package session
 import (
 	"encoding/gob"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/database"
@@ -139,18 +140,62 @@ func IsSuperAdmin(c *gin.Context) bool {
 }
 
 // CanWrite reports whether the logged-in user is allowed to perform write
-// actions. RoleReadonly cannot; everyone else can (per-resource scoping for
-// reseller is enforced separately at query time).
+// actions at all. A role holding none of the *Manage permissions is read-only —
+// that is exactly RoleReadonly among the built-ins, plus any custom role that
+// was given nothing but view permissions. Per-resource scoping (reseller) and
+// per-feature gating are enforced separately.
 func CanWrite(c *gin.Context) bool {
 	u := GetLoginUser(c)
 	if u == nil {
 		return false
 	}
+	perms := PermissionsOf(u)
+	for _, p := range model.AllPermissions {
+		if p == model.PermInboundsScoped || !strings.HasSuffix(p, ".manage") {
+			continue
+		}
+		if perms[p] {
+			return true
+		}
+	}
+	return false
+}
+
+// permissionResolver resolves a role string into its permission set. It is
+// injected at startup (from the service layer, which owns the built-in table
+// and the custom-role cache) so this package stays free of that dependency.
+var permissionResolver func(role string) map[string]bool
+
+// SetPermissionResolver installs the role → permissions lookup. Called once
+// during panel startup, before any request is served.
+func SetPermissionResolver(fn func(role string) map[string]bool) {
+	permissionResolver = fn
+}
+
+// PermissionsOf returns the permission set granted to a user. A legacy session
+// with an empty role predates the RBAC migration and is treated as super_admin,
+// matching HasRole.
+func PermissionsOf(u *model.User) map[string]bool {
+	if u == nil || permissionResolver == nil {
+		return map[string]bool{}
+	}
 	role := u.Role
 	if role == "" {
 		role = model.RoleSuperAdmin
 	}
-	return role != model.RoleReadonly
+	return permissionResolver(role)
+}
+
+// Can reports whether the logged-in user holds a permission.
+func Can(c *gin.Context, perm string) bool {
+	return PermissionsOf(GetLoginUser(c))[perm]
+}
+
+// IsScoped reports whether the logged-in user is restricted to the inbounds
+// listed in their AllowedInbounds — the built-in reseller role and any custom
+// role carrying PermInboundsScoped.
+func IsScoped(c *gin.Context) bool {
+	return Can(c, model.PermInboundsScoped)
 }
 
 func sessionUserID(obj any) (int, bool) {

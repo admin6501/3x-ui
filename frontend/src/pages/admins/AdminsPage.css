@@ -1,0 +1,109 @@
+.admins-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admins-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Summary cards ----------------------------------------------------------- */
+
+.admins-stat .ant-card-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.admins-stat {
+  height: 100%;
+  border-radius: 12px;
+}
+
+.admins-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
+.admins-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.admins-stat-label {
+  font-size: 12px;
+  opacity: 0.66;
+}
+
+.admins-stat.is-blue .admins-stat-icon {
+  color: #1677ff;
+  background: rgba(22, 119, 255, 0.14);
+}
+
+.admins-stat.is-green .admins-stat-icon {
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.14);
+}
+
+.admins-stat.is-red .admins-stat-icon {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.14);
+}
+
+.admins-stat.is-purple .admins-stat-icon {
+  color: #9254de;
+  background: rgba(146, 84, 222, 0.14);
+}
+
+/* Admin rows -------------------------------------------------------------- */
+
+.admin-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--ant-color-primary, #1677ff);
+  background: color-mix(in srgb, var(--ant-color-primary, #1677ff) 12%, transparent);
+}
+
+.admin-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+}
+
+.admin-usage .ant-progress {
+  margin: 0;
+}
+
+.admin-usage-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.admin-usage-label {
+  opacity: 0.66;
+}
+
+.admins-page .ant-card {
+  border-radius: 12px;
+}

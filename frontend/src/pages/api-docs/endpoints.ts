@@ -9,6 +9,7 @@ export type ParamLocation =
   | 'body (multipart)';
 export type ParamType =
   | 'string'
+  | 'string[]'
   | 'integer'
   | 'integer[]'
   | 'number'
@@ -1481,7 +1482,7 @@ export const sections: readonly Section[] = [
     id: 'admins',
     title: 'Admins (RBAC)',
     description:
-      'Manage panel administrator accounts and view the audit trail. All endpoints live under /panel/api/admin and require an authenticated <strong>super_admin</strong> session — other roles (manager, reseller) get 403. Roles: <code>super_admin</code> (full control), <code>manager</code> (full panel access except admin management), <code>reseller</code> (scoped to assigned inbounds/clients). The <code>allowedInbounds</code> field is a comma-separated list of inbound IDs used to scope a reseller.',
+      'Manage panel administrator accounts and view the audit trail. All endpoints live under /panel/api/admin and require the <code>admins.manage</code> permission, which only <strong>super_admin</strong> holds among the built-in roles — other roles (manager, reseller) get 403. Built-in roles: <code>super_admin</code> (full control), <code>manager</code> (full panel access except admin management, panel settings and Xray config), <code>reseller</code> (scoped to assigned inbounds/clients), <code>readonly</code> (no writes anywhere). A custom role is referenced as <code>custom:&lt;id&gt;</code> — see the Roles section. The <code>allowedInbounds</code> field is a comma-separated list of inbound IDs used to scope a reseller.',
     endpoints: [
       {
         method: 'GET',
@@ -1618,6 +1619,59 @@ export const sections: readonly Section[] = [
           { name: 'id', in: 'path', type: 'number', desc: 'Plan ID.' },
         ],
         response: '{\n  "success": true,\n  "obj": { "id": 1 }\n}',
+      },
+    ],
+  },
+
+  {
+    id: 'roles',
+    title: 'Custom Roles',
+    description:
+      'Admin-defined roles: a name plus the set of permissions accounts holding it are granted. Lives under /panel/api/roles and requires the <code>admins.manage</code> permission, the same gate as admin management. A custom role is assigned to an account by setting its <code>role</code> to <code>custom:&lt;id&gt;</code>. Permission keys are <code>inbounds.view</code>, <code>inbounds.manage</code>, <code>clients.view</code>, <code>clients.manage</code>, <code>plans.manage</code>, <code>groups.manage</code>, <code>hosts.manage</code>, <code>nodes.manage</code>, <code>settings.manage</code>, <code>xray.manage</code>, <code>admins.manage</code> and <code>inbounds.scoped</code> (restricts the account to its <code>allowedInbounds</code>, the way the built-in reseller role works).',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/roles/list',
+        summary: 'List every custom role with its permission CSV, oldest first.',
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 1,\n      "name": "Support",\n      "permissions": "inbounds.view,clients.view,clients.manage",\n      "createdAt": 1733011200000\n    }\n  ]\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/roles/permissions',
+        summary: 'Return the closed set of permission keys a role can be built from, in the order the panel presents them. Use this instead of hard-coding the list.',
+        response:
+          '{\n  "success": true,\n  "obj": [\n    "inbounds.view",\n    "inbounds.manage",\n    "clients.view",\n    "clients.manage",\n    "plans.manage",\n    "groups.manage",\n    "hosts.manage",\n    "nodes.manage",\n    "settings.manage",\n    "xray.manage",\n    "admins.manage",\n    "inbounds.scoped"\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/roles/add',
+        summary: 'Create a custom role. Names are unique; unrecognised permission keys are dropped rather than rejected.',
+        params: [
+          { name: 'name', in: 'body (json)', type: 'string', desc: 'Display name of the role, e.g. "Support".' },
+          { name: 'permissions', in: 'body (json)', type: 'string[]', desc: 'Permission keys to grant.' },
+          { name: 'permissionsCsv', in: 'body (form)', type: 'string', desc: 'Comma-separated alternative to permissions, for plain form posts.', optional: true },
+        ],
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "id": 1,\n    "name": "Support",\n    "permissions": "inbounds.view,clients.view,clients.manage"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/roles/update/:id',
+        summary: 'Rename a role and/or replace its permission set. Accounts holding the role pick the change up on their next request.',
+        params: [
+          { name: 'id', in: 'path', type: 'integer', desc: 'Role id.' },
+          { name: 'name', in: 'body (json)', type: 'string', desc: 'New display name.' },
+          { name: 'permissions', in: 'body (json)', type: 'string[]', desc: 'The full new permission set (replaces the old one).' },
+        ],
+        response: '{\n  "success": true,\n  "obj": {\n    "id": 1,\n    "name": "Support L2",\n    "permissions": "clients.view,clients.manage"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/roles/del/:id',
+        summary: 'Delete a custom role. Refused while any admin account still holds it, so no account is ever left pointing at a role that grants nothing.',
+        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Role id.' }],
+        response: '{\n  "success": true,\n  "msg": ""\n}',
       },
     ],
   },

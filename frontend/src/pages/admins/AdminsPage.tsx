@@ -4,37 +4,50 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
+  Col,
   ConfigProvider,
+  Dropdown,
   Form,
   Input,
   InputNumber,
   Layout,
   Modal,
-  Popconfirm,
+  Progress,
+  Row,
   Select,
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { SelectProps } from 'antd';
 import {
   DeleteOutlined,
   EditOutlined,
   KeyOutlined,
+  MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
   StopOutlined,
   CheckCircleOutlined,
+  TeamOutlined,
+  SafetyCertificateOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 
 import { HttpUtil, SizeFormatter } from '@/utils';
 import AppSidebar from '@/layouts/AppSidebar';
 import { useTheme } from '@/hooks/useTheme';
+import RolesCard, { customRoleKey, parseCustomRoleId, useCustomRoles } from './RolesCard';
 import '@/styles/page-shell.css';
+import './AdminsPage.css';
 
-const ROLES = ['super_admin', 'manager', 'reseller', 'readonly'] as const;
-type Role = (typeof ROLES)[number];
+const BUILTIN_ROLES = ['super_admin', 'manager', 'reseller', 'readonly'] as const;
+// A role is either one of the built-ins or "custom:<id>", so the select can
+// offer both from a single field.
+type Role = string;
 
 interface AdminRow {
   id: number;
@@ -95,6 +108,15 @@ interface FormValues {
   clientQuota?: number;
 }
 
+// Quota bars turn amber then red as a reseller approaches their ceiling.
+function quotaColor(pct: number): string | undefined {
+  if (pct >= 90) return '#ff4d4f';
+  if (pct >= 70) return '#faad14';
+  return undefined;
+}
+
+const GB = 1024 * 1024 * 1024;
+
 export default function AdminsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -126,6 +148,43 @@ export default function AdminsPage() {
     refetchInterval: 30000,
   });
 
+  const rolesQ = useCustomRoles();
+  const customRoles = useMemo(() => rolesQ.data ?? [], [rolesQ.data]);
+
+  // Which roles behave like a reseller — the built-in one plus any custom role
+  // holding inbounds.scoped. The inbound/quota fields follow this, not the
+  // literal role name.
+  const scopedRoles = useMemo(() => {
+    const set = new Set<string>(['reseller']);
+    for (const r of customRoles) {
+      if ((r.permissions || '').split(',').includes('inbounds.scoped')) set.add(customRoleKey(r.id));
+    }
+    return set;
+  }, [customRoles]);
+
+  const roleOptions = useMemo<SelectProps['options']>(() => {
+    const builtin = BUILTIN_ROLES.map((r) => ({ value: r as Role, label: t(`pages.admins.roles.${r}`, r) }));
+    if (customRoles.length === 0) return builtin;
+    return [
+      { label: t('pages.admins.builtInRoles'), options: builtin },
+      {
+        label: t('pages.admins.yourRoles'),
+        options: customRoles.map((r) => ({ value: customRoleKey(r.id), label: r.name })),
+      },
+    ];
+  }, [customRoles, t]);
+
+  // How many admins hold each custom role, so the roles card can warn before a
+  // delete that is going to be refused.
+  const roleUsage = useMemo(() => {
+    const out: Record<number, number> = {};
+    for (const row of adminsQ.data ?? []) {
+      const id = parseCustomRoleId(row.role);
+      if (id) out[id] = (out[id] ?? 0) + 1;
+    }
+    return out;
+  }, [adminsQ.data]);
+
   const inboundOptions = useMemo(
     () =>
       (inboundsQ.data ?? []).map((ib) => ({
@@ -139,6 +198,7 @@ export default function AdminsPage() {
     qc.invalidateQueries({ queryKey: ['admins'] });
     qc.invalidateQueries({ queryKey: ['adminAudit'] });
     qc.invalidateQueries({ queryKey: ['resellerStats'] });
+    qc.invalidateQueries({ queryKey: ['adminRoles'] });
   };
 
   // ---- create / edit modal state ----
@@ -167,7 +227,7 @@ export default function AdminsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      const isReseller = values.role === 'reseller';
+      const isReseller = scopedRoles.has(values.role);
       const allowed = isReseller ? (values.allowedInbounds ?? []).join(',') : '';
       const trafficQuotaGB = isReseller ? (values.trafficQuotaGB ?? 0) : 0;
       const clientQuota = isReseller ? (values.clientQuota ?? 0) : 0;
@@ -235,32 +295,64 @@ export default function AdminsPage() {
     onSuccess: () => refresh(),
   });
 
-  const roleLabel = (r: string) => t(`pages.admins.roles.${r}`, r);
+  // Destructive actions moved into the overflow menu, so their confirmation is
+  // a modal rather than a popconfirm anchored to a menu item that has already
+  // closed by the time the user answers.
+  const [confirm, setConfirm] = useState<{ kind: 'disable' | 'delete' | 'resetTraffic'; row: AdminRow } | null>(null);
+  const confirmText: Record<string, string> = {
+    disable: t('pages.admins.confirmDisable'),
+    delete: t('pages.admins.confirmDelete'),
+    resetTraffic: t('pages.admins.confirmResetTraffic'),
+  };
+  const runConfirm = () => {
+    if (!confirm) return;
+    const { kind, row } = confirm;
+    if (kind === 'disable') setEnabledMutation.mutate({ id: row.id, enabled: false });
+    if (kind === 'delete') deleteMutation.mutate(row.id);
+    if (kind === 'resetTraffic') resetTrafficMutation.mutate(row.id);
+    setConfirm(null);
+  };
+
+  const roleLabel = (r: string) => {
+    const id = parseCustomRoleId(r);
+    if (id) return customRoles.find((row) => row.id === id)?.name ?? r;
+    return t(`pages.admins.roles.${r}`, r);
+  };
+  const roleColor = (r: string) => (parseCustomRoleId(r) ? 'purple' : ROLE_COLORS[r] ?? 'default');
 
   const columns: ColumnsType<AdminRow> = [
-    { title: 'ID', dataIndex: 'id', width: 70 },
+    { title: 'ID', dataIndex: 'id', width: 64 },
     {
       title: t('pages.admins.username'),
       dataIndex: 'username',
-      render: (username: string, row: AdminRow) => (
-        <Space size={6}>
-          <span>{username}</span>
-          {row.disabled && <Tag color="red">{t('pages.admins.disabled')}</Tag>}
+      render: (username: string) => (
+        <Space size={8}>
+          <span className="admin-avatar"><UserOutlined /></span>
+          <b>{username}</b>
         </Space>
       ),
     },
     {
       title: t('pages.admins.role'),
       dataIndex: 'role',
-      render: (role: string) => <Tag color={ROLE_COLORS[role] ?? 'default'}>{roleLabel(role)}</Tag>,
+      render: (role: string) => <Tag color={roleColor(role)}>{roleLabel(role)}</Tag>,
+    },
+    {
+      title: t('pages.admins.status'),
+      key: 'status',
+      width: 110,
+      render: (_: unknown, row: AdminRow) =>
+        row.disabled
+          ? <Tag color="red">{t('pages.admins.disabled')}</Tag>
+          : <Tag color="green">{t('pages.admins.active')}</Tag>,
     },
     {
       title: t('pages.admins.allowedInbounds'),
       dataIndex: 'allowedInbounds',
       render: (csv: string, row: AdminRow) =>
-        row.role === 'reseller'
+        scopedRoles.has(row.role)
           ? csvToIds(csv).length > 0
-            ? csvToIds(csv).map((id) => <Tag key={id}>#{id}</Tag>)
+            ? <Space size={[4, 4]} wrap>{csvToIds(csv).map((id) => <Tag key={id}>#{id}</Tag>)}</Space>
             : <Typography.Text type="secondary">{t('pages.admins.noInbound')}</Typography.Text>
           : <Typography.Text type="secondary">—</Typography.Text>,
     },
@@ -269,87 +361,89 @@ export default function AdminsPage() {
       key: 'usage',
       width: 260,
       render: (_: unknown, row: AdminRow) => {
-        if (row.role !== 'reseller') return <Typography.Text type="secondary">—</Typography.Text>;
+        if (!scopedRoles.has(row.role)) return <Typography.Text type="secondary">—</Typography.Text>;
         const st = statsQ.data?.[String(row.id)];
         const used = st?.trafficUsedBytes ?? 0;
         const quotaGB = row.trafficQuotaGB ?? 0;
         const current = st?.currentClients ?? 0;
         const clientQuota = row.clientQuota ?? 0;
         const total = st?.clientsCreatedTotal ?? row.clientsCreatedTotal ?? 0;
+        const trafficPct = quotaGB > 0 ? Math.min(100, Math.round((used / (quotaGB * GB)) * 100)) : 0;
+        const clientPct = clientQuota > 0 ? Math.min(100, Math.round((current / clientQuota) * 100)) : 0;
         return (
-          <Space direction="vertical" size={2} data-testid={`reseller-usage-${row.id}`}>
-            <Typography.Text>
-              {t('pages.admins.trafficUsed')}: <b>{SizeFormatter.sizeFormat(used)}</b>
-              {quotaGB > 0 ? ` / ${quotaGB} GB` : ` / ${t('pages.admins.unlimited')}`}
-            </Typography.Text>
-            <Typography.Text>
-              {t('pages.admins.currentClients')}: <b>{current}</b>
-              {clientQuota > 0 ? ` / ${clientQuota}` : ` / ${t('pages.admins.unlimited')}`}
-            </Typography.Text>
-            <Typography.Text type="secondary">
+          <div className="admin-usage" data-testid={`reseller-usage-${row.id}`}>
+            <div className="admin-usage-row">
+              <span className="admin-usage-label">{t('pages.admins.trafficUsed')}</span>
+              <span>
+                <b>{SizeFormatter.sizeFormat(used)}</b>
+                {quotaGB > 0 ? ` / ${quotaGB} GB` : ` / ${t('pages.admins.unlimited')}`}
+              </span>
+            </div>
+            {quotaGB > 0 && <Progress percent={trafficPct} size="small" strokeColor={quotaColor(trafficPct)} />}
+            <div className="admin-usage-row">
+              <span className="admin-usage-label">{t('pages.admins.currentClients')}</span>
+              <span>
+                <b>{current}</b>
+                {clientQuota > 0 ? ` / ${clientQuota}` : ` / ${t('pages.admins.unlimited')}`}
+              </span>
+            </div>
+            {clientQuota > 0 && <Progress percent={clientPct} size="small" strokeColor={quotaColor(clientPct)} />}
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {t('pages.admins.totalCreated')}: {total}
             </Typography.Text>
-          </Space>
+          </div>
         );
       },
     },
     {
       title: t('pages.admins.actions'),
       key: 'actions',
-      width: 320,
-      render: (_: unknown, row: AdminRow) => (
-        <Space wrap>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
-            {t('edit')}
-          </Button>
-          <Button size="small" icon={<KeyOutlined />} onClick={() => openResetPw(row)}>
-            {t('pages.admins.resetPassword')}
-          </Button>
-          {row.role === 'reseller' && (
-            <Popconfirm
-              title={t('pages.admins.confirmResetTraffic')}
-              onConfirm={() => resetTrafficMutation.mutate(row.id)}
-              okText={t('confirm')}
-              cancelText={t('cancel')}
-            >
-              <Button size="small" icon={<ReloadOutlined />} loading={resetTrafficMutation.isPending}>
-                {t('pages.admins.resetTraffic')}
-              </Button>
-            </Popconfirm>
-          )}
-          {row.disabled ? (
-            <Button
-              size="small"
-              icon={<CheckCircleOutlined />}
-              onClick={() => setEnabledMutation.mutate({ id: row.id, enabled: true })}
-              loading={setEnabledMutation.isPending}
-            >
-              {t('pages.admins.enable')}
-            </Button>
-          ) : (
-            <Popconfirm
-              title={t('pages.admins.confirmDisable')}
-              onConfirm={() => setEnabledMutation.mutate({ id: row.id, enabled: false })}
-              okText={t('confirm')}
-              cancelText={t('cancel')}
-            >
-              <Button size="small" danger icon={<StopOutlined />} loading={setEnabledMutation.isPending}>
-                {t('pages.admins.disable')}
-              </Button>
-            </Popconfirm>
-          )}
-          <Popconfirm
-            title={t('pages.admins.confirmDelete')}
-            onConfirm={() => deleteMutation.mutate(row.id)}
-            okText={t('confirm')}
-            cancelText={t('cancel')}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />}>
-              {t('delete')}
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+      width: 150,
+      align: 'right',
+      render: (_: unknown, row: AdminRow) => {
+        // Only the two everyday actions get a button; the rest live behind the
+        // overflow menu so the column stops wrapping onto three lines.
+        const menuItems = [
+          { key: 'password', icon: <KeyOutlined />, label: t('pages.admins.resetPassword') },
+          ...(scopedRoles.has(row.role)
+            ? [{ key: 'resetTraffic', icon: <ReloadOutlined />, label: t('pages.admins.resetTraffic') }]
+            : []),
+          row.disabled
+            ? { key: 'enable', icon: <CheckCircleOutlined />, label: t('pages.admins.enable') }
+            : { key: 'disable', icon: <StopOutlined />, label: t('pages.admins.disable'), danger: true },
+          { type: 'divider' as const },
+          { key: 'delete', icon: <DeleteOutlined />, label: t('delete'), danger: true },
+        ];
+        const onAction = ({ key }: { key: string }) => {
+          switch (key) {
+            case 'password':
+              openResetPw(row);
+              break;
+            case 'resetTraffic':
+              setConfirm({ kind: 'resetTraffic', row });
+              break;
+            case 'enable':
+              setEnabledMutation.mutate({ id: row.id, enabled: true });
+              break;
+            case 'disable':
+              setConfirm({ kind: 'disable', row });
+              break;
+            case 'delete':
+              setConfirm({ kind: 'delete', row });
+              break;
+          }
+        };
+        return (
+          <Space size={4}>
+            <Tooltip title={t('edit')}>
+              <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)} />
+            </Tooltip>
+            <Dropdown menu={{ items: menuItems, onClick: onAction }} trigger={['click']}>
+              <Button size="small" icon={<MoreOutlined />} data-testid={`admin-actions-${row.id}`} />
+            </Dropdown>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -372,27 +466,46 @@ export default function AdminsPage() {
         <AppSidebar />
         <Layout className="content-shell">
           <Layout.Content id="content-layout" className="content-area">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Card
-        title={
-          <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              {t('pages.admins.title')}
-            </Typography.Title>
-            <Typography.Text type="secondary">{t('pages.admins.subtitle')}</Typography.Text>
-          </div>
-        }
-        extra={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={refresh}>
-              {t('pages.admins.refresh')}
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
-              {t('pages.admins.addAdmin')}
-            </Button>
-          </Space>
-        }
-      >
+            <div className="admins-shell">
+      <div className="admins-header">
+        <div>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            {t('pages.admins.title')}
+          </Typography.Title>
+          <Typography.Text type="secondary">{t('pages.admins.subtitle')}</Typography.Text>
+        </div>
+        <Space wrap>
+          <Button icon={<ReloadOutlined />} onClick={refresh}>
+            {t('pages.admins.refresh')}
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
+            {t('pages.admins.addAdmin')}
+          </Button>
+        </Space>
+      </div>
+
+      <Row gutter={[16, 16]}>
+        {([
+          ['total', <TeamOutlined key="t" />, t('pages.admins.totalAdmins'), (adminsQ.data ?? []).length, 'blue'],
+          ['scoped', <UserOutlined key="s" />, t('pages.admins.scopedAccounts'),
+            (adminsQ.data ?? []).filter((r) => scopedRoles.has(r.role)).length, 'green'],
+          ['disabled', <StopOutlined key="d" />, t('pages.admins.disabled'),
+            (adminsQ.data ?? []).filter((r) => r.disabled).length, 'red'],
+          ['roles', <SafetyCertificateOutlined key="r" />, t('pages.admins.customRoles'), customRoles.length, 'purple'],
+        ] as const).map(([key, icon, label, value, color]) => (
+          <Col xs={12} md={6} key={key}>
+            <Card className={`admins-stat is-${color}`} data-testid={`admins-stat-${key}`}>
+              <span className="admins-stat-icon">{icon}</span>
+              <div>
+                <div className="admins-stat-value">{value}</div>
+                <div className="admins-stat-label">{label}</div>
+              </div>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      <Card>
         <Table<AdminRow>
           rowKey="id"
           size="middle"
@@ -403,6 +516,8 @@ export default function AdminsPage() {
           scroll={{ x: 'max-content' }}
         />
       </Card>
+
+      <RolesCard roles={customRoles} loading={rolesQ.isLoading} usageById={roleUsage} />
 
       <Card title={t('pages.admins.auditLog')}>
         <Table<AuditRow>
@@ -444,11 +559,9 @@ export default function AdminsPage() {
             </Form.Item>
           )}
           <Form.Item name="role" label={t('pages.admins.role')} rules={[{ required: true }]}>
-            <Select
-              options={ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
-            />
+            <Select options={roleOptions} data-testid="admin-role-select" />
           </Form.Item>
-          {watchRole === 'reseller' && (
+          {scopedRoles.has(watchRole ?? '') && (
             <Form.Item
               name="allowedInbounds"
               label={t('pages.admins.allowedInbounds')}
@@ -464,7 +577,7 @@ export default function AdminsPage() {
               />
             </Form.Item>
           )}
-          {watchRole === 'reseller' && (
+          {scopedRoles.has(watchRole ?? '') && (
             <Space size="large" style={{ display: 'flex' }}>
               <Form.Item
                 name="trafficQuotaGB"
@@ -485,6 +598,20 @@ export default function AdminsPage() {
             </Space>
           )}
         </Form>
+      </Modal>
+
+      <Modal
+        title={confirm ? `${confirm.row.username}` : ''}
+        open={!!confirm}
+        onCancel={() => setConfirm(null)}
+        onOk={runConfirm}
+        okText={t('confirm')}
+        cancelText={t('cancel')}
+        okButtonProps={{ danger: confirm?.kind !== 'resetTraffic' }}
+        data-testid="admin-confirm-modal"
+        destroyOnHidden
+      >
+        <Typography.Text>{confirm ? confirmText[confirm.kind] : ''}</Typography.Text>
       </Modal>
 
       <Modal

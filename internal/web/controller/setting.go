@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
 	"github.com/mhsanaei/3x-ui/v3/internal/util/crypto"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/entity"
@@ -47,16 +48,16 @@ func (a *SettingController) initRouter(g *gin.RouterGroup) {
 
 	g.POST("/all", a.getAllSetting)
 	g.POST("/defaultSettings", a.getDefaultSettings)
-	g.POST("/update", requireSuperAdmin(), a.updateSetting)
+	g.POST("/update", requirePermission(model.PermSettingsManage), a.updateSetting)
 	g.POST("/updateUser", a.updateUser)
-	g.POST("/restartPanel", requireSuperAdmin(), a.restartPanel)
+	g.POST("/restartPanel", requirePermission(model.PermSettingsManage), a.restartPanel)
 	g.GET("/getDefaultJsonConfig", a.getDefaultXrayConfig)
-	g.GET("/apiTokens", requireSuperAdmin(), a.listApiTokens)
-	g.POST("/apiTokens/create", requireSuperAdmin(), a.createApiToken)
-	g.POST("/apiTokens/delete/:id", requireSuperAdmin(), a.deleteApiToken)
-	g.POST("/apiTokens/setEnabled/:id", requireSuperAdmin(), a.setApiTokenEnabled)
-	g.POST("/testSmtp", requireSuperAdmin(), a.testSmtp)
-	g.POST("/testTgBot", requireSuperAdmin(), a.testTgBot)
+	g.GET("/apiTokens", requirePermission(model.PermSettingsManage), a.listApiTokens)
+	g.POST("/apiTokens/create", requirePermission(model.PermSettingsManage), a.createApiToken)
+	g.POST("/apiTokens/delete/:id", requirePermission(model.PermSettingsManage), a.deleteApiToken)
+	g.POST("/apiTokens/setEnabled/:id", requirePermission(model.PermSettingsManage), a.setApiTokenEnabled)
+	g.POST("/testSmtp", requirePermission(model.PermSettingsManage), a.testSmtp)
+	g.POST("/testTgBot", requirePermission(model.PermSettingsManage), a.testTgBot)
 }
 
 // getAllSetting retrieves all current settings as the browser-safe view:

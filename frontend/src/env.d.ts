@@ -31,6 +31,12 @@ interface Window {
   X_UI_CUR_VER?: string;
   X_UI_DB_TYPE?: string;
   X_UI_ROLE?: string;
+  // Display name of the logged-in account's role. Same as X_UI_ROLE for the
+  // built-ins; the admin-chosen name for a custom role.
+  X_UI_ROLE_NAME?: string;
+  // Permissions granted to the logged-in account. Drives which menu entries
+  // and actions the SPA offers — the server enforces every one of them again.
+  X_UI_PERMS?: string[];
   __SUB_PAGE_DATA__?: SubPageData;
 }
 

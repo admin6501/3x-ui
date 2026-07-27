@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/middleware"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service/panel"
@@ -84,13 +85,22 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	// sub-controllers register their handlers so it catches every route.
 	api.Use(guardWriteMethods())
 
-	// Inbounds API
+	// Inbounds API — mutating routes need the inbound-management permission.
 	inbounds := api.Group("/inbounds")
+	inbounds.Use(requirePermissionToWrite(model.PermInboundsManage))
 	a.inboundController = NewInboundController(inbounds)
 
+	// Clients API. The group controller shares the prefix but is gated on its
+	// own permission, so a role can be given clients without groups.
 	clients := api.Group("/clients")
+	clients.Use(requirePermissionToWrite(model.PermClientsManage))
 	NewClientController(clients)
-	NewGroupController(clients)
+
+	// Client groups share the /clients prefix but carry their own permission,
+	// so a role can be given clients without the group tooling and vice versa.
+	groups := api.Group("/clients")
+	groups.Use(requirePermissionToWrite(model.PermGroupsManage))
+	NewGroupController(groups)
 
 	// Server API
 	server := api.Group("/server")
@@ -98,10 +108,12 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 
 	// Nodes API — multi-panel management
 	nodes := api.Group("/nodes")
+	nodes.Use(requirePermissionToWrite(model.PermNodesManage))
 	a.nodeController = NewNodeController(nodes)
 
 	// Hosts API — per-inbound override endpoints for subscription links
 	hosts := api.Group("/hosts")
+	hosts.Use(requirePermissionToWrite(model.PermHostsManage))
 	a.hostController = NewHostController(hosts)
 
 	// Settings + Xray config management live under the API surface too, so the
@@ -112,19 +124,25 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	// Xray template/config is panel-wide configuration — gated to super_admin
 	// as a unit (managers/resellers manage inbounds, not the xray template).
 	xrayGroup := api.Group("")
-	xrayGroup.Use(requireSuperAdmin())
+	xrayGroup.Use(requirePermission(model.PermXrayManage))
 	a.xraySettingController = NewXraySettingController(xrayGroup)
 
 	// Admin RBAC endpoints — manage panel administrator accounts. super_admin
 	// only. Paths are /panel/api/admin/*.
 	adminGroup := api.Group("/admin")
-	adminGroup.Use(requireSuperAdmin())
+	adminGroup.Use(requirePermission(model.PermAdminsManage))
 	NewAdminController(adminGroup)
+
+	// Custom roles live alongside admin management and are gated the same way.
+	rolesGroup := api.Group("/roles")
+	rolesGroup.Use(requirePermission(model.PermAdminsManage))
+	NewRoleController(rolesGroup)
 
 	// Plans/packages — reusable client templates. Listing is open to any admin
 	// (the client form offers them); mutating routes are gated to
 	// super_admin/manager inside the controller. Paths are /panel/api/plans/*.
 	plans := api.Group("/plans")
+	plans.Use(requirePermissionToWrite(model.PermPlansManage))
 	NewPlanController(plans)
 
 	// Reseller self-service — own usage/quota snapshot. Open to any

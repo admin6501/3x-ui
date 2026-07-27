@@ -4,7 +4,6 @@ package controller
 import (
 	"net/http"
 
-	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/session"
 
@@ -63,7 +62,7 @@ func (a *ResellerController) me(c *gin.Context) {
 		return
 	}
 	out := resellerMe{Username: fresh.Username, Role: fresh.Role}
-	if fresh.Role == model.RoleReseller {
+	if service.IsScopedRole(fresh.Role) {
 		out.ResellerStats = a.adminService.GetResellerStats(fresh)
 	}
 	jsonObj(c, out, nil)

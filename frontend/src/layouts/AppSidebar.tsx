@@ -39,6 +39,7 @@ import {
 import { HttpUtil, LanguageManager } from '@/utils';
 import { pauseAnimationsUntilLeave, useTheme } from '@/hooks/useTheme';
 import { useAllSettings } from '@/api/queries/useAllSettings';
+import { currentPermissions } from '@/lib/permissions';
 import './AppSidebar.css';
 
 const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
@@ -176,6 +177,8 @@ export default function AppSidebar() {
   const panelVersion = window.X_UI_CUR_VER || '';
   const role = (typeof window !== 'undefined' && window.X_UI_ROLE) || 'super_admin';
   const isSuperAdmin = role === 'super_admin';
+  const perms = useMemo(() => currentPermissions(), []);
+  const scoped = perms.has('inbounds.scoped');
 
   const tabs = useMemo<{ key: string; icon: IconName; title: string }[]>(() => {
     const all: { key: string; icon: IconName; title: string }[] = [
@@ -196,20 +199,32 @@ export default function AppSidebar() {
       { key: '/tutorials', icon: 'tutorials', title: t('menu.tutorials') },
       { key: LOGOUT_KEY, icon: 'logout', title: t('logout') },
     ];
-    // super_admin sees everything except the reseller-only dashboard page.
-    // Other roles see only a role-appropriate subset (logout is always
-    // available). settings / xray / nodes / admins are super_admin-only and are
-    // also gated on the backend; a reseller is scoped down to their own
-    // dashboard plus the clients on their assigned inbounds.
-    if (isSuperAdmin) return all.filter((tab) => tab.key !== '/usage');
-    const allowedByRole: Record<string, string[]> = {
-      manager: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
-      readonly: ['/', '/inbounds', '/clients', '/plans', '/groups', '/hosts', '/api-docs'],
-      reseller: ['/usage', '/clients'],
+    // Entries are chosen by permission, not by role name, so a custom role gets
+    // exactly the sections it was given. Every one of these is enforced again
+    // on the server — hiding a menu entry is a convenience, not the gate.
+    //
+    // A scoped account (built-in reseller, or a custom role carrying
+    // inbounds.scoped) gets its own dashboard in place of the panel-wide one,
+    // which reports figures it is not allowed to see.
+    const requires: Record<string, () => boolean> = {
+      '/': () => !scoped,
+      '/usage': () => scoped,
+      '/inbounds': () => !scoped && perms.has('inbounds.view'),
+      '/clients': () => perms.has('clients.view'),
+      '/plans': () => !scoped && perms.has('inbounds.view'),
+      '/groups': () => !scoped && perms.has('clients.view'),
+      '/nodes': () => perms.has('nodes.manage'),
+      '/hosts': () => !scoped && perms.has('hosts.manage'),
+      '/outbound': () => perms.has('xray.manage'),
+      '/routing': () => perms.has('xray.manage'),
+      '/settings': () => perms.has('settings.manage'),
+      '/xray': () => perms.has('xray.manage'),
+      '/admins': () => perms.has('admins.manage'),
+      '/api-docs': () => !scoped,
+      '/tutorials': () => isSuperAdmin,
     };
-    const allowed = allowedByRole[role] ?? ['/'];
-    return all.filter((tab) => tab.key === LOGOUT_KEY || allowed.includes(tab.key));
-  }, [t, role, isSuperAdmin]);
+    return all.filter((tab) => tab.key === LOGOUT_KEY || (requires[tab.key]?.() ?? false));
+  }, [t, perms, scoped, isSuperAdmin]);
 
   const navItems = useMemo(() => tabs.filter((tab) => tab.icon !== 'logout'), [tabs]);
   const utilItems = useMemo(() => tabs.filter((tab) => tab.icon === 'logout'), [tabs]);

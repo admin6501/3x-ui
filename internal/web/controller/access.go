@@ -13,11 +13,13 @@ import (
 )
 
 // resellerAllowedSet returns the set of inbound IDs the currently logged-in
-// reseller is allowed to access. Returns ok=false for any non-reseller role
-// (super_admin / manager / readonly) — those bypass the scope filter.
+// account is scoped to. Returns ok=false for any unscoped role (super_admin /
+// manager / readonly) — those bypass the scope filter. Scoping follows the
+// inbounds.scoped permission, so a custom role carrying it is scoped exactly
+// like the built-in reseller.
 func resellerAllowedSet(c *gin.Context) (set map[int]struct{}, ok bool) {
 	u := session.GetLoginUser(c)
-	if u == nil || u.Role != model.RoleReseller {
+	if u == nil || !session.IsScoped(c) {
 		return nil, false
 	}
 	ids := service.AllowedInboundIDs(u)
@@ -171,11 +173,11 @@ func guardInboundIdsScope(c *gin.Context, inboundIds []int) bool {
 	return true
 }
 
-// rejectReseller blocks resellers from panel-wide / create actions that
+// rejectReseller blocks scoped accounts from panel-wide / create actions that
 // cannot be scoped (add, import, bulkDel, resetAllTraffics, inbound
-// edit/delete). No-op for every other role.
+// edit/delete). No-op for every unscoped role.
 func rejectReseller(c *gin.Context) {
-	if u := session.GetLoginUser(c); u != nil && u.Role == model.RoleReseller {
+	if u := session.GetLoginUser(c); u != nil && session.IsScoped(c) {
 		pureJsonMsg(c, http.StatusForbidden, false, "forbidden: this action is not available to resellers")
 		c.Abort()
 		return

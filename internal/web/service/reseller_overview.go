@@ -87,7 +87,7 @@ func (s *AdminService) GetResellerOverview(u *model.User, inboundSvc *InboundSer
 	out.Username = u.Username
 	out.Role = u.Role
 	out.Disabled = u.Disabled
-	if u.Role != model.RoleReseller {
+	if !IsScopedRole(u.Role) {
 		return out
 	}
 

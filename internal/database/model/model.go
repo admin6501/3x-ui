@@ -7,6 +7,7 @@ import (
         "encoding/hex"
         "encoding/json"
         "fmt"
+        "strconv"
         "strings"
 
         "github.com/mhsanaei/3x-ui/v3/internal/util/json_util"
@@ -125,6 +126,102 @@ type ResellerQuotaDisabledInbound struct {
 }
 
 func (ResellerQuotaDisabledInbound) TableName() string { return "reseller_quota_disabled_inbounds" }
+
+// Permissions are the capabilities a role may hold. The four built-in roles map
+// onto fixed sets of these (see the permission table in the service layer);
+// custom roles pick their own. Two levels per feature where it matters: *View
+// lets an account see the data, *Manage lets it change anything.
+const (
+        PermInboundsView   = "inbounds.view"
+        PermInboundsManage = "inbounds.manage"
+        PermClientsView    = "clients.view"
+        PermClientsManage  = "clients.manage"
+        PermPlansManage    = "plans.manage"
+        PermGroupsManage   = "groups.manage"
+        PermHostsManage    = "hosts.manage"
+        PermNodesManage    = "nodes.manage"
+        PermSettingsManage = "settings.manage"
+        PermXrayManage     = "xray.manage"
+        PermAdminsManage   = "admins.manage"
+        // PermInboundsScoped restricts the account to the inbounds listed in
+        // User.AllowedInbounds, the way the built-in reseller role works. It is a
+        // restriction, not a grant: holding it never widens what an account sees.
+        PermInboundsScoped = "inbounds.scoped"
+)
+
+// AllPermissions is the closed set a custom role may be built from, in the
+// order the panel presents them.
+var AllPermissions = []string{
+        PermInboundsView,
+        PermInboundsManage,
+        PermClientsView,
+        PermClientsManage,
+        PermPlansManage,
+        PermGroupsManage,
+        PermHostsManage,
+        PermNodesManage,
+        PermSettingsManage,
+        PermXrayManage,
+        PermAdminsManage,
+        PermInboundsScoped,
+}
+
+// IsKnownPermission reports whether s is one of the recognised permission keys.
+func IsKnownPermission(s string) bool {
+        for _, p := range AllPermissions {
+                if p == s {
+                        return true
+                }
+        }
+        return false
+}
+
+// CustomRolePrefix marks a User.Role value as referring to an AdminRole row
+// rather than to one of the four built-in roles: "custom:7" is the role with
+// id 7. Keeping custom roles inside the same column means every existing role
+// check keeps working — they resolve through the same lookup.
+const CustomRolePrefix = "custom:"
+
+// ParseCustomRole returns the AdminRole id encoded in a role string, and
+// whether the string was a custom role at all.
+func ParseCustomRole(role string) (int, bool) {
+        if !strings.HasPrefix(role, CustomRolePrefix) {
+                return 0, false
+        }
+        id, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(role, CustomRolePrefix)))
+        if err != nil || id <= 0 {
+                return 0, false
+        }
+        return id, true
+}
+
+// AdminRole is an admin-defined role: a name plus the set of permissions
+// accounts holding it are granted. Deleting a role is refused while accounts
+// still reference it, so User.Role can never dangle.
+type AdminRole struct {
+        Id   int    `json:"id" gorm:"primaryKey;autoIncrement"`
+        Name string `json:"name" gorm:"type:varchar(64);uniqueIndex;not null"`
+        // Permissions is a CSV of permission keys, e.g. "clients.view,clients.manage".
+        Permissions string `json:"permissions" gorm:"type:varchar(1024);default:''"`
+        CreatedAt   int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
+        UpdatedAt   int64  `json:"updatedAt" gorm:"autoUpdateTime:milli"`
+}
+
+func (AdminRole) TableName() string { return "admin_roles" }
+
+// PermissionList splits the stored CSV into its permission keys, dropping
+// blanks and anything the panel no longer recognises.
+func (r *AdminRole) PermissionList() []string {
+        out := make([]string, 0, len(AllPermissions))
+        for _, part := range strings.Split(r.Permissions, ",") {
+                part = strings.TrimSpace(part)
+                if part == "" || !IsKnownPermission(part) {
+                        continue
+                }
+                out = append(out, part)
+        }
+        return out
+}
 
 // Inbound represents an Xray inbound configuration with traffic statistics and settings.
 type Inbound struct {

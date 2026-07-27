@@ -12,7 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/config"
+	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/session"
 )
 
@@ -123,6 +125,20 @@ func serveDistPage(c *gin.Context, name string) {
 			role = u.Role
 		}
 		script += `;window.X_UI_ROLE="` + jsEscape.Replace(role) + `"`
+		// Custom roles are named by the admin who created them, so the SPA gets
+		// the display name alongside the raw role key.
+		script += `;window.X_UI_ROLE_NAME="` + jsEscape.Replace(service.RoleDisplayName(role)) + `"`
+		// The permission set drives which menu entries and actions the SPA
+		// offers. It is a convenience for the UI only — every one of these is
+		// enforced again on the server.
+		perms := session.PermissionsOf(&model.User{Role: role})
+		granted := make([]string, 0, len(model.AllPermissions))
+		for _, p := range model.AllPermissions {
+			if perms[p] {
+				granted = append(granted, `"`+jsEscape.Replace(p)+`"`)
+			}
+		}
+		script += `;window.X_UI_PERMS=[` + strings.Join(granted, ",") + `]`
 	}
 	script += `;</script>`
 	inject := []byte(script)

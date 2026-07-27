@@ -19,12 +19,12 @@ func notifyClientsChanged() {
 
 const bytesPerGB = 1024 * 1024 * 1024
 
-// enforceResellerQuota blocks a reseller from creating a client when they have
-// hit their client-count limit or exhausted their traffic quota. No-op for
-// every other role. Returns true to continue handling.
+// enforceResellerQuota blocks a scoped account from creating a client when it
+// has hit its client-count limit or exhausted its traffic quota. No-op for
+// every unscoped role. Returns true to continue handling.
 func (a *ClientController) enforceResellerQuota(c *gin.Context) bool {
 	actor := session.GetLoginUser(c)
-	if actor == nil || actor.Role != model.RoleReseller {
+	if actor == nil || !session.IsScoped(c) {
 		return true
 	}
 	// Reload fresh quota + counters from DB; the session copy may predate them.
@@ -46,10 +46,10 @@ func (a *ClientController) enforceResellerQuota(c *gin.Context) bool {
 	return true
 }
 
-// incrementResellerCreated bumps the reseller's cumulative created-clients
-// counter after a successful create. No-op for other roles.
+// incrementResellerCreated bumps the account's cumulative created-clients
+// counter after a successful create. No-op for unscoped roles.
 func (a *ClientController) incrementResellerCreated(c *gin.Context, n int) {
-	if actor := session.GetLoginUser(c); actor != nil && actor.Role == model.RoleReseller {
+	if actor := session.GetLoginUser(c); actor != nil && session.IsScoped(c) {
 		a.adminService.IncrementClientsCreated(actor.Id, n)
 	}
 }

@@ -62,6 +62,7 @@ const (
 func initModels() error {
 	models := []any{
 		&model.User{},
+		&model.AdminRole{},
 		&model.AdminAuditLog{},
 		&model.Plan{},
 		&model.ResellerQuotaDisabledInbound{},

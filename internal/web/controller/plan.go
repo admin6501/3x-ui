@@ -11,9 +11,9 @@ import (
 
 // PlanController exposes CRUD for reusable client plan/package templates under
 // /panel/api/plans. Listing is available to any authenticated admin (so the
-// client form can offer plans, including for resellers); mutating routes are
-// restricted to super_admin / manager (readonly is blocked globally, reseller
-// via rejectReseller).
+// client form can offer plans, including for resellers); mutating routes need
+// the plans.manage permission, which the built-in super_admin and manager roles
+// hold and reseller/readonly do not.
 type PlanController struct {
 	planService service.PlanService
 }
@@ -26,9 +26,9 @@ func NewPlanController(g *gin.RouterGroup) *PlanController {
 
 func (a *PlanController) initRouter(g *gin.RouterGroup) {
 	g.GET("/list", a.list)
-	g.POST("/add", rejectReseller, a.create)
-	g.POST("/update/:id", rejectReseller, a.update)
-	g.POST("/del/:id", rejectReseller, a.delete)
+	g.POST("/add", a.create)
+	g.POST("/update/:id", a.update)
+	g.POST("/del/:id", a.delete)
 }
 
 func (a *PlanController) list(c *gin.Context) {

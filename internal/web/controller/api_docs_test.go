@@ -44,6 +44,7 @@ var controllerBasePaths = map[string]string{
 	"admin.go":        "/panel/api/admin",
 	"plan.go":         "/panel/api/plans",
 	"reseller.go":     "/panel/api/reseller",
+	"role.go":         "/panel/api/roles",
 }
 
 // buildDocSet parses frontend/src/pages/api-docs/endpoints.ts and returns the

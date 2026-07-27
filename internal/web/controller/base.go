@@ -56,6 +56,41 @@ func requireSuperAdmin() gin.HandlerFunc {
 	return requireRole(model.RoleSuperAdmin)
 }
 
+// requirePermission returns a Gin middleware that aborts with 403 unless the
+// logged-in account holds the permission. This is the gate custom roles are
+// enforced by; the built-in roles map onto the same permissions, so replacing a
+// role check with the matching permission check leaves them unaffected.
+func requirePermission(perm string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !session.IsLogin(c) {
+			pureJsonMsg(c, http.StatusUnauthorized, false, I18nWeb(c, "pages.login.loginAgain"))
+			c.Abort()
+			return
+		}
+		if !session.Can(c, perm) {
+			pureJsonMsg(c, http.StatusForbidden, false, "forbidden: your role is not allowed for this action")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// requirePermissionToWrite is requirePermission for mutating requests only:
+// GET/HEAD/OPTIONS pass through so an account that can see a section but not
+// change it still gets to read it.
+func requirePermissionToWrite(perm string) gin.HandlerFunc {
+	gate := requirePermission(perm)
+	return func(c *gin.Context) {
+		switch c.Request.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			c.Next()
+			return
+		}
+		gate(c)
+	}
+}
+
 // guardWriteMethods blocks readonly users from any mutating HTTP method
 // (POST/PUT/DELETE/PATCH) while still allowing GET/HEAD/OPTIONS so they can
 // browse the panel. A short whitelist keeps the handful of POST-but-read

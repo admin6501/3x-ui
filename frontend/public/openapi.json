@@ -2349,11 +2349,15 @@
     },
     {
       "name": "Admins (RBAC)",
-      "description": "Manage panel administrator accounts and view the audit trail. All endpoints live under /panel/api/admin and require an authenticated <strong>super_admin</strong> session — other roles (manager, reseller) get 403. Roles: <code>super_admin</code> (full control), <code>manager</code> (full panel access except admin management), <code>reseller</code> (scoped to assigned inbounds/clients). The <code>allowedInbounds</code> field is a comma-separated list of inbound IDs used to scope a reseller."
+      "description": "Manage panel administrator accounts and view the audit trail. All endpoints live under /panel/api/admin and require the <code>admins.manage</code> permission, which only <strong>super_admin</strong> holds among the built-in roles — other roles (manager, reseller) get 403. Built-in roles: <code>super_admin</code> (full control), <code>manager</code> (full panel access except admin management, panel settings and Xray config), <code>reseller</code> (scoped to assigned inbounds/clients), <code>readonly</code> (no writes anywhere). A custom role is referenced as <code>custom:&lt;id&gt;</code> — see the Roles section. The <code>allowedInbounds</code> field is a comma-separated list of inbound IDs used to scope a reseller."
     },
     {
       "name": "Plans",
       "description": "Reusable client package/template definitions (e.g. \"1 month / 30GB / 1 IP\"). Picking a plan in the client form prefills traffic quota, expiry and IP limit — plans never auto-mutate existing clients. All endpoints live under /panel/api/plans. <strong>Listing is open to any authenticated admin</strong> (so the client form can offer plans, including for resellers); creating, updating and deleting are restricted to super_admin / manager (resellers are rejected)."
+    },
+    {
+      "name": "Custom Roles",
+      "description": "Admin-defined roles: a name plus the set of permissions accounts holding it are granted. Lives under /panel/api/roles and requires the <code>admins.manage</code> permission, the same gate as admin management. A custom role is assigned to an account by setting its <code>role</code> to <code>custom:&lt;id&gt;</code>. Permission keys are <code>inbounds.view</code>, <code>inbounds.manage</code>, <code>clients.view</code>, <code>clients.manage</code>, <code>plans.manage</code>, <code>groups.manage</code>, <code>hosts.manage</code>, <code>nodes.manage</code>, <code>settings.manage</code>, <code>xray.manage</code>, <code>admins.manage</code> and <code>inbounds.scoped</code> (restricts the account to its <code>allowedInbounds</code>, the way the built-in reseller role works)."
     },
     {
       "name": "Reseller",
@@ -10862,6 +10866,226 @@
                   "obj": {
                     "id": 1
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/roles/list": {
+      "get": {
+        "tags": [
+          "Custom Roles"
+        ],
+        "summary": "List every custom role with its permission CSV, oldest first.",
+        "operationId": "get_panel_api_roles_list",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "id": 1,
+                      "name": "Support",
+                      "permissions": "inbounds.view,clients.view,clients.manage",
+                      "createdAt": 1733011200000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/roles/permissions": {
+      "get": {
+        "tags": [
+          "Custom Roles"
+        ],
+        "summary": "Return the closed set of permission keys a role can be built from, in the order the panel presents them. Use this instead of hard-coding the list.",
+        "operationId": "get_panel_api_roles_permissions",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    "inbounds.view",
+                    "inbounds.manage",
+                    "clients.view",
+                    "clients.manage",
+                    "plans.manage",
+                    "groups.manage",
+                    "hosts.manage",
+                    "nodes.manage",
+                    "settings.manage",
+                    "xray.manage",
+                    "admins.manage",
+                    "inbounds.scoped"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/roles/add": {
+      "post": {
+        "tags": [
+          "Custom Roles"
+        ],
+        "summary": "Create a custom role. Names are unique; unrecognised permission keys are dropped rather than rejected.",
+        "operationId": "post_panel_api_roles_add",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 1,
+                    "name": "Support",
+                    "permissions": "inbounds.view,clients.view,clients.manage"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/roles/update/{id}": {
+      "post": {
+        "tags": [
+          "Custom Roles"
+        ],
+        "summary": "Rename a role and/or replace its permission set. Accounts holding the role pick the change up on their next request.",
+        "operationId": "post_panel_api_roles_update_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Role id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 1,
+                    "name": "Support L2",
+                    "permissions": "clients.view,clients.manage"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/roles/del/{id}": {
+      "post": {
+        "tags": [
+          "Custom Roles"
+        ],
+        "summary": "Delete a custom role. Refused while any admin account still holds it, so no account is ever left pointing at a role that grants nothing.",
+        "operationId": "post_panel_api_roles_del_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Role id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "msg": ""
                 }
               }
             }

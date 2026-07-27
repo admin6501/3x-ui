@@ -167,7 +167,7 @@ func (s *AdminService) GetResellerStats(u *model.User) ResellerStats {
 func (s *AdminService) GetAllResellerStats() (map[int]ResellerStats, error) {
 	db := database.GetDB()
 	var resellers []model.User
-	if err := db.Where("role = ?", model.RoleReseller).Find(&resellers).Error; err != nil {
+	if err := db.Where("role IN ?", ScopedRoleNames()).Find(&resellers).Error; err != nil {
 		return nil, err
 	}
 	out := make(map[int]ResellerStats, len(resellers))
@@ -187,7 +187,7 @@ const resellerBytesPerGB = int64(1024 * 1024 * 1024)
 func (s *AdminService) EnforceResellerQuotas(inboundSvc *InboundService) bool {
 	db := database.GetDB()
 	var resellers []model.User
-	if err := db.Where("role = ? AND traffic_quota_gb > 0", model.RoleReseller).Find(&resellers).Error; err != nil {
+	if err := db.Where("role IN ? AND traffic_quota_gb > 0", ScopedRoleNames()).Find(&resellers).Error; err != nil {
 		return false
 	}
 	changed := false
@@ -270,7 +270,7 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 	if strings.TrimSpace(password) == "" {
 		return nil, errors.New("password is required")
 	}
-	if !IsValidRole(role) {
+	if !RoleExists(role) {
 		return nil, fmt.Errorf("unknown role %q", role)
 	}
 
@@ -315,7 +315,7 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 // Password changes go through ResetAdminPassword to keep the audit trail
 // honest.
 func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, allowedInbounds string, trafficQuotaGB int64, clientQuota int, inboundSvc *InboundService, xrayService *XrayService) error {
-	if !IsValidRole(role) {
+	if !RoleExists(role) {
 		return fmt.Errorf("unknown role %q", role)
 	}
 	db := database.GetDB()
@@ -357,7 +357,7 @@ func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, al
 	// An inbound taken off a reseller — or a reseller turned into another role
 	// — would otherwise stay disabled with a tracking row nobody clears.
 	released := false
-	if role != model.RoleReseller {
+	if !IsScopedRole(role) {
 		released = s.releaseResellerInbounds(u.Id, nil, inboundSvc)
 	} else if dropped := droppedInboundIDs(u.AllowedInbounds, updates["allowed_inbounds"].(string)); len(dropped) > 0 {
 		released = s.releaseResellerInbounds(u.Id, dropped, inboundSvc)
@@ -452,7 +452,7 @@ func (s *AdminService) DeleteAdmin(actor *model.User, id int, inboundSvc *Inboun
 // admin had already switched off by hand stays off, and rows the quota
 // enforcer owns are left to it.
 func (s *AdminService) applyResellerAccountState(u *model.User, enabled bool, inboundSvc *InboundService) bool {
-	if u == nil || u.Role != model.RoleReseller || inboundSvc == nil {
+	if u == nil || !IsScopedRole(u.Role) || inboundSvc == nil {
 		return false
 	}
 	db := database.GetDB()
@@ -588,7 +588,7 @@ func (s *AdminService) ResetResellerTraffic(actor *model.User, id int, inboundSv
 	if err := db.First(&u, id).Error; err != nil {
 		return err
 	}
-	if u.Role != model.RoleReseller {
+	if !IsScopedRole(u.Role) {
 		return errors.New("traffic reset is only available for reseller accounts")
 	}
 
