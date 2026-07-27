@@ -58,6 +58,9 @@ Beyond the basics above, the panel also includes:
 - **Device (HWID) limit** — cap how many devices may fetch a client's subscription, using the `x-hwid` header Happ/Hiddify-style apps send. Panel-wide default plus a per-client override, a device list you can clear, and an optional strict mode that refuses apps sending no device id.
 - **Delete expired clients** — clear the ended clients of a single inbound from its row menu, or let the panel sweep them automatically a configurable number of days after they expire (off by default; `0` days never deletes).
 - **Subscription page branding** — build the page your users open in a browser from the panel: brand name, tagline, logo, announcement, colours, background, visible sections, support/Telegram/website buttons and custom CSS, with a live preview.
+- **Custom roles** — build your own roles on the **Admins** page: name one, tick the permissions it should carry (view/manage inbounds, clients, plans, groups, hosts, nodes, panel settings, Xray config, admin management), and assign it like any built-in role. Tick *restrict to assigned inbounds* to make it behave as a reseller, quotas included. A role still held by an admin cannot be deleted.
+- **Reseller dashboard** — resellers land on their own dashboard after logging in: quota bars for traffic and client slots, client counts by state (active, online, expiring, ended), a per-inbound breakdown, the clients expiring inside the next week, and the most recently created ones.
+- **Disabling an admin takes their inbounds down** — switching a reseller account off also switches off the inbounds assigned to it, so their customers stop connecting, not just the reseller's own login. Re-enabling restores exactly what was taken down and never touches an inbound you disabled by hand.
 - **Hardened security** — CSRF protection, security headers, and configurable session lifetime.
 
 ## Quick Start (online)
