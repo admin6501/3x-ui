@@ -561,7 +561,6 @@ export const UserSchema = z.object({
   id: z.number().int(),
   password: z.string(),
   role: z.string(),
-  telegramId: z.number().int(),
   trafficQuotaGB: z.number().int(),
   username: z.string(),
 });

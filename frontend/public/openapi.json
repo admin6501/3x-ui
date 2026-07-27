@@ -2457,10 +2457,6 @@
             "description": "Role is one of RoleSuperAdmin / RoleManager / RoleReseller / RoleReadonly.\nDefaults to RoleSuperAdmin so a freshly-upgraded install with the\npre-existing single admin user keeps full access.",
             "type": "string"
           },
-          "telegramId": {
-            "description": "TelegramId links the account to the Telegram user who bought it through\nthe sales bot. 0 for accounts created by hand in the panel.",
-            "type": "integer"
-          },
           "trafficQuotaGB": {
             "description": "TrafficQuotaGB caps the total traffic a reseller may consume across all\nassigned inbounds, in GB. 0 = unlimited. Reseller-only.",
             "type": "integer"
@@ -2477,7 +2473,6 @@
           "id",
           "password",
           "role",
-          "telegramId",
           "trafficQuotaGB",
           "username"
         ],
@@ -2553,6 +2548,10 @@
     {
       "name": "Telegram Shop (wallet)",
       "description": "The wallet-funded, pay-as-you-go side of the Telegram bot: users top a wallet up, create configs with whatever traffic cap they like, and are charged for what they actually consume at the panel's per-GB price. Lives under /panel/api/sales/shop and requires the <code>admins.manage</code> permission. Metering runs on a schedule; when a wallet empties the owner's configs are disabled, and they come back the moment it is credited again. Charging works off a running total rather than a delta, so a run is exactly idempotent and no fraction of a gigabyte is lost to rounding."
+    },
+    {
+      "name": "Custom Roles",
+      "description": "Admin-defined roles: a name plus the set of permissions accounts holding it are granted. Lives under /panel/api/roles and requires the <code>admins.manage</code> permission, the same gate as admin management. A custom role is assigned to an account by setting its <code>role</code> to <code>custom:&lt;id&gt;</code>. Permission keys are <code>inbounds.view</code>, <code>inbounds.manage</code>, <code>clients.view</code>, <code>clients.manage</code>, <code>plans.manage</code>, <code>groups.manage</code>, <code>hosts.manage</code>, <code>nodes.manage</code>, <code>settings.manage</code>, <code>xray.manage</code>, <code>admins.manage</code> and <code>inbounds.scoped</code> (restricts the account to its <code>allowedInbounds</code>, the way the built-in reseller role works)."
     },
     {
       "name": "Custom Roles",
@@ -11115,13 +11114,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/users": {
+    "/panel/api/shop/users": {
       "get": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "List shop users and their wallets, richest first.",
-        "operationId": "get_panel_api_sales_shop_users",
+        "operationId": "get_panel_api_shop_users",
         "parameters": [
           {
             "name": "limit",
@@ -11170,13 +11169,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/users/{id}/adjust": {
+    "/panel/api/shop/users/{id}/adjust": {
       "post": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Credit or debit a wallet by hand and write the ledger entry. The sign of the amount is the direction, so one endpoint covers a refund and a correction alike. Configs are switched on or off to match the new balance right away.",
-        "operationId": "post_panel_api_sales_shop_users_id_adjust",
+        "operationId": "post_panel_api_shop_users_id_adjust",
         "parameters": [
           {
             "name": "id",
@@ -11217,13 +11216,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/users/{id}/block": {
+    "/panel/api/shop/users/{id}/block": {
       "post": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Block or unblock a shop user. Blocking also takes their configs down, not just their ability to buy.",
-        "operationId": "post_panel_api_sales_shop_users_id_block",
+        "operationId": "post_panel_api_shop_users_id_block",
         "parameters": [
           {
             "name": "id",
@@ -11262,13 +11261,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/topups": {
+    "/panel/api/shop/topups": {
       "get": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "List wallet top-up requests, newest first.",
-        "operationId": "get_panel_api_sales_shop_topups",
+        "operationId": "get_panel_api_shop_topups",
         "parameters": [
           {
             "name": "status",
@@ -11325,13 +11324,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/topups/approve/{id}": {
+    "/panel/api/shop/topups/approve/{id}": {
       "post": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Credit the wallet and re-enable the user's configs. Approving twice is refused, so a double-tap cannot pay somebody twice.",
-        "operationId": "post_panel_api_sales_shop_topups_approve_id",
+        "operationId": "post_panel_api_shop_topups_approve_id",
         "parameters": [
           {
             "name": "id",
@@ -11374,13 +11373,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/topups/reject/{id}": {
+    "/panel/api/shop/topups/reject/{id}": {
       "post": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Turn a top-up down. The optional note is forwarded to the user in Telegram; nothing is credited.",
-        "operationId": "post_panel_api_sales_shop_topups_reject_id",
+        "operationId": "post_panel_api_shop_topups_reject_id",
         "parameters": [
           {
             "name": "id",
@@ -11419,13 +11418,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/configs": {
+    "/panel/api/shop/configs": {
       "get": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Every config the shop sold, with its live meter reading and what it has cost so far.",
-        "operationId": "get_panel_api_sales_shop_configs",
+        "operationId": "get_panel_api_shop_configs",
         "parameters": [
           {
             "name": "limit",
@@ -11478,13 +11477,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/configs/del/{id}": {
+    "/panel/api/shop/configs/del/{id}": {
       "post": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Delete a config and its panel client. What it already consumed stays charged — the ledger is history, not a reservation.",
-        "operationId": "post_panel_api_sales_shop_configs_del_id",
+        "operationId": "post_panel_api_shop_configs_del_id",
         "parameters": [
           {
             "name": "id",
@@ -11523,13 +11522,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/stats": {
+    "/panel/api/shop/stats": {
       "get": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Headline shop figures: users, configs, money in wallets, total topped up and total consumed.",
-        "operationId": "get_panel_api_sales_shop_stats",
+        "operationId": "get_panel_api_shop_stats",
         "responses": {
           "200": {
             "description": "Successful response",
@@ -11566,13 +11565,13 @@
         }
       }
     },
-    "/panel/api/sales/shop/bill": {
+    "/panel/api/shop/bill": {
       "post": {
         "tags": [
           "Telegram Shop (wallet)"
         ],
         "summary": "Run the metering on demand instead of waiting for the scheduled run, so the effect of a price change is visible immediately.",
-        "operationId": "post_panel_api_sales_shop_bill",
+        "operationId": "post_panel_api_shop_bill",
         "responses": {
           "200": {
             "description": "Successful response",

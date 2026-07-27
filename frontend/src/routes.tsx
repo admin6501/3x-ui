@@ -14,7 +14,7 @@ const XrayPage = lazy(() => import('@/pages/xray/XrayPage'));
 const AdminsPage = lazy(() => import('@/pages/admins/AdminsPage'));
 const PlansPage = lazy(() => import('@/pages/plans/PlansPage'));
 const ResellerDashboardPage = lazy(() => import('@/pages/reseller/ResellerDashboardPage'));
-const SalesPage = lazy(() => import('@/pages/sales/SalesPage'));
+const ShopPage = lazy(() => import('@/pages/shop/ShopPage'));
 const ApiDocsPage = lazy(() => import('@/pages/api-docs/ApiDocsPage'));
 const TutorialsPage = lazy(() => import('@/pages/tutorials/TutorialsPage'));
 
@@ -58,7 +58,7 @@ const routes: RouteObject[] = [
       { path: 'xray', element: withSuspense(<XrayPage />) },
       { path: 'admins', element: withSuspense(<AdminsPage />) },
       { path: 'plans', element: withSuspense(<PlansPage />) },
-      { path: 'sales', element: withSuspense(<SalesPage />) },
+      { path: 'shop', element: withSuspense(<ShopPage />) },
       { path: 'usage', element: withSuspense(<ResellerDashboardPage />) },
       { path: 'outbound', element: withSuspense(<XrayPage />) },
       { path: 'routing', element: withSuspense(<XrayPage />) },

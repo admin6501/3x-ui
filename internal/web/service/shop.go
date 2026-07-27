@@ -41,6 +41,8 @@ var (
 
 const shopBytesPerGB = int64(1024 * 1024 * 1024)
 
+func nowMilli() int64 { return time.Now().UnixMilli() }
+
 // ------------------------------------------------------------------ users --
 
 // User returns the shop user, creating the row on first contact so a wallet
@@ -323,9 +325,9 @@ func (s *ShopService) CreateConfig(inboundSvc *InboundService, telegramId int64,
 	email := s.freeEmail(telegramId)
 	subId := random.NumLower(16)
 	client := model.Client{
-		Email:  email,
-		SubID:  subId,
-		Enable: true,
+		Email:   email,
+		SubID:   subId,
+		Enable:  true,
 		TotalGB: volumeGB * shopBytesPerGB,
 	}
 	if days, _ := s.settingService.GetShopConfigDays(); days > 0 {

@@ -72,9 +72,6 @@ type User struct {
         // role. New column defaults to false so every existing account stays enabled
         // after an upgrade. Super-admins toggle it from the Admins page.
         Disabled bool `json:"disabled" gorm:"default:false"`
-        // TelegramId links the account to the Telegram user who bought it through
-        // the sales bot. 0 for accounts created by hand in the panel.
-        TelegramId int64 `json:"telegramId" gorm:"column:telegram_id;index;default:0"`
 }
 
 // AdminAuditLog records mutations performed by admin users — admin CRUD,
@@ -211,74 +208,6 @@ type AdminRole struct {
 }
 
 func (AdminRole) TableName() string { return "admin_roles" }
-
-// ResellerPackage is one item on the sales bot's price list: what a buyer gets
-// (traffic budget, client slots, which inbounds) for what price. Selling one
-// creates a reseller account carrying exactly these quotas.
-type ResellerPackage struct {
-        Id          int    `json:"id" gorm:"primaryKey;autoIncrement"`
-        Name        string `json:"name" gorm:"type:varchar(128);not null"`
-        Description string `json:"description" gorm:"type:varchar(1024);default:''"`
-        // Price in whole units of the configured currency (no decimals — the
-        // Iranian toman, the default, has none).
-        Price int64 `json:"price" gorm:"default:0"`
-        // TrafficGB is the reseller's traffic quota. 0 = unlimited.
-        TrafficGB int64 `json:"trafficGB" gorm:"column:traffic_gb;default:0"`
-        // ClientQuota caps how many clients the reseller may have. 0 = unlimited.
-        ClientQuota int `json:"clientQuota" gorm:"default:0"`
-        // DurationDays is what the buyer is told the package lasts. It is
-        // descriptive: the panel enforces traffic and client quotas, not time.
-        DurationDays int `json:"durationDays" gorm:"default:0"`
-        // AllowedInbounds is the CSV of inbound ids the buyer's account is scoped
-        // to, in the same format as User.AllowedInbounds.
-        AllowedInbounds string `json:"allowedInbounds" gorm:"type:varchar(1024);default:''"`
-        Enable          bool   `json:"enable" gorm:"default:true"`
-        SortOrder       int    `json:"sortOrder" gorm:"default:0"`
-        CreatedAt       int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
-        UpdatedAt       int64  `json:"updatedAt" gorm:"autoUpdateTime:milli"`
-}
-
-func (ResellerPackage) TableName() string { return "reseller_packages" }
-
-// Order lifecycle. An order is created the moment a buyer picks a package, so
-// abandoned carts are visible too; it only reaches the admin once a receipt has
-// been attached.
-const (
-        OrderPending  = "pending"  // package chosen, no receipt yet
-        OrderReview   = "review"   // receipt sent, waiting for the admin
-        OrderApproved = "approved" // account created / topped up
-        OrderRejected = "rejected"
-)
-
-// Order kinds: a first purchase creates an account, a top-up adds quota to the
-// account the buyer already has.
-const (
-        OrderKindNew   = "new"
-        OrderKindRenew = "renew"
-)
-
-// ResellerOrder is one purchase made through the sales bot. Package name and
-// price are snapshotted so editing or deleting a package never rewrites history.
-type ResellerOrder struct {
-        Id           int    `json:"id" gorm:"primaryKey;autoIncrement"`
-        TelegramId   int64  `json:"telegramId" gorm:"column:telegram_id;index"`
-        TelegramName string `json:"telegramName" gorm:"type:varchar(128);default:''"`
-        PackageId    int    `json:"packageId" gorm:"index"`
-        PackageName  string `json:"packageName" gorm:"type:varchar(128);default:''"`
-        Price        int64  `json:"price" gorm:"default:0"`
-        Kind         string `json:"kind" gorm:"type:varchar(16);default:new"`
-        Status       string `json:"status" gorm:"type:varchar(16);index;default:pending"`
-        // ReceiptFileId is the Telegram file id of the payment receipt the buyer
-        // uploaded. The image itself stays on Telegram's servers.
-        ReceiptFileId string `json:"receiptFileId" gorm:"type:varchar(256);default:''"`
-        PanelUserId   int    `json:"panelUserId" gorm:"default:0"`
-        PanelUsername string `json:"panelUsername" gorm:"type:varchar(128);default:''"`
-        Note          string `json:"note" gorm:"type:varchar(512);default:''"`
-        CreatedAt     int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
-        DecidedAt     int64  `json:"decidedAt" gorm:"default:0"`
-}
-
-func (ResellerOrder) TableName() string { return "reseller_orders" }
 
 // ---------------------------------------------------------------------------
 // Telegram shop: wallet-funded, pay-as-you-go config sales.

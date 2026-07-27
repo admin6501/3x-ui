@@ -154,15 +154,15 @@ var defaultValueMap = map[string]string{
 	"salesBotCurrency": "تومان",
 
 	// Telegram shop — wallet-funded, pay-as-you-go config sales.
-	"shopPricePerGB":    "0",
-	"shopPricePerDay":   "0",
-	"shopInboundId":     "0",
-	"shopMinTopUp":      "0",
-	"shopMaxTopUp":      "0",
-	"shopMinBalance":    "0",
-	"shopMaxVolumeGB":   "0",
-	"shopJoinChannel":   "",
-	"shopConfigDays":    "0",
+	"shopPricePerGB":  "0",
+	"shopPricePerDay": "0",
+	"shopInboundId":   "0",
+	"shopMinTopUp":    "0",
+	"shopMaxTopUp":    "0",
+	"shopMinBalance":  "0",
+	"shopMaxVolumeGB": "0",
+	"shopJoinChannel": "",
+	"shopConfigDays":  "0",
 
 	// Event bus — per-subscriber event filtering (empty = all disabled)
 	"tgEnabledEvents":   "login.attempt,cpu.high",

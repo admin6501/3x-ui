@@ -1638,7 +1638,7 @@ export const sections: readonly Section[] = [
     endpoints: [
       {
         method: 'GET',
-        path: '/panel/api/sales/shop/users',
+        path: '/panel/api/shop/users',
         summary: 'List shop users and their wallets, richest first.',
         params: [{ name: 'limit', in: 'query', type: 'integer', desc: 'Maximum rows (default 200).', optional: true }],
         response:
@@ -1646,7 +1646,7 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
-        path: '/panel/api/sales/shop/users/:id/adjust',
+        path: '/panel/api/shop/users/:id/adjust',
         summary: 'Credit or debit a wallet by hand and write the ledger entry. The sign of the amount is the direction, so one endpoint covers a refund and a correction alike. Configs are switched on or off to match the new balance right away.',
         params: [
           { name: 'id', in: 'path', type: 'integer', desc: 'Telegram user id.' },
@@ -1657,7 +1657,7 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
-        path: '/panel/api/sales/shop/users/:id/block',
+        path: '/panel/api/shop/users/:id/block',
         summary: 'Block or unblock a shop user. Blocking also takes their configs down, not just their ability to buy.',
         params: [
           { name: 'id', in: 'path', type: 'integer', desc: 'Telegram user id.' },
@@ -1667,7 +1667,7 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'GET',
-        path: '/panel/api/sales/shop/topups',
+        path: '/panel/api/shop/topups',
         summary: 'List wallet top-up requests, newest first.',
         params: [
           { name: 'status', in: 'query', type: 'string', desc: 'pending, review, approved or rejected.', optional: true },
@@ -1678,14 +1678,14 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
-        path: '/panel/api/sales/shop/topups/approve/:id',
+        path: '/panel/api/shop/topups/approve/:id',
         summary: 'Credit the wallet and re-enable the user\'s configs. Approving twice is refused, so a double-tap cannot pay somebody twice.',
         params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Top-up id.' }],
         response: '{\n  "success": true,\n  "obj": {\n    "telegramId": 123456789,\n    "amount": 100000,\n    "balance": 100000\n  }\n}',
       },
       {
         method: 'POST',
-        path: '/panel/api/sales/shop/topups/reject/:id',
+        path: '/panel/api/shop/topups/reject/:id',
         summary: 'Turn a top-up down. The optional note is forwarded to the user in Telegram; nothing is credited.',
         params: [
           { name: 'id', in: 'path', type: 'integer', desc: 'Top-up id.' },
@@ -1695,7 +1695,7 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'GET',
-        path: '/panel/api/sales/shop/configs',
+        path: '/panel/api/shop/configs',
         summary: 'Every config the shop sold, with its live meter reading and what it has cost so far.',
         params: [{ name: 'limit', in: 'query', type: 'integer', desc: 'Maximum rows (default 200).', optional: true }],
         response:
@@ -1703,23 +1703,76 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
-        path: '/panel/api/sales/shop/configs/del/:id',
+        path: '/panel/api/shop/configs/del/:id',
         summary: 'Delete a config and its panel client. What it already consumed stays charged — the ledger is history, not a reservation.',
         params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Config id.' }],
         response: '{\n  "success": true,\n  "msg": ""\n}',
       },
       {
         method: 'GET',
-        path: '/panel/api/sales/shop/stats',
+        path: '/panel/api/shop/stats',
         summary: 'Headline shop figures: users, configs, money in wallets, total topped up and total consumed.',
         response:
           '{\n  "success": true,\n  "obj": {\n    "users": 12,\n    "configs": 15,\n    "activeConfigs": 11,\n    "walletBalance": 840000,\n    "totalPaid": 1200000,\n    "totalSpent": 360000,\n    "pendingTopUps": 2,\n    "suspendedUsers": 1\n  }\n}',
       },
       {
         method: 'POST',
-        path: '/panel/api/sales/shop/bill',
+        path: '/panel/api/shop/bill',
         summary: 'Run the metering on demand instead of waiting for the scheduled run, so the effect of a price change is visible immediately.',
         response: '{\n  "success": true,\n  "obj": {\n    "charged": 6000,\n    "wallets": 3\n  }\n}',
+      },
+    ],
+  },
+
+  {
+    id: 'roles',
+    title: 'Custom Roles',
+    description:
+      'Admin-defined roles: a name plus the set of permissions accounts holding it are granted. Lives under /panel/api/roles and requires the <code>admins.manage</code> permission, the same gate as admin management. A custom role is assigned to an account by setting its <code>role</code> to <code>custom:&lt;id&gt;</code>. Permission keys are <code>inbounds.view</code>, <code>inbounds.manage</code>, <code>clients.view</code>, <code>clients.manage</code>, <code>plans.manage</code>, <code>groups.manage</code>, <code>hosts.manage</code>, <code>nodes.manage</code>, <code>settings.manage</code>, <code>xray.manage</code>, <code>admins.manage</code> and <code>inbounds.scoped</code> (restricts the account to its <code>allowedInbounds</code>, the way the built-in reseller role works).',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/roles/list',
+        summary: 'List every custom role with its permission CSV, oldest first.',
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 1,\n      "name": "Support",\n      "permissions": "inbounds.view,clients.view,clients.manage",\n      "createdAt": 1733011200000\n    }\n  ]\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/roles/permissions',
+        summary: 'Return the closed set of permission keys a role can be built from, in the order the panel presents them. Use this instead of hard-coding the list.',
+        response:
+          '{\n  "success": true,\n  "obj": [\n    "inbounds.view",\n    "inbounds.manage",\n    "clients.view",\n    "clients.manage",\n    "plans.manage",\n    "groups.manage",\n    "hosts.manage",\n    "nodes.manage",\n    "settings.manage",\n    "xray.manage",\n    "admins.manage",\n    "inbounds.scoped"\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/roles/add',
+        summary: 'Create a custom role. Names are unique; unrecognised permission keys are dropped rather than rejected.',
+        params: [
+          { name: 'name', in: 'body (json)', type: 'string', desc: 'Display name of the role, e.g. "Support".' },
+          { name: 'permissions', in: 'body (json)', type: 'string[]', desc: 'Permission keys to grant.' },
+          { name: 'permissionsCsv', in: 'body (form)', type: 'string', desc: 'Comma-separated alternative to permissions, for plain form posts.', optional: true },
+        ],
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "id": 1,\n    "name": "Support",\n    "permissions": "inbounds.view,clients.view,clients.manage"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/roles/update/:id',
+        summary: 'Rename a role and/or replace its permission set. Accounts holding the role pick the change up on their next request.',
+        params: [
+          { name: 'id', in: 'path', type: 'integer', desc: 'Role id.' },
+          { name: 'name', in: 'body (json)', type: 'string', desc: 'New display name.' },
+          { name: 'permissions', in: 'body (json)', type: 'string[]', desc: 'The full new permission set (replaces the old one).' },
+        ],
+        response: '{\n  "success": true,\n  "obj": {\n    "id": 1,\n    "name": "Support L2",\n    "permissions": "clients.view,clients.manage"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/roles/del/:id',
+        summary: 'Delete a custom role. Refused while any admin account still holds it, so no account is ever left pointing at a role that grants nothing.',
+        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Role id.' }],
+        response: '{\n  "success": true,\n  "msg": ""\n}',
       },
     ],
   },

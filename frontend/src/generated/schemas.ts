@@ -2431,10 +2431,6 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Role is one of RoleSuperAdmin / RoleManager / RoleReseller / RoleReadonly.\nDefaults to RoleSuperAdmin so a freshly-upgraded install with the\npre-existing single admin user keeps full access.",
         "type": "string"
       },
-      "telegramId": {
-        "description": "TelegramId links the account to the Telegram user who bought it through\nthe sales bot. 0 for accounts created by hand in the panel.",
-        "type": "integer"
-      },
       "trafficQuotaGB": {
         "description": "TrafficQuotaGB caps the total traffic a reseller may consume across all\nassigned inbounds, in GB. 0 = unlimited. Reseller-only.",
         "type": "integer"
@@ -2451,7 +2447,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "id",
       "password",
       "role",
-      "telegramId",
       "trafficQuotaGB",
       "username"
     ],

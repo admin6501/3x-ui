@@ -525,7 +525,6 @@ export const EXAMPLES: Record<string, unknown> = {
     "id": 0,
     "password": "",
     "role": "",
-    "telegramId": 0,
     "trafficQuotaGB": 0,
     "username": ""
   }

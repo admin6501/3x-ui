@@ -64,8 +64,6 @@ func initModels() error {
 		&model.User{},
 		&model.AdminRole{},
 		&model.AdminAuditLog{},
-		&model.ResellerPackage{},
-		&model.ResellerOrder{},
 		&model.BotUser{},
 		&model.WalletTopUp{},
 		&model.WalletTransaction{},
@@ -105,6 +103,9 @@ func initModels() error {
 	if err := migrateHostVerifyPeerCertByNameColumn(); err != nil {
 		return err
 	}
+	if err := dropResellerSalesTables(); err != nil {
+		return err
+	}
 	if err := dropLegacyForeignKeys(); err != nil {
 		return err
 	}
@@ -121,6 +122,34 @@ func initModels() error {
 		if err := resyncPostgresSequences(db, models); err != nil {
 			log.Printf("Error resyncing postgres sequences: %v", err)
 			return err
+		}
+	}
+	return nil
+}
+
+// dropResellerSalesTables removes what the panel's short-lived reseller
+// storefront left behind: the package price list, the orders placed against it,
+// and the users.telegram_id column that linked a buyer to the account they
+// bought. The Telegram bot sells configs on a wallet now and never sold panels;
+// reseller accounts are created by an admin from the Admins page and are
+// untouched by this. Idempotent — a database that never had these is a no-op.
+func dropResellerSalesTables() error {
+	migrator := db.Migrator()
+	for _, table := range []string{"reseller_packages", "reseller_orders"} {
+		if !migrator.HasTable(table) {
+			continue
+		}
+		if err := migrator.DropTable(table); err != nil {
+			log.Printf("Error dropping legacy table %s: %v", table, err)
+			return err
+		}
+		log.Printf("Dropped legacy reseller-sales table %s", table)
+	}
+	if migrator.HasColumn(&model.User{}, "telegram_id") {
+		if err := migrator.DropColumn(&model.User{}, "telegram_id"); err != nil {
+			// A failed column drop is cosmetic: the column is unread from here
+			// on, so leaving it behind must not stop the panel from starting.
+			log.Printf("Could not drop the legacy users.telegram_id column: %v", err)
 		}
 	}
 	return nil

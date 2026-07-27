@@ -124,7 +124,7 @@
     "plans": "Plans",
     "usage": "My Dashboard",
     "tutorials": "Tutorials",
-    "sales": "Telegram Shop"
+    "shop": "Telegram Shop"
   },
   "pages": {
     "login": {
@@ -2188,61 +2188,6 @@
           "title": "Keeping the panel safe",
           "body": "A panel reachable from the internet is worth protecting properly.\n- Turn on two-factor authentication for every admin account.\n- Serve the panel over HTTPS and move it off the default port and path.\n- Rotate API tokens you no longer use, and keep an eye on the login attempt notifications.\n- Update regularly and back up before every update."
         }
-      }
-    },
-    "sales": {
-      "title": "Reseller Sales",
-      "subtitle": "Packages the Telegram sales bot offers, and the orders placed against them",
-      "botOff": "The sales bot is switched off. Turn it on under Panel Settings → Telegram → Sales Bot for buyers to reach it.",
-      "refresh": "Refresh",
-      "packages": "Packages",
-      "package": "Package",
-      "addPackage": "New Package",
-      "editPackage": "Edit Package",
-      "packageName": "Package name",
-      "packageDesc": "Description",
-      "noPackages": "No package yet. Create one for the bot to sell.",
-      "confirmDeletePackage": "Delete this package? Existing orders keep their recorded name and price.",
-      "price": "Price",
-      "traffic": "Traffic",
-      "trafficGB": "Traffic quota (GB)",
-      "clients": "Clients",
-      "clientsUnit": "clients",
-      "clientQuota": "Client limit",
-      "durationDays": "Duration (days)",
-      "durationDesc": "Shown to the buyer. The panel enforces traffic and client quotas, not time.",
-      "zeroUnlimited": "0 = unlimited",
-      "unlimited": "Unlimited",
-      "inbounds": "Inbounds granted",
-      "inboundsDesc": "The inbounds the buyer's reseller account is scoped to.",
-      "sortOrder": "Sort order",
-      "onSale": "On sale",
-      "status": "Status",
-      "actions": "Actions",
-      "orders": "Orders",
-      "noOrders": "No order yet.",
-      "buyer": "Buyer",
-      "kindNew": "New purchase",
-      "kindRenew": "Top-up",
-      "approve": "Approve",
-      "reject": "Reject",
-      "confirmApprove": "Approve this order? The buyer's reseller account is created or topped up right away.",
-      "rejectNoteDesc": "Optional reason — it is sent to the buyer.",
-      "credentialsTitle": "Account created",
-      "credentialsSent": "The credentials have been sent to the buyer in Telegram. Copy them here if you need them.",
-      "revenue": "Revenue",
-      "soldOrders": "Sold",
-      "pending": "Awaiting review",
-      "resellers": "Resellers",
-      "saveFailed": "Could not save the package",
-      "deleteFailed": "Could not delete the package",
-      "approveFailed": "Could not approve the order",
-      "rejectFailed": "Could not reject the order",
-      "statuses": {
-        "pending": "Awaiting payment",
-        "review": "Awaiting review",
-        "approved": "Approved",
-        "rejected": "Rejected"
       }
     },
     "shop": {

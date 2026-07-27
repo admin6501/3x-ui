@@ -526,7 +526,6 @@ export interface User {
   id: number;
   password: string;
   role: string;
-  telegramId: number;
   trafficQuotaGB: number;
   username: string;
 }
