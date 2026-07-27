@@ -1,11 +1,12 @@
-// Package salesbot runs the reseller sales bot: a second Telegram bot,
-// separate from the panel's notification bot, whose whole job is selling
-// reseller accounts. It has its own token and its own admin list so a shop can
-// hand the sales bot out without exposing the panel's notification bot.
+// Package salesbot runs the shop bot: a second Telegram bot, separate from the
+// panel's notification bot, that sells configs to end users on a prepaid
+// wallet. It has its own token and its own admin list so a shop can be handed
+// out without exposing the panel's notification bot.
 //
-// Everything that grants access goes through service.SalesService, the same
-// code path the panel UI uses — the bot is a front end, not a second source of
-// truth.
+// It does not sell reseller panels — those are created by an admin from the
+// panel's Admins page. Everything that moves money or grants access goes
+// through service.ShopService, the same code path the panel UI uses; the bot is
+// a front end, not a second source of truth.
 package salesbot
 
 import (
