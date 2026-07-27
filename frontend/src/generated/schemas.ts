@@ -145,7 +145,7 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "boolean"
       },
       "salesBotPanelUrl": {
-        "description": "Panel address handed to buyers with their credentials",
+        "description": "Public host the bot puts into the links it sends buyers",
         "type": "string"
       },
       "salesBotPayText": {
@@ -778,7 +778,7 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "boolean"
       },
       "salesBotPanelUrl": {
-        "description": "Panel address handed to buyers with their credentials",
+        "description": "Public host the bot puts into the links it sends buyers",
         "type": "string"
       },
       "salesBotPayText": {

@@ -341,7 +341,7 @@ export default function TelegramTab({ allSetting, updateSetting }: TelegramTabPr
               <Input
                 value={allSetting.salesBotPanelUrl}
                 disabled={!allSetting.salesBotEnable}
-                placeholder="https://panel.example.com:2053/"
+                placeholder="panel.example.com"
                 onChange={(e) => updateSetting({ salesBotPanelUrl: e.target.value })}
               />
             </SettingListItem>

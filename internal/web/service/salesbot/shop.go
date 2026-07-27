@@ -252,23 +252,118 @@ func (b *Bot) createConfig(chatId int64, volumeGB int64) {
 		}
 		return
 	}
-	b.send(chatId, "✅ کانفیگ شما ساخته شد:\n\n"+
-		configCard(cfg.Email, cfg.VolumeGB, 0, 0, true, b.currency(), b.subLink(cfg)),
-		b.shopMenu(chatId))
+	b.send(chatId, "✅ کانفیگ شما ساخته شد:", b.shopMenu(chatId))
+	b.sendConfig(chatId, cfg, 0, 0)
 }
 
-// subLink builds the subscription URL a client app is pointed at.
+// publicHost is the address the shop puts into the links it hands out. The
+// panel has no incoming request to infer it from when the bot builds a link, so
+// it comes from the shop's own setting.
+func (b *Bot) publicHost() string {
+	raw, _ := b.settingService.GetSalesBotPanelUrl()
+	if host := hostFromPanelUrl(raw); host != "" {
+		return host
+	}
+	// Nothing set for the shop: fall back to whatever the panel already knows
+	// about its own public name, the same order the subscription server uses.
+	if d, err := b.settingService.GetSubDomain(); err == nil {
+		if host := hostFromPanelUrl(d); host != "" {
+			return host
+		}
+	}
+	if d, err := b.settingService.GetWebDomain(); err == nil {
+		return hostFromPanelUrl(d)
+	}
+	return ""
+}
+
+// hostFromPanelUrl reduces whatever an admin pasted into the setting to a bare
+// host[:port]. They paste the address bar of their panel as often as they type a
+// hostname, and a link built from "https://host:2053/panel/" is a dead link.
+func hostFromPanelUrl(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	// Accept "https://host:2053/" as well as a bare "host".
+	raw = strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
+	raw, _, _ = strings.Cut(raw, "/")
+	return strings.TrimSpace(raw)
+}
+
+// subLink builds the subscription URL a client app is pointed at. It prefers
+// the explicitly configured subscription URI and otherwise derives one from the
+// subscription server's own settings, so a panel that never filled in subURI —
+// which is the default — still hands out a working link.
 func (b *Bot) subLink(cfg *model.BotConfig) string {
 	if cfg.SubID == "" {
 		return ""
 	}
 	base, _ := b.settingService.GetSubURI()
 	if strings.TrimSpace(base) == "" {
-		// Without a configured subscription URI there is nothing trustworthy to
-		// hand out — better an empty link than a wrong one.
+		host := b.publicHost()
+		if host == "" {
+			return ""
+		}
+		base = b.settingService.BuildSubURIBase(host)
+	}
+	return joinSubLink(base, cfg.SubID)
+}
+
+// joinSubLink appends a subscription id to a base URI, tolerating a base with or
+// without its trailing slash. An empty base means the panel has nothing to build
+// a subscription link from, and the caller must fall back to the direct links.
+func joinSubLink(base, subID string) string {
+	base = strings.TrimSpace(base)
+	if base == "" || subID == "" {
 		return ""
 	}
-	return strings.TrimSuffix(base, "/") + "/" + cfg.SubID
+	return strings.TrimSuffix(base, "/") + "/" + subID
+}
+
+// configLinks returns the client's direct share links (vless://…). These are
+// what a buyer actually pastes into their app, and unlike the subscription URL
+// they need no subscription server to be configured at all — so they are the
+// shop's primary deliverable.
+func (b *Bot) configLinks(cfg *model.BotConfig) []string {
+	if b.inboundService == nil {
+		return nil
+	}
+	host := b.publicHost()
+	if host == "" {
+		// Without a host the builder still returns links, but with an empty
+		// address in them — worse than none, because nothing would flag them.
+		logger.Warning("shop: no public address configured, cannot build config links for", cfg.Email)
+		return nil
+	}
+	links, err := b.inboundService.GetAllClientLinks(host, cfg.Email)
+	if err != nil {
+		logger.Warning("shop: could not build config links for", cfg.Email, err)
+		return nil
+	}
+	return links
+}
+
+// sendConfig delivers one config: its usage card, then the links themselves.
+// A config with no deliverable link is a sale that gave the buyer nothing, so
+// that case says so out loud rather than sending a card and going quiet.
+func (b *Bot) sendConfig(chatId int64, cfg *model.BotConfig, usedBytes, cost int64) {
+	sub := b.subLink(cfg)
+	b.send(chatId, configCard(cfg.Email, cfg.VolumeGB, usedBytes, cost, cfg.Active, b.currency(), sub))
+
+	links := b.configLinks(cfg)
+	if len(links) == 0 && sub == "" {
+		b.send(chatId, msgNoLinkYet)
+		for _, adminId := range b.admins() {
+			b.send(adminId, fmt.Sprintf(
+				"⚠️ برای کانفیگ <code>%s</code> هیچ لینکی ساخته نشد. «آدرس عمومی برای لینک‌ها» را در تنظیمات ربات فروش پر کنید.",
+				esc(cfg.Email)))
+		}
+		return
+	}
+	for _, link := range links {
+		b.send(chatId, "<code>"+esc(link)+"</code>")
+	}
 }
 
 func (b *Bot) showConfigs(chatId int64) {
@@ -280,8 +375,7 @@ func (b *Bot) showConfigs(chatId int64) {
 	for i := range configs {
 		cfg := &configs[i]
 		usage := b.shopService.Usage(cfg)
-		b.send(chatId, configCard(cfg.Email, cfg.VolumeGB, usage.UsedBytes,
-			cfg.ChargedTraffic+cfg.ChargedDays, cfg.Active, b.currency(), b.subLink(cfg)))
+		b.sendConfig(chatId, cfg, usage.UsedBytes, cfg.ChargedTraffic+cfg.ChargedDays)
 	}
 }
 

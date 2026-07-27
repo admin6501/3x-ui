@@ -221,6 +221,61 @@ func TestSignedNumbersForBalanceCorrections(t *testing.T) {
 	}
 }
 
+// TestPanelUrlReducesToAHost: the setting is typed by hand and people paste the
+// address bar of their panel into it. Whatever they paste has to come back out
+// as a bare host, because it is interpolated straight into a share link.
+func TestPanelUrlReducesToAHost(t *testing.T) {
+	cases := map[string]string{
+		"panel.example.com":               "panel.example.com",
+		"https://panel.example.com:2053/": "panel.example.com:2053",
+		"http://panel.example.com/panel/": "panel.example.com",
+		"  https://1.2.3.4:2096  ":        "1.2.3.4:2096",
+		"":                                "",
+		"   ":                             "",
+		"https://":                        "",
+	}
+	for in, want := range cases {
+		if got := hostFromPanelUrl(in); got != want {
+			t.Errorf("hostFromPanelUrl(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// TestSubscriptionLinkJoin: subURI is empty on a default install, and the old
+// code turned that into a config card with no link at all — the bug reported in
+// issue #24. An empty base must be reported as "no link" so the caller falls
+// back to the direct config links instead of sending a buyer nothing.
+func TestSubscriptionLinkJoin(t *testing.T) {
+	cases := []struct {
+		base, subID, want string
+	}{
+		{"https://sub.example.com:2096/sub/", "abc123", "https://sub.example.com:2096/sub/abc123"},
+		{"https://sub.example.com:2096/sub", "abc123", "https://sub.example.com:2096/sub/abc123"},
+		{"  https://sub.example.com/sub/  ", "abc123", "https://sub.example.com/sub/abc123"},
+		{"", "abc123", ""},
+		{"   ", "abc123", ""},
+		{"https://sub.example.com/sub/", "", ""},
+	}
+	for _, tc := range cases {
+		if got := joinSubLink(tc.base, tc.subID); got != tc.want {
+			t.Errorf("joinSubLink(%q, %q) = %q, want %q", tc.base, tc.subID, got, tc.want)
+		}
+	}
+}
+
+// TestConfigCardOmitsAnEmptyLink: a card built without a subscription link must
+// not show an empty "🔗 لینک اشتراک" heading — that is what made the reported
+// message look like the bot had sent a broken link rather than none.
+func TestConfigCardOmitsAnEmptyLink(t *testing.T) {
+	if got := configCard("user@example.com", 10, 0, 0, true, "تومان", "   "); strings.Contains(got, "لینک اشتراک") {
+		t.Errorf("blank link still drew a link section:\n%s", got)
+	}
+	got := configCard("user@example.com", 10, 0, 0, true, "تومان", "https://s.example.com/sub/x")
+	if !strings.Contains(got, "https://s.example.com/sub/x") {
+		t.Errorf("link missing from card:\n%s", got)
+	}
+}
+
 // TestChannelNamesNormalise: the join-channel setting is typed by hand, so a
 // link, a bare name and an @name all have to reach the same chat.
 func TestChannelNamesNormalise(t *testing.T) {
