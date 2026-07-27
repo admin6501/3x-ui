@@ -893,7 +893,8 @@
       },
       "plan": "套餐",
       "planDesc": "选择套餐以填充流量、到期和 IP 限制",
-      "planPlaceholder": "应用套餐…"
+      "planPlaceholder": "应用套餐…",
+      "hwidDisabledNotice": "设备数限制已在面板设置中关闭，因此该值不会生效。开启“设备（HWID）限制”后才可使用。"
     },
     "groups": {
       "title": "分组",

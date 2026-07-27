@@ -893,7 +893,8 @@
       },
       "plan": "Paket",
       "planDesc": "Pilih paket untuk mengisi trafik, kedaluwarsa, dan batas IP",
-      "planPlaceholder": "Terapkan paket…"
+      "planPlaceholder": "Terapkan paket…",
+      "hwidDisabledNotice": "Batas perangkat dimatikan di Pengaturan Panel, jadi nilai ini tidak berpengaruh. Aktifkan “Batas perangkat (HWID)” untuk memakainya."
     },
     "groups": {
       "title": "Grup",

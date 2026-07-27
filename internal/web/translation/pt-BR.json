@@ -893,7 +893,8 @@
       },
       "plan": "Plano",
       "planDesc": "Escolha um plano para preencher tráfego, validade e limite de IP",
-      "planPlaceholder": "Aplicar um plano…"
+      "planPlaceholder": "Aplicar um plano…",
+      "hwidDisabledNotice": "O limite de dispositivos está desligado nas Configurações do Painel, então este valor não tem efeito. Ative “Limite de dispositivos (HWID)” para usá-lo."
     },
     "groups": {
       "title": "Grupos",

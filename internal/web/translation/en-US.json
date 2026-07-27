@@ -895,7 +895,8 @@
       },
       "plan": "Plan",
       "planDesc": "Pick a plan to prefill traffic, expiry and IP limit",
-      "planPlaceholder": "Apply a plan…"
+      "planPlaceholder": "Apply a plan…",
+      "hwidDisabledNotice": "The device limit is switched off in Panel Settings, so this value has no effect. Turn on “Device (HWID) limit” to use it."
     },
     "groups": {
       "title": "Groups",

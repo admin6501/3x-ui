@@ -893,7 +893,8 @@
       },
       "plan": "Plan",
       "planDesc": "Trafik, son kullanma ve IP limitini doldurmak için bir plan seçin",
-      "planPlaceholder": "Bir plan uygula…"
+      "planPlaceholder": "Bir plan uygula…",
+      "hwidDisabledNotice": "Cihaz limiti Panel Ayarları'nda kapalı, bu yüzden bu değerin etkisi yok. Kullanmak için “Cihaz (HWID) limiti”ni açın."
     },
     "groups": {
       "title": "Gruplar",

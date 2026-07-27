@@ -30,6 +30,7 @@ import { DateTimePicker, SelectAllClearButtons } from '@/components/form';
 import { TLS_FLOW_CONTROL } from '@/schemas/primitives';
 import type { ClientRecord, InboundOption, ExternalLink, ExternalLinkInput } from '@/hooks/useClients';
 import { useFail2banStatusQuery, getLimitIpNotice } from '@/api/queries/useFail2banStatusQuery';
+import { useAllSettings } from '@/api/queries/useAllSettings';
 import { ClientFormSchema, ClientCreateFormSchema } from '@/schemas/client';
 
 const FLOW_OPTIONS = Object.values(TLS_FLOW_CONTROL);
@@ -204,6 +205,14 @@ export default function ClientFormModal({
   const fail2ban = useFail2banStatusQuery();
   const limitIpDisabled = !fail2ban.usable;
   const limitIpNotice = getLimitIpNotice(fail2ban, t);
+
+  // The device limit is only honoured while the panel-wide switch is on, so
+  // leaving the field editable would invite someone to set a cap that never
+  // applies. Stay editable until the settings actually load, so the field does
+  // not flicker into a disabled state on every open.
+  const { allSetting, fetched: settingsFetched } = useAllSettings();
+  const hwidDisabled = settingsFetched && !allSetting.hwidEnable;
+  const hwidNotice = hwidDisabled ? t('pages.clients.hwidDisabledNotice') : '';
 
   // Plan/package templates — picking one prefills traffic/expiry/IP-limit.
   const [plans, setPlans] = useState<PlanOption[]>([]);
@@ -680,12 +689,18 @@ export default function ClientFormModal({
                       <Col xs={24} md={12}>
                         <Form.Item label={t('pages.clients.hwidLimit')} tooltip={t('pages.clients.hwidLimitDesc')}>
                           <Space.Compact style={{ display: 'flex', width: '100%' }}>
-                            <InputNumber
-                              value={form.hwidLimit}
-                              min={0}
-                              style={{ flex: 1 }}
-                              onChange={(v) => update('hwidLimit', Number(v) || 0)}
-                            />
+                            <Tooltip title={hwidNotice || undefined}>
+                              <span style={{ display: 'flex', flex: 1 }}>
+                                <InputNumber
+                                  value={form.hwidLimit}
+                                  min={0}
+                                  disabled={hwidDisabled}
+                                  data-testid="client-hwid-limit"
+                                  style={{ flex: 1, ...(hwidDisabled ? { pointerEvents: 'none' } : null) }}
+                                  onChange={(v) => update('hwidLimit', Number(v) || 0)}
+                                />
+                              </span>
+                            </Tooltip>
                             {isEdit && (
                               <Tooltip title={t('pages.clients.devices')}>
                                 <Button icon={<MobileOutlined />} loading={devicesLoading} onClick={openDevicesModal}>

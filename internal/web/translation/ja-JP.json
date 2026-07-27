@@ -893,7 +893,8 @@
       },
       "plan": "プラン",
       "planDesc": "プランを選ぶとトラフィック・期限・IP制限が入力されます",
-      "planPlaceholder": "プランを適用…"
+      "planPlaceholder": "プランを適用…",
+      "hwidDisabledNotice": "デバイス数上限はパネル設定で無効になっているため、この値は反映されません。使用するには「デバイス（HWID）制限」を有効にしてください。"
     },
     "groups": {
       "title": "グループ",

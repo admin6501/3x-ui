@@ -893,7 +893,8 @@
       },
       "plan": "Gói",
       "planDesc": "Chọn gói để điền lưu lượng, hết hạn và giới hạn IP",
-      "planPlaceholder": "Áp dụng gói…"
+      "planPlaceholder": "Áp dụng gói…",
+      "hwidDisabledNotice": "Giới hạn thiết bị đang tắt trong Cài đặt bảng điều khiển nên giá trị này không có tác dụng. Bật “Giới hạn thiết bị (HWID)” để dùng."
     },
     "groups": {
       "title": "Nhóm",

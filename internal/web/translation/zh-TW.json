@@ -893,7 +893,8 @@
       },
       "plan": "方案",
       "planDesc": "選擇方案以填入流量、到期與 IP 限制",
-      "planPlaceholder": "套用方案…"
+      "planPlaceholder": "套用方案…",
+      "hwidDisabledNotice": "裝置數限制已在面板設定中關閉，因此該值不會生效。開啟「裝置（HWID）限制」後才可使用。"
     },
     "groups": {
       "title": "群組",

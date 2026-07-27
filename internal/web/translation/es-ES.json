@@ -893,7 +893,8 @@
       },
       "plan": "Plan",
       "planDesc": "Elige un plan para rellenar tráfico, caducidad y límite de IP",
-      "planPlaceholder": "Aplicar un plan…"
+      "planPlaceholder": "Aplicar un plan…",
+      "hwidDisabledNotice": "El límite de dispositivos está desactivado en los ajustes del panel, así que este valor no tiene efecto. Activa «Límite de dispositivos (HWID)» para usarlo."
     },
     "groups": {
       "title": "Grupos",
