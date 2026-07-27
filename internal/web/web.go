@@ -491,6 +491,14 @@ func (s *Server) start(restartXray bool, startTgBot bool) (err error) {
 	// check resolves through this cache.
 	service.ReloadRoleCache()
 
+	// An inbound the panel took down on a reseller's behalf is only ever put
+	// back by that reseller recovering. If the account is gone, nothing is left
+	// to recover it and every client on that inbound stays dark across restarts
+	// and upgrades — so check for that on the way up.
+	if (&service.AdminService{}).ReleaseOrphanedResellerInbounds(&s.inboundService) {
+		restartXray = true
+	}
+
 	// SkipIfStillRunning stops a slow job (e.g. the 5s traffic poll on a large
 	// install) from overlapping itself: two concurrent runs of the same job race
 	// the shared xrayAPI — leaking a grpc connection — and the StatsLastValues

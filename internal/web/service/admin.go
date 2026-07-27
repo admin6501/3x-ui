@@ -10,11 +10,64 @@ import (
 
 	"github.com/mhsanaei/3x-ui/v3/internal/database"
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
-	"github.com/mhsanaei/3x-ui/v3/internal/util/crypto"
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
+	"github.com/mhsanaei/3x-ui/v3/internal/util/crypto"
 
 	"gorm.io/gorm"
 )
+
+// verifyInboundsExist refuses inbound ids that are not in the panel. Only ids
+// being newly assigned are checked: an id already on the account is left alone,
+// so deleting an inbound can never make an unrelated edit to that admin fail.
+//
+// A typo here is expensive — an account scoped to an inbound that does not
+// exist looks fine and silently governs nothing — so it is worth failing loudly
+// at the moment it is typed.
+func verifyInboundsExist(requestedCSV, currentCSV string) error {
+	added := map[int]struct{}{}
+	for _, id := range parseInboundCSV(requestedCSV) {
+		added[id] = struct{}{}
+	}
+	for _, id := range parseInboundCSV(currentCSV) {
+		delete(added, id)
+	}
+	if len(added) == 0 {
+		return nil
+	}
+	ids := make([]int, 0, len(added))
+	for id := range added {
+		ids = append(ids, id)
+	}
+	var found []int
+	if err := database.GetDB().Model(&model.Inbound{}).
+		Where("id IN ?", ids).Pluck("id", &found).Error; err != nil {
+		return err
+	}
+	for _, id := range found {
+		delete(added, id)
+	}
+	if len(added) == 0 {
+		return nil
+	}
+	missing := make([]string, 0, len(added))
+	for _, id := range ids {
+		if _, still := added[id]; still {
+			missing = append(missing, strconv.Itoa(id))
+		}
+	}
+	return fmt.Errorf("no inbound with id %s", strings.Join(missing, ", "))
+}
+
+// parseInboundCSV reads a normalised allowed-inbounds CSV into ids.
+func parseInboundCSV(csv string) []int {
+	out := []int{}
+	for _, part := range strings.Split(csv, ",") {
+		if n, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && n > 0 {
+			out = append(out, n)
+		}
+	}
+	return out
+}
 
 // AdminService provides CRUD + audit-log helpers for admin user accounts.
 type AdminService struct{}
@@ -273,6 +326,11 @@ func (s *AdminService) CreateAdmin(actor *model.User, username, password, role, 
 	if !RoleExists(role) {
 		return nil, fmt.Errorf("unknown role %q", role)
 	}
+	if IsScopedRole(role) {
+		if err := verifyInboundsExist(NormalizeAllowedInbounds(allowedInbounds), ""); err != nil {
+			return nil, err
+		}
+	}
 
 	db := database.GetDB()
 
@@ -332,6 +390,11 @@ func (s *AdminService) UpdateAdmin(actor *model.User, id int, username, role, al
 		}
 		if count <= 1 {
 			return errors.New("cannot demote the last super_admin")
+		}
+	}
+	if IsScopedRole(role) {
+		if err := verifyInboundsExist(NormalizeAllowedInbounds(allowedInbounds), u.AllowedInbounds); err != nil {
+			return err
 		}
 	}
 	updates := map[string]any{
@@ -653,4 +716,59 @@ func (s *AdminService) logAction(actor *model.User, action string, targetID int,
 		row.Actor = actor.Username
 	}
 	_ = db.Create(row).Error
+}
+
+// ReleaseOrphanedResellerInbounds switches an inbound back on when whoever it
+// was held down for is gone.
+//
+// The panel takes an inbound down on a reseller's behalf — quota exhausted, or
+// the account suspended — and records a row saying who and why. Only that
+// reseller's recovery puts it back. If the reseller row itself disappears (an
+// admin deletes the account on an older build, a restored backup, a manual
+// edit) or stops being a reseller, nothing is left to recover: the inbound
+// stays off and every client on it stays dark, through restarts and upgrades
+// alike, because the state is in the database rather than in the process.
+//
+// This is the repair. It runs at startup and releases only inbounds whose
+// owner no longer exists or is no longer scoped — an inbound held down for a
+// reseller who is still there, still a reseller and still over quota (or still
+// suspended) is left exactly as it is.
+func (s *AdminService) ReleaseOrphanedResellerInbounds(inboundSvc *InboundService) bool {
+	if inboundSvc == nil {
+		return false
+	}
+	db := database.GetDB()
+	var rows []model.ResellerQuotaDisabledInbound
+	if err := db.Find(&rows).Error; err != nil {
+		return false
+	}
+	if len(rows) == 0 {
+		return false
+	}
+
+	// One lookup per distinct owner rather than one per row.
+	ownerLives := map[int]bool{}
+	changed := false
+	for _, row := range rows {
+		alive, known := ownerLives[row.ResellerId]
+		if !known {
+			var owner model.User
+			err := db.Where("id = ?", row.ResellerId).First(&owner).Error
+			alive = err == nil && IsScopedRole(owner.Role)
+			ownerLives[row.ResellerId] = alive
+		}
+		if alive {
+			continue
+		}
+		if _, err := inboundSvc.SetInboundEnable(row.InboundId, true); err != nil {
+			logger.Warning("release orphaned reseller inbound", row.InboundId, "failed:", err)
+			// The row is still orphaned; drop it so a missing inbound cannot
+			// keep the repair reporting work forever.
+		}
+		_ = db.Where("inbound_id = ?", row.InboundId).
+			Delete(&model.ResellerQuotaDisabledInbound{}).Error
+		logger.Info("released inbound", row.InboundId, "held down for a reseller that no longer exists")
+		changed = true
+	}
+	return changed
 }
