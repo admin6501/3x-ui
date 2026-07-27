@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
@@ -56,6 +57,7 @@ func (a *SettingController) initRouter(g *gin.RouterGroup) {
 	g.POST("/apiTokens/create", requirePermission(model.PermSettingsManage), a.createApiToken)
 	g.POST("/apiTokens/delete/:id", requirePermission(model.PermSettingsManage), a.deleteApiToken)
 	g.POST("/apiTokens/setEnabled/:id", requirePermission(model.PermSettingsManage), a.setApiTokenEnabled)
+	g.GET("/salesBotStatus", requirePermission(model.PermSettingsManage), a.salesBotStatus)
 	g.POST("/testSmtp", requirePermission(model.PermSettingsManage), a.testSmtp)
 	g.POST("/testTgBot", requirePermission(model.PermSettingsManage), a.testTgBot)
 }
@@ -102,6 +104,11 @@ func (a *SettingController) updateSetting(c *gin.Context) {
 		if applyErr := a.xrayService.RestartXray(false); applyErr != nil {
 			logger.Warning("apply panel outbound change failed:", applyErr)
 		}
+	}
+	if err == nil && reconcileSalesBotFunc != nil {
+		// Toggling the sales bot, changing its token or its admin list takes
+		// effect immediately; everything else is a no-op here.
+		go reconcileSalesBotFunc()
 	}
 	jsonMsg(c, I18nWeb(c, "pages.settings.toasts.modifySettings"), err)
 }
@@ -246,6 +253,52 @@ func (a *SettingController) testTgBot(c *gin.Context) {
 	}
 	jsonMsg(c, I18nWeb(c, "pages.settings.tgBotNotRunning"), errors.New("bot not started"))
 }
+
+// salesBotStatus reports whether the sales bot is actually polling Telegram.
+// Saving a bad token leaves the bot down with only a log line to show for it,
+// so the settings page asks here instead of guessing from the enable flag.
+func (a *SettingController) salesBotStatus(c *gin.Context) {
+	running := false
+	if salesBotRunningFunc != nil {
+		running = salesBotRunningFunc()
+	}
+	enabled, _ := a.settingService.GetSalesBotEnable()
+	token, _ := a.settingService.GetSalesBotToken()
+	jsonObj(c, map[string]any{
+		"running":     running,
+		"enabled":     enabled,
+		"hasToken":    strings.TrimSpace(token) != "",
+		"adminsCount": len(salesBotAdminList(a)),
+	}, nil)
+}
+
+// salesBotAdminList parses the configured admin ids just to count them, so the
+// UI can warn about the most common misconfiguration: a bot with no admin, and
+// therefore nobody who can approve an order.
+func salesBotAdminList(a *SettingController) []string {
+	csv, _ := a.settingService.GetSalesBotAdmins()
+	out := []string{}
+	for _, part := range strings.Split(csv, ",") {
+		if strings.TrimSpace(part) != "" {
+			out = append(out, strings.TrimSpace(part))
+		}
+	}
+	return out
+}
+
+// salesBotRunningFunc is set from the web layer, like the reconciler below.
+var salesBotRunningFunc func() bool
+
+// SetSalesBotRunningFunc registers the sales bot's liveness probe.
+func SetSalesBotRunningFunc(fn func() bool) { salesBotRunningFunc = fn }
+
+// reconcileSalesBotFunc is set from the web layer so a settings save can bring
+// the sales bot up, down or restart it without a panel restart. Set from web.go
+// to avoid a circular import.
+var reconcileSalesBotFunc func()
+
+// SetReconcileSalesBotFunc registers the sales bot reconciler.
+func SetReconcileSalesBotFunc(fn func()) { reconcileSalesBotFunc = fn }
 
 // testTgFunc is set from web layer to test Telegram sending without circular imports.
 var testTgFunc func() error

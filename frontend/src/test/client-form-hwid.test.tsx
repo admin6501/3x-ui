@@ -26,8 +26,8 @@ vi.mock('@/api/queries/useFail2banStatusQuery', () => ({
 // Keep the real HttpUtil object (it carries more methods than the modal uses)
 // and stub only the two calls that would otherwise reach the network in jsdom.
 const { HttpUtil } = await import('@/utils');
-vi.spyOn(HttpUtil, 'get').mockResolvedValue({ success: true, obj: [] });
-vi.spyOn(HttpUtil, 'post').mockResolvedValue({ success: true, obj: {} });
+vi.spyOn(HttpUtil, 'get').mockResolvedValue({ success: true, msg: '', obj: [] });
+vi.spyOn(HttpUtil, 'post').mockResolvedValue({ success: true, msg: '', obj: {} });
 
 const ClientFormModal = (await import('@/pages/clients/ClientFormModal')).default;
 

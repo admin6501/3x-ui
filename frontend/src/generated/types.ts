@@ -42,6 +42,14 @@ export interface AllSetting {
   panelOutbound: string;
   remarkTemplate: string;
   restartXrayOnClientDisable: boolean;
+  salesBotAdmins: string;
+  salesBotCurrency: string;
+  salesBotEnable: boolean;
+  salesBotPanelUrl: string;
+  salesBotPayText: string;
+  salesBotSupport: string;
+  salesBotToken: string;
+  salesBotWelcome: string;
   sessionMaxAge: number;
   smtpCpu: number;
   smtpEnable: boolean;
@@ -119,6 +127,7 @@ export interface AllSettingView {
   hasApiToken: boolean;
   hasLdapPassword: boolean;
   hasNordSecret: boolean;
+  hasSalesBotToken: boolean;
   hasSmtpPassword: boolean;
   hasTgBotToken: boolean;
   hasTwoFactorToken: boolean;
@@ -151,6 +160,14 @@ export interface AllSettingView {
   panelOutbound: string;
   remarkTemplate: string;
   restartXrayOnClientDisable: boolean;
+  salesBotAdmins: string;
+  salesBotCurrency: string;
+  salesBotEnable: boolean;
+  salesBotPanelUrl: string;
+  salesBotPayText: string;
+  salesBotSupport: string;
+  salesBotToken: string;
+  salesBotWelcome: string;
   sessionMaxAge: number;
   smtpCpu: number;
   smtpEnable: boolean;
@@ -491,6 +508,7 @@ export interface User {
   id: number;
   password: string;
   role: string;
+  telegramId: number;
   trafficQuotaGB: number;
   username: string;
 }

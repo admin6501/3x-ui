@@ -143,6 +143,17 @@ type AllSetting struct {
 	// zero, so a stray toggle can never wipe clients on its own.
 	AutoDeleteExpiredEnable bool `json:"autoDeleteExpiredEnable" form:"autoDeleteExpiredEnable"`              // Master switch for the auto-delete job
 	AutoDeleteExpiredDays   int  `json:"autoDeleteExpiredDays" form:"autoDeleteExpiredDays" validate:"gte=0"` // Days a client must stay expired before deletion; 0 = never delete
+
+	// Reseller sales bot — a second Telegram bot, separate from the notification
+	// bot above, that sells reseller accounts to buyers in Telegram.
+	SalesBotEnable   bool   `json:"salesBotEnable" form:"salesBotEnable"`     // Enable the reseller sales bot
+	SalesBotToken    string `json:"salesBotToken" form:"salesBotToken"`       // Sales bot token (its own bot, not the notification one)
+	SalesBotAdmins   string `json:"salesBotAdmins" form:"salesBotAdmins"`     // Comma-separated Telegram user IDs that may run the admin side
+	SalesBotPanelUrl string `json:"salesBotPanelUrl" form:"salesBotPanelUrl"` // Panel address handed to buyers with their credentials
+	SalesBotWelcome  string `json:"salesBotWelcome" form:"salesBotWelcome"`   // Custom welcome text; blank uses the built-in one
+	SalesBotPayText  string `json:"salesBotPayText" form:"salesBotPayText"`   // Payment instructions shown before the receipt upload
+	SalesBotSupport  string `json:"salesBotSupport" form:"salesBotSupport"`   // Support contact shown in the bot
+	SalesBotCurrency string `json:"salesBotCurrency" form:"salesBotCurrency"` // Currency label shown next to prices
 }
 
 // AllSettingView is the browser-safe settings read model. Secret values
@@ -158,6 +169,7 @@ type AllSettingView struct {
 	HasWarpSecret     bool `json:"hasWarpSecret"`
 	HasNordSecret     bool `json:"hasNordSecret"`
 	HasSmtpPassword   bool `json:"hasSmtpPassword"`
+	HasSalesBotToken  bool `json:"hasSalesBotToken"`
 }
 
 // CheckValid validates all settings in the AllSetting struct, checking IP addresses, ports, SSL certificates, and other configuration values.

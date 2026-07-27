@@ -132,6 +132,38 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Restart Xray when clients are auto-disabled by expiry/traffic limit",
         "type": "boolean"
       },
+      "salesBotAdmins": {
+        "description": "Comma-separated Telegram user IDs that may run the admin side",
+        "type": "string"
+      },
+      "salesBotCurrency": {
+        "description": "Currency label shown next to prices",
+        "type": "string"
+      },
+      "salesBotEnable": {
+        "description": "Reseller sales bot — a second Telegram bot, separate from the notification\nbot above, that sells reseller accounts to buyers in Telegram.\nEnable the reseller sales bot",
+        "type": "boolean"
+      },
+      "salesBotPanelUrl": {
+        "description": "Panel address handed to buyers with their credentials",
+        "type": "string"
+      },
+      "salesBotPayText": {
+        "description": "Payment instructions shown before the receipt upload",
+        "type": "string"
+      },
+      "salesBotSupport": {
+        "description": "Support contact shown in the bot",
+        "type": "string"
+      },
+      "salesBotToken": {
+        "description": "Sales bot token (its own bot, not the notification one)",
+        "type": "string"
+      },
+      "salesBotWelcome": {
+        "description": "Custom welcome text; blank uses the built-in one",
+        "type": "string"
+      },
       "sessionMaxAge": {
         "description": "Session maximum age in minutes (cap at one year)",
         "maximum": 525600,
@@ -448,6 +480,14 @@ export const SCHEMAS: Record<string, unknown> = {
       "panelOutbound",
       "remarkTemplate",
       "restartXrayOnClientDisable",
+      "salesBotAdmins",
+      "salesBotCurrency",
+      "salesBotEnable",
+      "salesBotPanelUrl",
+      "salesBotPayText",
+      "salesBotSupport",
+      "salesBotToken",
+      "salesBotWelcome",
       "sessionMaxAge",
       "smtpCpu",
       "smtpEnable",
@@ -552,6 +592,9 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "boolean"
       },
       "hasNordSecret": {
+        "type": "boolean"
+      },
+      "hasSalesBotToken": {
         "type": "boolean"
       },
       "hasSmtpPassword": {
@@ -668,6 +711,38 @@ export const SCHEMAS: Record<string, unknown> = {
       "restartXrayOnClientDisable": {
         "description": "Restart Xray when clients are auto-disabled by expiry/traffic limit",
         "type": "boolean"
+      },
+      "salesBotAdmins": {
+        "description": "Comma-separated Telegram user IDs that may run the admin side",
+        "type": "string"
+      },
+      "salesBotCurrency": {
+        "description": "Currency label shown next to prices",
+        "type": "string"
+      },
+      "salesBotEnable": {
+        "description": "Reseller sales bot — a second Telegram bot, separate from the notification\nbot above, that sells reseller accounts to buyers in Telegram.\nEnable the reseller sales bot",
+        "type": "boolean"
+      },
+      "salesBotPanelUrl": {
+        "description": "Panel address handed to buyers with their credentials",
+        "type": "string"
+      },
+      "salesBotPayText": {
+        "description": "Payment instructions shown before the receipt upload",
+        "type": "string"
+      },
+      "salesBotSupport": {
+        "description": "Support contact shown in the bot",
+        "type": "string"
+      },
+      "salesBotToken": {
+        "description": "Sales bot token (its own bot, not the notification one)",
+        "type": "string"
+      },
+      "salesBotWelcome": {
+        "description": "Custom welcome text; blank uses the built-in one",
+        "type": "string"
       },
       "sessionMaxAge": {
         "description": "Session maximum age in minutes (cap at one year)",
@@ -960,6 +1035,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "hasApiToken",
       "hasLdapPassword",
       "hasNordSecret",
+      "hasSalesBotToken",
       "hasSmtpPassword",
       "hasTgBotToken",
       "hasTwoFactorToken",
@@ -992,6 +1068,14 @@ export const SCHEMAS: Record<string, unknown> = {
       "panelOutbound",
       "remarkTemplate",
       "restartXrayOnClientDisable",
+      "salesBotAdmins",
+      "salesBotCurrency",
+      "salesBotEnable",
+      "salesBotPanelUrl",
+      "salesBotPayText",
+      "salesBotSupport",
+      "salesBotToken",
+      "salesBotWelcome",
       "sessionMaxAge",
       "smtpCpu",
       "smtpEnable",
@@ -2241,6 +2325,10 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Role is one of RoleSuperAdmin / RoleManager / RoleReseller / RoleReadonly.\nDefaults to RoleSuperAdmin so a freshly-upgraded install with the\npre-existing single admin user keeps full access.",
         "type": "string"
       },
+      "telegramId": {
+        "description": "TelegramId links the account to the Telegram user who bought it through\nthe sales bot. 0 for accounts created by hand in the panel.",
+        "type": "integer"
+      },
       "trafficQuotaGB": {
         "description": "TrafficQuotaGB caps the total traffic a reseller may consume across all\nassigned inbounds, in GB. 0 = unlimited. Reseller-only.",
         "type": "integer"
@@ -2257,6 +2345,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "id",
       "password",
       "role",
+      "telegramId",
       "trafficQuotaGB",
       "username"
     ],

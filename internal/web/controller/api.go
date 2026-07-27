@@ -138,6 +138,12 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	rolesGroup.Use(requirePermission(model.PermAdminsManage))
 	NewRoleController(rolesGroup)
 
+	// Reseller sales — the price list and orders behind the Telegram sales bot.
+	// Approving an order creates an admin account, so it carries the same gate.
+	salesGroup := api.Group("/sales")
+	salesGroup.Use(requirePermission(model.PermAdminsManage))
+	NewSalesController(salesGroup)
+
 	// Plans/packages — reusable client templates. Listing is open to any admin
 	// (the client form offers them); mutating routes are gated to
 	// super_admin/manager inside the controller. Paths are /panel/api/plans/*.

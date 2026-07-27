@@ -142,6 +142,17 @@ var defaultValueMap = map[string]string{
 	"autoDeleteExpiredEnable": "false",
 	"autoDeleteExpiredDays":   "0",
 
+	// Reseller sales bot — a second Telegram bot, separate from the
+	// notification bot above, that sells reseller accounts.
+	"salesBotEnable":   "false",
+	"salesBotToken":    "",
+	"salesBotAdmins":   "",
+	"salesBotPanelUrl": "",
+	"salesBotWelcome":  "",
+	"salesBotPayText":  "",
+	"salesBotSupport":  "",
+	"salesBotCurrency": "تومان",
+
 	// Event bus — per-subscriber event filtering (empty = all disabled)
 	"tgEnabledEvents":   "login.attempt,cpu.high",
 	"smtpEnabledEvents": "login.attempt,cpu.high",
@@ -258,6 +269,7 @@ func (s *SettingService) GetAllSettingView() (*entity.AllSettingView, error) {
 	view.HasWarpSecret = secretConfigured(mustString(s.GetWarp()))
 	view.HasNordSecret = secretConfigured(mustString(s.GetNord()))
 	view.HasSmtpPassword = secretConfigured(allSetting.SmtpPassword)
+	view.HasSalesBotToken = secretConfigured(allSetting.SalesBotToken)
 	var apiTokenCount int64
 	if err := database.GetDB().Model(model.ApiToken{}).Where("enabled = ?", true).Count(&apiTokenCount).Error; err == nil {
 		view.HasApiToken = apiTokenCount > 0
@@ -266,6 +278,7 @@ func (s *SettingService) GetAllSettingView() (*entity.AllSettingView, error) {
 	view.TwoFactorToken = ""
 	view.LdapPassword = ""
 	view.SmtpPassword = ""
+	view.SalesBotToken = ""
 	return view, nil
 }
 
@@ -987,6 +1000,50 @@ func (s *SettingService) GetHwidDefaultLimit() (int, error) {
 	return s.getInt("hwidDefaultLimit")
 }
 
+// Reseller sales bot
+
+func (s *SettingService) GetSalesBotEnable() (bool, error) {
+	return s.getBool("salesBotEnable")
+}
+
+func (s *SettingService) GetSalesBotToken() (string, error) {
+	return s.getString("salesBotToken")
+}
+
+func (s *SettingService) SetSalesBotToken(token string) error {
+	return s.setString("salesBotToken", token)
+}
+
+// GetSalesBotAdmins returns the Telegram user ids allowed to run the bot's
+// admin side, as a raw CSV.
+func (s *SettingService) GetSalesBotAdmins() (string, error) {
+	return s.getString("salesBotAdmins")
+}
+
+// GetSalesBotPanelUrl is the panel address handed to a buyer with their new
+// credentials.
+func (s *SettingService) GetSalesBotPanelUrl() (string, error) {
+	return s.getString("salesBotPanelUrl")
+}
+
+func (s *SettingService) GetSalesBotWelcome() (string, error) {
+	return s.getString("salesBotWelcome")
+}
+
+// GetSalesBotPayText holds the payment instructions shown before a buyer
+// uploads a receipt — a card number and account holder, typically.
+func (s *SettingService) GetSalesBotPayText() (string, error) {
+	return s.getString("salesBotPayText")
+}
+
+func (s *SettingService) GetSalesBotSupport() (string, error) {
+	return s.getString("salesBotSupport")
+}
+
+func (s *SettingService) GetSalesBotCurrency() (string, error) {
+	return s.getString("salesBotCurrency")
+}
+
 // Auto-delete of expired clients
 
 func (s *SettingService) GetAutoDeleteExpiredEnable() (bool, error) {
@@ -1165,6 +1222,13 @@ func (s *SettingService) preserveRedactedSecrets(allSetting *entity.AllSetting) 
 			return err
 		}
 		allSetting.SmtpPassword = value
+	}
+	if strings.TrimSpace(allSetting.SalesBotToken) == "" {
+		value, err := s.GetSalesBotToken()
+		if err != nil {
+			return err
+		}
+		allSetting.SalesBotToken = value
 	}
 	return nil
 }

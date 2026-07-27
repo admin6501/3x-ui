@@ -158,6 +158,38 @@
             "description": "Restart Xray when clients are auto-disabled by expiry/traffic limit",
             "type": "boolean"
           },
+          "salesBotAdmins": {
+            "description": "Comma-separated Telegram user IDs that may run the admin side",
+            "type": "string"
+          },
+          "salesBotCurrency": {
+            "description": "Currency label shown next to prices",
+            "type": "string"
+          },
+          "salesBotEnable": {
+            "description": "Reseller sales bot — a second Telegram bot, separate from the notification\nbot above, that sells reseller accounts to buyers in Telegram.\nEnable the reseller sales bot",
+            "type": "boolean"
+          },
+          "salesBotPanelUrl": {
+            "description": "Panel address handed to buyers with their credentials",
+            "type": "string"
+          },
+          "salesBotPayText": {
+            "description": "Payment instructions shown before the receipt upload",
+            "type": "string"
+          },
+          "salesBotSupport": {
+            "description": "Support contact shown in the bot",
+            "type": "string"
+          },
+          "salesBotToken": {
+            "description": "Sales bot token (its own bot, not the notification one)",
+            "type": "string"
+          },
+          "salesBotWelcome": {
+            "description": "Custom welcome text; blank uses the built-in one",
+            "type": "string"
+          },
           "sessionMaxAge": {
             "description": "Session maximum age in minutes (cap at one year)",
             "maximum": 525600,
@@ -474,6 +506,14 @@
           "panelOutbound",
           "remarkTemplate",
           "restartXrayOnClientDisable",
+          "salesBotAdmins",
+          "salesBotCurrency",
+          "salesBotEnable",
+          "salesBotPanelUrl",
+          "salesBotPayText",
+          "salesBotSupport",
+          "salesBotToken",
+          "salesBotWelcome",
           "sessionMaxAge",
           "smtpCpu",
           "smtpEnable",
@@ -578,6 +618,9 @@
             "type": "boolean"
           },
           "hasNordSecret": {
+            "type": "boolean"
+          },
+          "hasSalesBotToken": {
             "type": "boolean"
           },
           "hasSmtpPassword": {
@@ -694,6 +737,38 @@
           "restartXrayOnClientDisable": {
             "description": "Restart Xray when clients are auto-disabled by expiry/traffic limit",
             "type": "boolean"
+          },
+          "salesBotAdmins": {
+            "description": "Comma-separated Telegram user IDs that may run the admin side",
+            "type": "string"
+          },
+          "salesBotCurrency": {
+            "description": "Currency label shown next to prices",
+            "type": "string"
+          },
+          "salesBotEnable": {
+            "description": "Reseller sales bot — a second Telegram bot, separate from the notification\nbot above, that sells reseller accounts to buyers in Telegram.\nEnable the reseller sales bot",
+            "type": "boolean"
+          },
+          "salesBotPanelUrl": {
+            "description": "Panel address handed to buyers with their credentials",
+            "type": "string"
+          },
+          "salesBotPayText": {
+            "description": "Payment instructions shown before the receipt upload",
+            "type": "string"
+          },
+          "salesBotSupport": {
+            "description": "Support contact shown in the bot",
+            "type": "string"
+          },
+          "salesBotToken": {
+            "description": "Sales bot token (its own bot, not the notification one)",
+            "type": "string"
+          },
+          "salesBotWelcome": {
+            "description": "Custom welcome text; blank uses the built-in one",
+            "type": "string"
           },
           "sessionMaxAge": {
             "description": "Session maximum age in minutes (cap at one year)",
@@ -986,6 +1061,7 @@
           "hasApiToken",
           "hasLdapPassword",
           "hasNordSecret",
+          "hasSalesBotToken",
           "hasSmtpPassword",
           "hasTgBotToken",
           "hasTwoFactorToken",
@@ -1018,6 +1094,14 @@
           "panelOutbound",
           "remarkTemplate",
           "restartXrayOnClientDisable",
+          "salesBotAdmins",
+          "salesBotCurrency",
+          "salesBotEnable",
+          "salesBotPanelUrl",
+          "salesBotPayText",
+          "salesBotSupport",
+          "salesBotToken",
+          "salesBotWelcome",
           "sessionMaxAge",
           "smtpCpu",
           "smtpEnable",
@@ -2267,6 +2351,10 @@
             "description": "Role is one of RoleSuperAdmin / RoleManager / RoleReseller / RoleReadonly.\nDefaults to RoleSuperAdmin so a freshly-upgraded install with the\npre-existing single admin user keeps full access.",
             "type": "string"
           },
+          "telegramId": {
+            "description": "TelegramId links the account to the Telegram user who bought it through\nthe sales bot. 0 for accounts created by hand in the panel.",
+            "type": "integer"
+          },
           "trafficQuotaGB": {
             "description": "TrafficQuotaGB caps the total traffic a reseller may consume across all\nassigned inbounds, in GB. 0 = unlimited. Reseller-only.",
             "type": "integer"
@@ -2283,6 +2371,7 @@
           "id",
           "password",
           "role",
+          "telegramId",
           "trafficQuotaGB",
           "username"
         ],
@@ -2358,6 +2447,10 @@
     {
       "name": "Custom Roles",
       "description": "Admin-defined roles: a name plus the set of permissions accounts holding it are granted. Lives under /panel/api/roles and requires the <code>admins.manage</code> permission, the same gate as admin management. A custom role is assigned to an account by setting its <code>role</code> to <code>custom:&lt;id&gt;</code>. Permission keys are <code>inbounds.view</code>, <code>inbounds.manage</code>, <code>clients.view</code>, <code>clients.manage</code>, <code>plans.manage</code>, <code>groups.manage</code>, <code>hosts.manage</code>, <code>nodes.manage</code>, <code>settings.manage</code>, <code>xray.manage</code>, <code>admins.manage</code> and <code>inbounds.scoped</code> (restricts the account to its <code>allowedInbounds</code>, the way the built-in reseller role works)."
+    },
+    {
+      "name": "Reseller Sales",
+      "description": "The price list behind the Telegram sales bot and the orders placed against it. Lives under /panel/api/sales and requires the <code>admins.manage</code> permission — approving an order creates an admin account, so it is gated like admin management. A package describes what a buyer gets (traffic quota, client slots, which inbounds); approving an order turns that into a reseller account, or tops up the account the buyer already has. Orders snapshot the package name and price, so editing or deleting a package never rewrites history."
     },
     {
       "name": "Reseller",
@@ -8830,6 +8923,45 @@
         }
       }
     },
+    "/panel/api/setting/salesBotStatus": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Whether the reseller sales bot is actually polling Telegram, alongside what it was configured with. A bad token leaves the bot down with only a log line, so the settings page asks here instead of inferring it from the enable flag.",
+        "operationId": "get_panel_api_setting_salesBotStatus",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "running": true,
+                    "enabled": true,
+                    "hasToken": true,
+                    "adminsCount": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/panel/api/setting/testSmtp": {
       "post": {
         "tags": [
@@ -11086,6 +11218,424 @@
                 "example": {
                   "success": true,
                   "msg": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/packages": {
+      "get": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "List every reseller package, in display order. Quota values of 0 mean unlimited.",
+        "operationId": "get_panel_api_sales_packages",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "id": 1,
+                      "name": "Bronze",
+                      "description": "starter package",
+                      "price": 500000,
+                      "trafficGB": 100,
+                      "clientQuota": 25,
+                      "durationDays": 30,
+                      "allowedInbounds": "3,4",
+                      "enable": true,
+                      "sortOrder": 0
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/packages/add": {
+      "post": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "Create a reseller package.",
+        "operationId": "post_panel_api_sales_packages_add",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 1,
+                    "name": "Bronze"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/packages/update/{id}": {
+      "post": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "Replace a package. Orders already placed keep the name and price they were placed at.",
+        "operationId": "post_panel_api_sales_packages_update_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Package id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 1,
+                    "name": "Bronze"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/packages/del/{id}": {
+      "post": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "Delete a package. Existing orders are left intact.",
+        "operationId": "post_panel_api_sales_packages_del_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Package id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "msg": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/orders": {
+      "get": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "List orders, newest first. Statuses are pending (package chosen, unpaid), review (receipt sent), approved and rejected.",
+        "operationId": "get_panel_api_sales_orders",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by status.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum rows to return (default 100).",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": [
+                    {
+                      "id": 12,
+                      "telegramId": 123456789,
+                      "telegramName": "Ali",
+                      "packageName": "Bronze",
+                      "price": 500000,
+                      "kind": "new",
+                      "status": "review",
+                      "receiptFileId": "AgACAgQ...",
+                      "panelUsername": "",
+                      "createdAt": 1733011200000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/orders/add": {
+      "post": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "Record a sale made outside Telegram (cash, a bank transfer the admin verified) so it can be approved through the same path and counted in the same figures. A \"renew\" order requires the buyer to already have an account.",
+        "operationId": "post_panel_api_sales_orders_add",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "id": 13,
+                    "status": "pending"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/orders/approve/{id}": {
+      "post": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "Approve an order: create the buyer's reseller account with the package's quotas and inbounds, or add the package to the account they already have (which also re-enables an account suspended for running out of quota). The generated password is returned once, on the first purchase only — the bot also sends it to the buyer. Unlike the bot, this endpoint accepts an order with no receipt, so an out-of-band sale can be recorded.",
+        "operationId": "post_panel_api_sales_orders_approve_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "username": "rs123456789",
+                    "password": "aB3xY9kL2mQp",
+                    "isNew": true,
+                    "trafficGB": 100,
+                    "clientQuota": 25
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/orders/reject/{id}": {
+      "post": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "Turn an order down. The optional note is forwarded to the buyer in Telegram. A rejected order grants nothing and never counts as revenue.",
+        "operationId": "post_panel_api_sales_orders_reject_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order id.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "msg": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/sales/stats": {
+      "get": {
+        "tags": [
+          "Reseller Sales"
+        ],
+        "summary": "Headline sales figures. Revenue sums approved orders only.",
+        "operationId": "get_panel_api_sales_stats",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "revenue": 1500000,
+                    "approvedOrders": 3,
+                    "pendingReview": 1,
+                    "rejectedOrders": 0,
+                    "buyers": 2,
+                    "resellers": 2
+                  }
                 }
               }
             }

@@ -28,6 +28,7 @@ import {
   ReadOutlined,
   SafetyOutlined,
   SettingOutlined,
+  ShoppingOutlined,
   SunOutlined,
   SwapOutlined,
   TagsOutlined,
@@ -46,7 +47,7 @@ const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
 const REPO_URL = 'https://github.com/admin6501/3x-ui';
 const LOGOUT_KEY = '__logout__';
 
-type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans' | 'usage' | 'tutorials';
+type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans' | 'usage' | 'tutorials' | 'sales';
 
 const iconByName: Record<IconName, ComponentType> = {
   dashboard: DashboardOutlined,
@@ -65,6 +66,7 @@ const iconByName: Record<IconName, ComponentType> = {
   plans: ProfileOutlined,
   usage: FundOutlined,
   tutorials: ReadOutlined,
+  sales: ShoppingOutlined,
 };
 
 function readCollapsed(): boolean {
@@ -195,6 +197,7 @@ export default function AppSidebar() {
       { key: '/settings', icon: 'setting', title: t('menu.settings') },
       { key: '/xray', icon: 'tool', title: t('menu.xray') },
       { key: '/admins', icon: 'admins', title: t('menu.admins') },
+      { key: '/sales', icon: 'sales', title: t('menu.sales') },
       { key: '/api-docs', icon: 'apidocs', title: t('menu.apiDocs') },
       { key: '/tutorials', icon: 'tutorials', title: t('menu.tutorials') },
       { key: LOGOUT_KEY, icon: 'logout', title: t('logout') },
@@ -220,6 +223,7 @@ export default function AppSidebar() {
       '/settings': () => perms.has('settings.manage'),
       '/xray': () => perms.has('xray.manage'),
       '/admins': () => perms.has('admins.manage'),
+      '/sales': () => perms.has('admins.manage'),
       '/api-docs': () => !scoped,
       '/tutorials': () => isSuperAdmin,
     };

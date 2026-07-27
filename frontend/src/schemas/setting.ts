@@ -90,6 +90,15 @@ export const AllSettingSchema = z.object({
   hasWarpSecret: z.boolean().optional(),
   hasNordSecret: z.boolean().optional(),
   hasSmtpPassword: z.boolean().optional(),
+  salesBotEnable: z.boolean().optional(),
+  salesBotToken: z.string().optional(),
+  salesBotAdmins: z.string().optional(),
+  salesBotPanelUrl: z.string().optional(),
+  salesBotWelcome: z.string().optional(),
+  salesBotPayText: z.string().optional(),
+  salesBotSupport: z.string().optional(),
+  salesBotCurrency: z.string().optional(),
+  hasSalesBotToken: z.boolean().optional(),
 }).loose();
 
 export type AllSettingInput = z.infer<typeof AllSettingSchema>;

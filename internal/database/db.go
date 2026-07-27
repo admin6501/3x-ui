@@ -64,6 +64,8 @@ func initModels() error {
 		&model.User{},
 		&model.AdminRole{},
 		&model.AdminAuditLog{},
+		&model.ResellerPackage{},
+		&model.ResellerOrder{},
 		&model.Plan{},
 		&model.ResellerQuotaDisabledInbound{},
 		&model.Inbound{},

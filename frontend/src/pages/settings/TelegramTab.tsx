@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Button, Input, InputNumber, Select, Space, Switch, Tabs } from 'antd';
-import { BellOutlined, SendOutlined, SettingOutlined } from '@ant-design/icons';
+import { BellOutlined, SendOutlined, SettingOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { LanguageManager } from '@/utils';
 import { HttpUtil } from '@/utils';
 import type { AllSetting } from '@/models/setting';
@@ -143,7 +143,29 @@ function NotifyTimeField({ value, onChange }: { value: string; onChange: (v: str
   );
 }
 
+interface SalesBotStatus {
+  running: boolean;
+  enabled: boolean;
+  hasToken: boolean;
+  adminsCount: number;
+}
+
 export default function TelegramTab({ allSetting, updateSetting }: TelegramTabProps) {
+  // Saving a bad token leaves the bot down with only a log line to show for it,
+  // so the tab asks the server whether it is actually polling Telegram.
+  const [salesStatus, setSalesStatus] = useState<SalesBotStatus | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      HttpUtil.get<SalesBotStatus>('/panel/api/setting/salesBotStatus', undefined, { silent: true })
+        .then((msg) => { if (!cancelled && msg?.success) setSalesStatus(msg.obj ?? null); })
+        .catch(() => null);
+    };
+    load();
+    const timer = setInterval(load, 10000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, []);
+
   const { t } = useTranslation();
   const { isMobile } = useMediaQuery();
   const [testLoading, setTestLoading] = useState(false);
@@ -230,6 +252,112 @@ export default function TelegramTab({ allSetting, updateSetting }: TelegramTabPr
                 />
               )}
             </Space>
+          </>
+        ),
+      },
+      {
+        key: '3',
+        label: catTabLabel(<ShoppingOutlined />, t('pages.settings.salesBot'), isMobile),
+        children: (
+          <>
+            <Alert
+              type="info"
+              showIcon
+              title={t('pages.settings.salesBotIntro')}
+              style={{ marginBottom: 12 }}
+            />
+            {salesStatus && salesStatus.enabled && (
+              <Alert
+                type={salesStatus.running ? 'success' : 'error'}
+                showIcon
+                data-testid="sales-bot-status"
+                title={salesStatus.running
+                  ? t('pages.settings.salesBotRunning')
+                  : t(salesStatus.hasToken ? 'pages.settings.salesBotNotRunning' : 'pages.settings.salesBotNoToken')}
+                style={{ marginBottom: 12 }}
+              />
+            )}
+            {salesStatus && salesStatus.enabled && salesStatus.running && salesStatus.adminsCount === 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                title={t('pages.settings.salesBotNoAdmins')}
+                style={{ marginBottom: 12 }}
+              />
+            )}
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotEnable')} description={t('pages.settings.salesBotEnableDesc')}>
+              <Switch
+                checked={allSetting.salesBotEnable}
+                data-testid="sales-bot-enable"
+                onChange={(v) => updateSetting({ salesBotEnable: v })}
+              />
+            </SettingListItem>
+
+            <SettingListItem
+              paddings="small"
+              title={t('pages.settings.salesBotToken')}
+              description={allSetting.hasSalesBotToken ? t('pages.settings.telegramTokenConfigured') : t('pages.settings.salesBotTokenDesc')}
+            >
+              <Input.Password
+                value={allSetting.salesBotToken}
+                disabled={!allSetting.salesBotEnable}
+                placeholder={allSetting.hasSalesBotToken ? t('pages.settings.telegramTokenPlaceholder') : ''}
+                onChange={(e) => updateSetting({ salesBotToken: e.target.value })}
+              />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotAdmins')} description={t('pages.settings.salesBotAdminsDesc')}>
+              <Input
+                value={allSetting.salesBotAdmins}
+                disabled={!allSetting.salesBotEnable}
+                placeholder="123456789,987654321"
+                onChange={(e) => updateSetting({ salesBotAdmins: e.target.value })}
+              />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotPanelUrl')} description={t('pages.settings.salesBotPanelUrlDesc')}>
+              <Input
+                value={allSetting.salesBotPanelUrl}
+                disabled={!allSetting.salesBotEnable}
+                placeholder="https://panel.example.com:2053/"
+                onChange={(e) => updateSetting({ salesBotPanelUrl: e.target.value })}
+              />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotPayText')} description={t('pages.settings.salesBotPayTextDesc')}>
+              <Input.TextArea
+                rows={3}
+                value={allSetting.salesBotPayText}
+                disabled={!allSetting.salesBotEnable}
+                onChange={(e) => updateSetting({ salesBotPayText: e.target.value })}
+              />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotWelcome')} description={t('pages.settings.salesBotWelcomeDesc')}>
+              <Input.TextArea
+                rows={3}
+                value={allSetting.salesBotWelcome}
+                disabled={!allSetting.salesBotEnable}
+                onChange={(e) => updateSetting({ salesBotWelcome: e.target.value })}
+              />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotSupport')} description={t('pages.settings.salesBotSupportDesc')}>
+              <Input
+                value={allSetting.salesBotSupport}
+                disabled={!allSetting.salesBotEnable}
+                placeholder="@support"
+                onChange={(e) => updateSetting({ salesBotSupport: e.target.value })}
+              />
+            </SettingListItem>
+
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotCurrency')} description={t('pages.settings.salesBotCurrencyDesc')}>
+              <Input
+                value={allSetting.salesBotCurrency}
+                disabled={!allSetting.salesBotEnable}
+                onChange={(e) => updateSetting({ salesBotCurrency: e.target.value })}
+              />
+            </SettingListItem>
           </>
         ),
       },

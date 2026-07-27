@@ -30,6 +30,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service/email"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service/panel"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/service/salesbot"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service/tgbot"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/websocket"
 	"github.com/mhsanaei/3x-ui/v3/internal/xray"
@@ -117,6 +118,7 @@ type Server struct {
 	ws    *controller.WebSocketController
 
 	xrayService    service.XrayService
+	inboundService service.InboundService
 	settingService service.SettingService
 	tgbotService   tgbot.Tgbot
 
@@ -614,6 +616,14 @@ func (s *Server) start(restartXray bool, startTgBot bool) (err error) {
 	// Wire email service to controller for test endpoint
 	controller.SetEmailService(emailService)
 
+	// A settings save can start, stop or restart the sales bot on its own.
+	controller.SetReconcileSalesBotFunc(func() {
+		salesbot.Manager(&s.inboundService, &s.xrayService).Reconcile()
+	})
+	controller.SetSalesBotRunningFunc(func() bool {
+		return salesbot.Manager(nil, nil).IsRunning()
+	})
+
 	// Wire Telegram test function to controller
 	controller.SetTestTgFunc(func() error {
 		if !s.tgbotService.IsRunning() {
@@ -636,6 +646,9 @@ func (s *Server) start(restartXray bool, startTgBot bool) (err error) {
 			// Subscribe Telegram notifications for event bus
 			s.bus.Subscribe("tg-notifier", s.tgbotService.HandleEvent)
 		}
+		// The reseller sales bot is a separate bot with its own token, so it is
+		// brought up independently of the notification one.
+		salesbot.Manager(&s.inboundService, &s.xrayService).Reconcile()
 	}
 
 	return nil
@@ -670,6 +683,11 @@ func (s *Server) stop(stopXray bool, stopTgBot bool) error {
 	}
 	if stopTgBot && s.tgbotService.IsRunning() {
 		s.tgbotService.Stop()
+	}
+	if stopTgBot {
+		if sales := salesbot.Manager(nil, nil); sales.IsRunning() {
+			sales.Stop()
+		}
 	}
 	// Gracefully stop WebSocket hub
 	if s.wsHub != nil {

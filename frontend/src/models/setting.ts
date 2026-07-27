@@ -108,6 +108,15 @@ export class AllSetting {
   hasWarpSecret = false;
   hasNordSecret = false;
   hasSmtpPassword = false;
+  salesBotEnable = false;
+  salesBotToken = '';
+  salesBotAdmins = '';
+  salesBotPanelUrl = '';
+  salesBotWelcome = '';
+  salesBotPayText = '';
+  salesBotSupport = '';
+  salesBotCurrency = 'تومان';
+  hasSalesBotToken = false;
 
   constructor(data?: unknown) {
     if (data != null) {

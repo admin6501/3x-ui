@@ -1138,6 +1138,13 @@ export const sections: readonly Section[] = [
         summary: 'Restart the entire 3x-ui process after a 3-second grace period. The connection drops immediately; the panel comes back online ~5-10 seconds later.',
       },
       {
+        method: 'GET',
+        path: '/panel/api/setting/salesBotStatus',
+        summary: 'Whether the reseller sales bot is actually polling Telegram, alongside what it was configured with. A bad token leaves the bot down with only a log line, so the settings page asks here instead of inferring it from the enable flag.',
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "running": true,\n    "enabled": true,\n    "hasToken": true,\n    "adminsCount": 1\n  }\n}',
+      },
+      {
         method: 'POST',
         path: '/panel/api/setting/testSmtp',
         summary: 'Test SMTP connection with stage-by-stage reporting (connect, auth, send). Returns structured result with stage and message.',
@@ -1672,6 +1679,101 @@ export const sections: readonly Section[] = [
         summary: 'Delete a custom role. Refused while any admin account still holds it, so no account is ever left pointing at a role that grants nothing.',
         params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Role id.' }],
         response: '{\n  "success": true,\n  "msg": ""\n}',
+      },
+    ],
+  },
+
+  {
+    id: 'sales',
+    title: 'Reseller Sales',
+    description:
+      'The price list behind the Telegram sales bot and the orders placed against it. Lives under /panel/api/sales and requires the <code>admins.manage</code> permission — approving an order creates an admin account, so it is gated like admin management. A package describes what a buyer gets (traffic quota, client slots, which inbounds); approving an order turns that into a reseller account, or tops up the account the buyer already has. Orders snapshot the package name and price, so editing or deleting a package never rewrites history.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/sales/packages',
+        summary: 'List every reseller package, in display order. Quota values of 0 mean unlimited.',
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 1,\n      "name": "Bronze",\n      "description": "starter package",\n      "price": 500000,\n      "trafficGB": 100,\n      "clientQuota": 25,\n      "durationDays": 30,\n      "allowedInbounds": "3,4",\n      "enable": true,\n      "sortOrder": 0\n    }\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/packages/add',
+        summary: 'Create a reseller package.',
+        params: [
+          { name: 'name', in: 'body (json)', type: 'string', desc: 'Display name shown to buyers.' },
+          { name: 'description', in: 'body (json)', type: 'string', desc: 'Short blurb shown under the name.', optional: true },
+          { name: 'price', in: 'body (json)', type: 'integer', desc: 'Price in whole units of the configured currency.' },
+          { name: 'trafficGB', in: 'body (json)', type: 'integer', desc: 'Traffic quota granted, in GB. 0 = unlimited.' },
+          { name: 'clientQuota', in: 'body (json)', type: 'integer', desc: 'Client slots granted. 0 = unlimited.' },
+          { name: 'durationDays', in: 'body (json)', type: 'integer', desc: 'Descriptive duration shown to the buyer; the panel enforces quotas, not time.', optional: true },
+          { name: 'allowedInbounds', in: 'body (json)', type: 'string', desc: 'Comma-separated inbound IDs the buyer is scoped to.', optional: true },
+          { name: 'enable', in: 'body (json)', type: 'boolean', desc: 'Whether the bot offers it for sale.' },
+          { name: 'sortOrder', in: 'body (json)', type: 'integer', desc: 'Display order, ascending.', optional: true },
+        ],
+        response: '{\n  "success": true,\n  "obj": {\n    "id": 1,\n    "name": "Bronze"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/packages/update/:id',
+        summary: 'Replace a package. Orders already placed keep the name and price they were placed at.',
+        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Package id.' }],
+        response: '{\n  "success": true,\n  "obj": {\n    "id": 1,\n    "name": "Bronze"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/packages/del/:id',
+        summary: 'Delete a package. Existing orders are left intact.',
+        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Package id.' }],
+        response: '{\n  "success": true,\n  "msg": ""\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/sales/orders',
+        summary: 'List orders, newest first. Statuses are pending (package chosen, unpaid), review (receipt sent), approved and rejected.',
+        params: [
+          { name: 'status', in: 'query', type: 'string', desc: 'Filter by status.', optional: true },
+          { name: 'limit', in: 'query', type: 'integer', desc: 'Maximum rows to return (default 100).', optional: true },
+        ],
+        response:
+          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 12,\n      "telegramId": 123456789,\n      "telegramName": "Ali",\n      "packageName": "Bronze",\n      "price": 500000,\n      "kind": "new",\n      "status": "review",\n      "receiptFileId": "AgACAgQ...",\n      "panelUsername": "",\n      "createdAt": 1733011200000\n    }\n  ]\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/orders/add',
+        summary: 'Record a sale made outside Telegram (cash, a bank transfer the admin verified) so it can be approved through the same path and counted in the same figures. A "renew" order requires the buyer to already have an account.',
+        params: [
+          { name: 'telegramId', in: 'body (json)', type: 'integer', desc: 'Buyer\'s Telegram user id — what links the order to their account.' },
+          { name: 'telegramName', in: 'body (json)', type: 'string', desc: 'Display name recorded on the order.', optional: true },
+          { name: 'packageId', in: 'body (json)', type: 'integer', desc: 'Package being sold.' },
+          { name: 'kind', in: 'body (json)', type: 'string', desc: 'new (default) or renew.', optional: true },
+        ],
+        response: '{\n  "success": true,\n  "obj": {\n    "id": 13,\n    "status": "pending"\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/orders/approve/:id',
+        summary: 'Approve an order: create the buyer\'s reseller account with the package\'s quotas and inbounds, or add the package to the account they already have (which also re-enables an account suspended for running out of quota). The generated password is returned once, on the first purchase only — the bot also sends it to the buyer. Unlike the bot, this endpoint accepts an order with no receipt, so an out-of-band sale can be recorded.',
+        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Order id.' }],
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "username": "rs123456789",\n    "password": "aB3xY9kL2mQp",\n    "isNew": true,\n    "trafficGB": 100,\n    "clientQuota": 25\n  }\n}',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/sales/orders/reject/:id',
+        summary: 'Turn an order down. The optional note is forwarded to the buyer in Telegram. A rejected order grants nothing and never counts as revenue.',
+        params: [
+          { name: 'id', in: 'path', type: 'integer', desc: 'Order id.' },
+          { name: 'note', in: 'body (json)', type: 'string', desc: 'Reason sent to the buyer.', optional: true },
+        ],
+        response: '{\n  "success": true,\n  "msg": ""\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/sales/stats',
+        summary: 'Headline sales figures. Revenue sums approved orders only.',
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "revenue": 1500000,\n    "approvedOrders": 3,\n    "pendingReview": 1,\n    "rejectedOrders": 0,\n    "buyers": 2,\n    "resellers": 2\n  }\n}',
       },
     ],
   },
