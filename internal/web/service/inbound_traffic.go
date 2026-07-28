@@ -140,6 +140,11 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 			trafficByEmail[traffics[i].Email] = traffics[i]
 		}
 	}
+	// An inbound with a multiplier charges its clients more than they moved, so
+	// the delta is scaled before it reaches the counter — quota depletion, the
+	// usage shown in the panel and the shop's billing then all agree.
+	multipliers := s.trafficMultipliersByEmail(emails)
+
 	now := time.Now().UnixMilli()
 	// Use atomic per-row UPDATE instead of read-modify-write Save. tx.Save
 	// issues UPDATEs in slice order, which varies between concurrent callers;
@@ -151,12 +156,17 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 		if !ok || (t.Up == 0 && t.Down == 0) {
 			continue
 		}
+		up, down := t.Up, t.Down
+		if m, scaled := multipliers[ct.Email]; scaled {
+			up = ApplyTrafficMultiplier(up, m)
+			down = ApplyTrafficMultiplier(down, m)
+		}
 		if err = tx.Exec(
 			fmt.Sprintf(
 				`UPDATE client_traffics SET up = up + ?, down = down + ?, last_online = %s WHERE email = ?`,
 				database.GreatestExpr("last_online", "?"),
 			),
-			t.Up, t.Down, now, ct.Email,
+			up, down, now, ct.Email,
 		).Error; err != nil {
 			logger.Warning("AddClientTraffic update data ", err)
 		}

@@ -582,6 +582,7 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 		return inbound, false, err
 	}
 	inbound.SubSortIndex = normalizeSubSortIndex(inbound.SubSortIndex)
+	inbound.TrafficMultiplier = NormalizeTrafficMultiplier(inbound.TrafficMultiplier)
 	if err := normalizeInboundShareAddressStrict(inbound); err != nil {
 		return inbound, false, err
 	}
@@ -1102,6 +1103,12 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 		oldInbound.Settings = inbound.Settings
 		oldInbound.StreamSettings = inbound.StreamSettings
 		oldInbound.Sniffing = inbound.Sniffing
+		// An update that omits the multiplier leaves it where it was, so a caller
+		// that does not know about the field cannot silently reset it to 1.
+		if inbound.TrafficMultiplier > 0 {
+			oldInbound.TrafficMultiplier = NormalizeTrafficMultiplier(inbound.TrafficMultiplier)
+		}
+		inbound.TrafficMultiplier = oldInbound.TrafficMultiplier
 		if strings.TrimSpace(inbound.ShareAddrStrategy) == "" {
 			normalizeInboundShareAddress(oldInbound)
 			inbound.ShareAddrStrategy = oldInbound.ShareAddrStrategy

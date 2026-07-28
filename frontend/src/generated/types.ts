@@ -410,6 +410,7 @@ export interface Inbound {
   subSortIndex: number;
   tag: string;
   total: number;
+  trafficMultiplier: number;
   trafficReset: string;
   up: number;
 }

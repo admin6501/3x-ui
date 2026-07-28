@@ -1924,6 +1924,13 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Total traffic limit in bytes",
         "type": "integer"
       },
+      "trafficMultiplier": {
+        "description": "TrafficMultiplier scales what this inbound's traffic costs a client:\nat 2, moving one gigabyte takes two off their quota. Charged against\nthe client's own counter, so it drives quota depletion, the usage the\npanel and the subscription show, and the shop's per-GB billing alike.\n1 (or 0, meaning unset) leaves usage counted as measured.",
+        "example": 1,
+        "maximum": 100,
+        "minimum": 0,
+        "type": "number"
+      },
       "trafficReset": {
         "description": "Traffic reset schedule",
         "enum": [
@@ -1959,6 +1966,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "subSortIndex",
       "tag",
       "total",
+      "trafficMultiplier",
       "trafficReset",
       "up"
     ],

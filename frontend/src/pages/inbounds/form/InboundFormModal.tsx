@@ -649,6 +649,13 @@ export default function InboundFormModal({
       </Form.Item>
 
       <Form.Item
+        name="trafficMultiplier"
+        label={labelWithHint(t('pages.inbounds.form.trafficMultiplier'), t('pages.inbounds.form.trafficMultiplierHelp'))}
+      >
+        <InputNumber min={0.1} max={100} step={0.5} data-testid="inbound-traffic-multiplier" />
+      </Form.Item>
+
+      <Form.Item
         name="port"
         label={t('pages.inbounds.port')}
         rules={[antdRule(InboundFormBaseSchema.shape.port, t)]}

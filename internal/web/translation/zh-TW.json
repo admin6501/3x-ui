@@ -657,6 +657,8 @@
         "shareAddrHelp": "僅在分享地址策略為自訂時使用。填寫不帶協定和連接埠的網域或 IP。",
         "subSortIndex": "訂閱排序",
         "subSortIndexHelp": "此入站的連結在訂閱輸出（訂閱頁面和客戶端應用）中的位置。數值越小越靠前；數值相同時保持建立順序。不影響面板中的入站清單。",
+        "trafficMultiplier": "Traffic multiplier",
+        "trafficMultiplierHelp": "Scales what traffic on this inbound costs a client: at 2, moving 1 GB takes 2 GB off their quota. Applies to quota depletion, the usage shown in the panel and subscription, and the Telegram shop's per-GB billing. 1 counts traffic as measured. A client attached to several inbounds is charged at the highest of their multipliers, because Xray reports usage per client rather than per inbound.",
         "shareAddrStrategyOptions": {
           "node": "節點地址",
           "listen": "入站監聽地址",

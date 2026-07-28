@@ -636,6 +636,8 @@
         "shareAddrHelp": "يُستخدم فقط عندما تكون استراتيجية عنوان المشاركة مخصصة. أدخل اسم مضيف أو عنوان IP بدون بروتوكول أو منفذ.",
         "subSortIndex": "ترتيب الروابط في الاشتراك",
         "subSortIndexHelp": "موضع روابط هذا الوارد في مخرجات الاشتراك (صفحة الاشتراك وتطبيقات العملاء). القيم الأقل تظهر أولاً، والقيم المتساوية تحافظ على ترتيب الإنشاء. لا يؤثر على قائمة الواردات في اللوحة.",
+        "trafficMultiplier": "Traffic multiplier",
+        "trafficMultiplierHelp": "Scales what traffic on this inbound costs a client: at 2, moving 1 GB takes 2 GB off their quota. Applies to quota depletion, the usage shown in the panel and subscription, and the Telegram shop's per-GB billing. 1 counts traffic as measured. A client attached to several inbounds is charged at the highest of their multipliers, because Xray reports usage per client rather than per inbound.",
         "shareAddrStrategyOptions": {
           "node": "عنوان العقدة",
           "listen": "عنوان استماع الوارد",

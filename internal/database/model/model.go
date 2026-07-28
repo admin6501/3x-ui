@@ -393,6 +393,13 @@ type Inbound struct {
         ShareAddrStrategy string   `json:"shareAddrStrategy" form:"shareAddrStrategy" gorm:"column:share_addr_strategy;default:node" validate:"omitempty,oneof=node listen custom"`
         ShareAddr         string   `json:"shareAddr" form:"shareAddr" gorm:"column:share_addr"`
 
+        // TrafficMultiplier scales what this inbound's traffic costs a client:
+        // at 2, moving one gigabyte takes two off their quota. Charged against
+        // the client's own counter, so it drives quota depletion, the usage the
+        // panel and the subscription show, and the shop's per-GB billing alike.
+        // 1 (or 0, meaning unset) leaves usage counted as measured.
+        TrafficMultiplier float64 `json:"trafficMultiplier" form:"trafficMultiplier" gorm:"column:traffic_multiplier;default:1" validate:"omitempty,gte=0,lte=100" example:"1"`
+
         // OriginNodeGuid is the panelGuid of the node that physically hosts this
         // inbound, propagated up across hops (#4983). Empty for an inbound that
         // lives on this panel's own xray; set to the originating node's GUID when

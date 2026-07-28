@@ -636,6 +636,8 @@
         "shareAddrHelp": "Yalnızca paylaşım adresi stratejisi Özel olduğunda kullanılır. Şema veya port olmadan bir ana makine ya da IP girin.",
         "subSortIndex": "Abonelikte sıralama",
         "subSortIndexHelp": "Bu gelen bağlantının linklerinin abonelik çıktısındaki (abonelik sayfası ve istemci uygulamaları) konumu. Küçük değerler önce gelir; eşit değerlerde oluşturulma sırası korunur. Paneldeki gelen bağlantı listesini etkilemez.",
+        "trafficMultiplier": "Traffic multiplier",
+        "trafficMultiplierHelp": "Scales what traffic on this inbound costs a client: at 2, moving 1 GB takes 2 GB off their quota. Applies to quota depletion, the usage shown in the panel and subscription, and the Telegram shop's per-GB billing. 1 counts traffic as measured. A client attached to several inbounds is charged at the highest of their multipliers, because Xray reports usage per client rather than per inbound.",
         "shareAddrStrategyOptions": {
           "node": "Düğüm adresi",
           "listen": "Inbound dinleme adresi",

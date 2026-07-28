@@ -370,6 +370,8 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 		}
 	}
 
+	nodeMultipliers := s.trafficMultipliersByInbound()
+
 	tx := db.Begin()
 	committed := false
 	defer func() {
@@ -613,6 +615,13 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 				}
 				if deltaDown = canon.Down - base.Down; deltaDown < 0 {
 					deltaDown = 0
+				}
+				// Unlike the local poll, a node snapshot names the inbound the
+				// stats came from, so the multiplier is exact rather than the
+				// highest of the client's inbounds.
+				if m, scaled := nodeMultipliers[c.Id]; scaled {
+					deltaUp = ApplyTrafficMultiplier(deltaUp, m)
+					deltaDown = ApplyTrafficMultiplier(deltaDown, m)
 				}
 			}
 

@@ -43,6 +43,7 @@ export interface RawInboundRow {
   shareAddrStrategy?: string;
   shareAddr?: string;
   subSortIndex?: number;
+  trafficMultiplier?: number;
   clientStats?: unknown;
 }
 
@@ -70,6 +71,7 @@ export interface WireInboundPayload {
   shareAddrStrategy: ShareAddrStrategy;
   shareAddr: string;
   subSortIndex: number;
+  trafficMultiplier: number;
 }
 
 function coerceJsonObject(value: unknown): Record<string, unknown> {
@@ -190,6 +192,9 @@ export function rawInboundToFormValues(row: RawInboundRow): InboundFormValues {
     nodeId: row.nodeId ?? null,
     shareAddrStrategy: coerceShareAddrStrategy(row.shareAddrStrategy),
     shareAddr: row.shareAddr ?? '',
+    // 0 is what a row created before the column existed carries; it means
+    // "count traffic as measured", same as 1.
+    trafficMultiplier: row.trafficMultiplier && row.trafficMultiplier > 0 ? row.trafficMultiplier : 1,
     subSortIndex: Math.max(1, row.subSortIndex ?? 1),
     protocol,
     settings,
@@ -339,6 +344,7 @@ export function formValuesToWirePayload(values: InboundFormValues): WireInboundP
     shareAddrStrategy: values.shareAddrStrategy,
     shareAddr: values.shareAddr,
     subSortIndex: values.subSortIndex,
+    trafficMultiplier: values.trafficMultiplier > 0 ? values.trafficMultiplier : 1,
   };
   if (values.nodeId != null) payload.nodeId = values.nodeId;
   return payload;

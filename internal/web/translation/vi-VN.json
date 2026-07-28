@@ -657,6 +657,8 @@
         "shareAddrHelp": "Chỉ dùng khi chiến lược địa chỉ chia sẻ là Tùy chỉnh. Nhập host hoặc IP không kèm giao thức hoặc cổng.",
         "subSortIndex": "Thứ tự trong gói đăng ký",
         "subSortIndexHelp": "Vị trí liên kết của inbound này trong nội dung gói đăng ký (trang đăng ký và ứng dụng khách). Giá trị nhỏ hơn xếp trước; giá trị bằng nhau giữ thứ tự tạo. Không ảnh hưởng đến danh sách inbound trong bảng điều khiển.",
+        "trafficMultiplier": "Traffic multiplier",
+        "trafficMultiplierHelp": "Scales what traffic on this inbound costs a client: at 2, moving 1 GB takes 2 GB off their quota. Applies to quota depletion, the usage shown in the panel and subscription, and the Telegram shop's per-GB billing. 1 counts traffic as measured. A client attached to several inbounds is charged at the highest of their multipliers, because Xray reports usage per client rather than per inbound.",
         "shareAddrStrategyOptions": {
           "node": "Địa chỉ node",
           "listen": "Địa chỉ listen inbound",

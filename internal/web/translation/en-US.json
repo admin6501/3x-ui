@@ -659,6 +659,8 @@
         "shareAddrHelp": "Used only when the share address strategy is Custom. Enter a host or IP without a scheme or port.",
         "subSortIndex": "Subscription sort order",
         "subSortIndexHelp": "Position of this inbound's links in subscription output (sub page and client apps). Lower values come first; equal values keep creation order. Does not affect the panel inbound list.",
+        "trafficMultiplier": "Traffic multiplier",
+        "trafficMultiplierHelp": "Scales what traffic on this inbound costs a client: at 2, moving 1 GB takes 2 GB off their quota. Applies to quota depletion, the usage shown in the panel and subscription, and the Telegram shop's per-GB billing. 1 counts traffic as measured. A client attached to several inbounds is charged at the highest of their multipliers, because Xray reports usage per client rather than per inbound.",
         "shareAddrStrategyOptions": {
           "node": "Node address",
           "listen": "Inbound listen",
