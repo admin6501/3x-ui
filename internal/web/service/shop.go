@@ -192,6 +192,26 @@ func (s *ShopService) RequestTopUp(telegramId int64, name string, amount int64) 
 	return row, nil
 }
 
+// AttachDiscountCode records the code a buyer typed against their pending
+// top-up. Nothing is redeemed here — the code is only settled if and when an
+// admin approves the payment.
+func (s *ShopService) AttachDiscountCode(id int, code string) (*model.WalletTopUp, error) {
+	row, err := s.GetTopUp(id)
+	if err != nil {
+		return nil, err
+	}
+	if row.Status == model.TopUpApproved || row.Status == model.TopUpRejected {
+		return nil, ErrTopUpNotPending
+	}
+	code = NormalizeDiscountCode(code)
+	if err := database.GetDB().Model(&model.WalletTopUp{}).Where("id = ?", id).
+		Update("discount_code", code).Error; err != nil {
+		return nil, err
+	}
+	row.DiscountCode = code
+	return row, nil
+}
+
 func (s *ShopService) GetTopUp(id int) (*model.WalletTopUp, error) {
 	var row model.WalletTopUp
 	if err := database.GetDB().First(&row, id).Error; err != nil {
@@ -217,8 +237,9 @@ func (s *ShopService) AttachTopUpReceipt(id int, fileId string) (*model.WalletTo
 	return row, nil
 }
 
-// ApproveTopUp credits the wallet. Deciding twice is refused, so a double-tap
-// on the approve button cannot pay someone twice.
+// ApproveTopUp credits the wallet, plus whatever discount code the buyer
+// attached. Deciding twice is refused, so a double-tap on the approve button
+// cannot pay someone twice.
 func (s *ShopService) ApproveTopUp(id int) (*model.WalletTopUp, int64, error) {
 	row, err := s.GetTopUp(id)
 	if err != nil {
@@ -227,14 +248,31 @@ func (s *ShopService) ApproveTopUp(id int) (*model.WalletTopUp, int64, error) {
 	if row.Status == model.TopUpApproved || row.Status == model.TopUpRejected {
 		return nil, 0, ErrTopUpNotPending
 	}
-	if err := database.GetDB().Model(&model.WalletTopUp{}).Where("id = ? AND status <> ?", id, model.TopUpApproved).
-		Updates(map[string]any{"status": model.TopUpApproved, "decided_at": nowMilli()}).Error; err != nil {
-		return nil, 0, err
+	// Only the update that actually moved the row out of "pending" may pay: two
+	// approvals racing on the same request must not credit it twice.
+	res := database.GetDB().Model(&model.WalletTopUp{}).Where("id = ? AND status <> ?", id, model.TopUpApproved).
+		Updates(map[string]any{"status": model.TopUpApproved, "decided_at": nowMilli()})
+	if res.Error != nil {
+		return nil, 0, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, 0, ErrTopUpNotPending
 	}
 	balance, err := s.credit(row.TelegramId, row.Amount, model.TxTopUp,
 		fmt.Sprintf("top-up #%d", row.Id))
 	if err != nil {
 		return nil, 0, err
+	}
+	// The code is settled here rather than when it was typed, so a request that
+	// is never approved consumes nothing.
+	if discount, bonus := s.redeemDiscount(row); bonus > 0 {
+		if b, err := s.credit(row.TelegramId, bonus, model.TxBonus,
+			fmt.Sprintf("%s (%d%%)", discount.Code, discount.Percent)); err == nil {
+			balance = b
+		}
+		_ = database.GetDB().Model(&model.WalletTopUp{}).Where("id = ?", id).
+			Update("bonus", bonus).Error
+		row.Bonus = bonus
 	}
 	row.Status = model.TopUpApproved
 	return row, balance, nil
@@ -279,6 +317,14 @@ func (s *ShopService) ListTopUpsOf(telegramId int64, limit int) ([]model.WalletT
 	var rows []model.WalletTopUp
 	err := q.Find(&rows).Error
 	return rows, err
+}
+
+// CountPendingTopUpsOf is the same count for one user, for their admin screen.
+func (s *ShopService) CountPendingTopUpsOf(telegramId int64) int64 {
+	var n int64
+	database.GetDB().Model(&model.WalletTopUp{}).
+		Where("status = ? AND telegram_id = ?", model.TopUpReview, telegramId).Count(&n)
+	return n
 }
 
 func (s *ShopService) CountPendingTopUps() int64 {

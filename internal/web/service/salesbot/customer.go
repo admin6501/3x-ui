@@ -138,7 +138,7 @@ func (b *Bot) onMessage(msg telego.Message) {
 		b.send(chatId, msgCancelled, b.shopMenu(chatId))
 	case btnAdmin:
 		b.onAdminMenu(msg)
-	case btnAdminTop, btnAdminUsr, btnAdminCfg, btnAdminStats, btnAdminBroadcast, btnAdminExit:
+	case btnAdminTop, btnAdminUsr, btnAdminCfg, btnAdminStats, btnAdminCodes, btnAdminBroadcast, btnAdminExit:
 		b.onAdminButton(msg)
 	default:
 		b.send(chatId, msgShopHelp, b.shopMenu(chatId))
@@ -182,6 +182,15 @@ func (b *Bot) onCallback(q telego.CallbackQuery) {
 	case "cfglist":
 		b.answer(q.ID, "")
 		b.showConfigs(chatId)
+
+	case "code":
+		id, ok := callbackArg(parts)
+		if !ok {
+			b.answer(q.ID, msgSomethingWrong)
+			return
+		}
+		b.answer(q.ID, "")
+		b.askDiscountCode(chatId, id)
 
 	// Every config action carries the config's id; ownership is re-checked on
 	// the way in, so a guessed id reaches nothing.

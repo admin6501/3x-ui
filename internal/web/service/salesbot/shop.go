@@ -2,6 +2,7 @@ package salesbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -22,7 +23,11 @@ const (
 	stepBuyVolume    = "buy_volume"
 	stepAddVolume    = "add_volume"
 	stepAdjustAmount = "adjust_amount"
+	stepDiscountCode = "discount_code"
+	stepNewDiscount  = "new_discount"
 )
+
+func nowMilli() int64 { return time.Now().UnixMilli() }
 
 // ------------------------------------------------------------- join gate --
 
@@ -159,12 +164,104 @@ func (b *Bot) startTopUp(chatId int64, name string, amount int64) {
 		b.states.clear(chatId)
 		return
 	}
+	b.showTopUpInstructions(chatId, row)
+}
+
+// showTopUpInstructions is the screen a buyer sits on until they send a receipt:
+// what to pay, where, and the option to attach a discount code first.
+func (b *Bot) showTopUpInstructions(chatId int64, row *model.WalletTopUp) {
 	payText, _ := b.settingService.GetSalesBotPayText()
 	b.states.set(chatId, &state{step: stepTopUpReceipt, orderId: row.Id})
-	kb := tu.InlineKeyboard(tu.InlineKeyboardRow(
-		tu.InlineKeyboardButton(btnCancel).WithCallbackData("topupcancel"),
-	))
-	b.send(chatId, topUpInstructions(row.Id, row.Amount, b.currency(), payText), kb)
+
+	buttons := []telego.InlineKeyboardButton{}
+	if b.discountsOffered() && row.DiscountCode == "" {
+		buttons = append(buttons, tu.InlineKeyboardButton(btnHaveCode).WithCallbackData(fmt.Sprintf("code:%d", row.Id)))
+	}
+	buttons = append(buttons, tu.InlineKeyboardButton(btnCancel).WithCallbackData("topupcancel"))
+
+	bonus := int64(0)
+	if row.DiscountCode != "" {
+		_, bonus, _ = b.shopService.ValidateDiscount(row.DiscountCode, chatId, row.Amount)
+	}
+	b.send(chatId,
+		topUpInstructions(row.Id, row.Amount, b.currency(), payText, row.DiscountCode, bonus),
+		tu.InlineKeyboard(tu.InlineKeyboardRow(buttons...)))
+}
+
+// discountsOffered hides the code button when the shop has no usable code, so a
+// buyer is not invited to hunt for something that does not exist.
+func (b *Bot) discountsOffered() bool {
+	codes, err := b.shopService.ListDiscounts(50)
+	if err != nil {
+		return false
+	}
+	now := nowMilli()
+	for i := range codes {
+		c := &codes[i]
+		if !c.Enabled {
+			continue
+		}
+		if c.ExpiresAt > 0 && now > c.ExpiresAt {
+			continue
+		}
+		if c.MaxUses > 0 && c.Used >= c.MaxUses {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// askDiscountCode starts the "I have a code" step for a pending top-up.
+func (b *Bot) askDiscountCode(chatId int64, topUpId int) {
+	row, err := b.shopService.GetTopUp(topUpId)
+	if err != nil || row.TelegramId != chatId {
+		b.send(chatId, msgOrderGone, b.shopMenu(chatId))
+		return
+	}
+	b.states.set(chatId, &state{step: stepDiscountCode, orderId: topUpId})
+	b.send(chatId, msgAskDiscountCode, cancelKeyboard())
+}
+
+// applyDiscountCode validates what the buyer typed and attaches it to the
+// top-up. A bad code puts them back on the same step rather than dropping them
+// out of the flow.
+func (b *Bot) applyDiscountCode(chatId int64, topUpId int, typed string) {
+	row, err := b.shopService.GetTopUp(topUpId)
+	if err != nil || row.TelegramId != chatId {
+		b.states.clear(chatId)
+		b.send(chatId, msgOrderGone, b.shopMenu(chatId))
+		return
+	}
+	code, bonus, err := b.shopService.ValidateDiscount(typed, chatId, row.Amount)
+	if err != nil {
+		b.send(chatId, discountError(err))
+		return
+	}
+	updated, err := b.shopService.AttachDiscountCode(topUpId, code.Code)
+	if err != nil {
+		b.states.clear(chatId)
+		b.send(chatId, msgOrderGone, b.shopMenu(chatId))
+		return
+	}
+	b.send(chatId, fmt.Sprintf(msgDiscountApplied,
+		esc(code.Code), faNum(int64(code.Percent)), faNum(bonus), esc(b.currency()),
+		faNum(row.Amount+bonus), esc(b.currency())))
+	b.showTopUpInstructions(chatId, updated)
+}
+
+// discountError turns a validation failure into something a buyer can act on.
+func discountError(err error) string {
+	switch {
+	case errors.Is(err, service.ErrDiscountExpired):
+		return msgDiscountExpired
+	case errors.Is(err, service.ErrDiscountUsedUp):
+		return msgDiscountUsedUp
+	case errors.Is(err, service.ErrDiscountAlready):
+		return msgDiscountAlready
+	default:
+		return msgDiscountUnknown
+	}
 }
 
 // onTopUpReceipt takes the payment proof and queues the top-up for an admin.
@@ -188,6 +285,17 @@ func (b *Bot) onTopUpReceipt(msg telego.Message, st *state) {
 		"💳 <b>درخواست شارژ #%s</b>\n\n👤 %s\n🆔 <code>%d</code>\n💰 مبلغ: <b>%s %s</b>",
 		faNum(int64(row.Id)), esc(who), row.TelegramId, faNum(row.Amount), esc(b.currency()),
 	)
+	// The admin decides on the code as much as on the payment, so it belongs in
+	// the message they approve from.
+	if row.DiscountCode != "" {
+		if code, bonus, err := b.shopService.ValidateDiscount(row.DiscountCode, row.TelegramId, row.Amount); err == nil {
+			caption += fmt.Sprintf("\n🏷 کد تخفیف: <code>%s</code> (%s٪) → هدیه <b>%s %s</b>\n🧮 مجموع واریز به کیف پول: <b>%s %s</b>",
+				esc(code.Code), faNum(int64(code.Percent)), faNum(bonus), esc(b.currency()),
+				faNum(row.Amount+bonus), esc(b.currency()))
+		} else {
+			caption += fmt.Sprintf("\n🏷 کد تخفیف <code>%s</code> دیگر معتبر نیست و اعمال نمی‌شود.", esc(row.DiscountCode))
+		}
+	}
 	kb := tu.InlineKeyboard(tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("✅ تأیید").WithCallbackData(fmt.Sprintf("topok:%d", row.Id)),
 		tu.InlineKeyboardButton("❌ رد").WithCallbackData(fmt.Sprintf("topno:%d", row.Id)),
@@ -582,6 +690,12 @@ func (b *Bot) showTopUpQueue(chatId int64) {
 		caption := fmt.Sprintf("💳 <b>شارژ #%s</b>\n👤 %s\n🆔 <code>%d</code>\n💰 <b>%s %s</b>",
 			faNum(int64(row.Id)), esc(row.TelegramName), row.TelegramId,
 			faNum(row.Amount), esc(b.currency()))
+		if row.DiscountCode != "" {
+			if code, bonus, err := b.shopService.ValidateDiscount(row.DiscountCode, row.TelegramId, row.Amount); err == nil {
+				caption += fmt.Sprintf("\n🏷 <code>%s</code> (%s٪) → هدیه <b>%s %s</b>",
+					esc(code.Code), faNum(int64(code.Percent)), faNum(bonus), esc(b.currency()))
+			}
+		}
 		kb := tu.InlineKeyboard(tu.InlineKeyboardRow(
 			tu.InlineKeyboardButton("✅ تأیید").WithCallbackData(fmt.Sprintf("topok:%d", row.Id)),
 			tu.InlineKeyboardButton("❌ رد").WithCallbackData(fmt.Sprintf("topno:%d", row.Id)),
@@ -603,11 +717,20 @@ func (b *Bot) approveTopUp(adminId int64, id int) {
 	// Paying puts the user's configs back on without waiting for the next
 	// billing tick.
 	b.shopService.BillAll(b.inboundService)
-	b.send(row.TelegramId, fmt.Sprintf(
-		"✅ کیف پول شما <b>%s %s</b> شارژ شد.\n\n💰 موجودی جدید: <b>%s %s</b>",
-		faNum(row.Amount), esc(b.currency()), faNum(balance), esc(b.currency())),
-		b.shopMenu(row.TelegramId))
-	b.send(adminId, fmt.Sprintf("شارژ #%s تأیید شد.", faNum(int64(id))))
+	text := fmt.Sprintf("✅ کیف پول شما <b>%s %s</b> شارژ شد.",
+		faNum(row.Amount), esc(b.currency()))
+	if row.Bonus > 0 {
+		text += fmt.Sprintf("\n🏷 با کد <code>%s</code> مبلغ <b>%s %s</b> هدیه هم گرفتید.",
+			esc(row.DiscountCode), faNum(row.Bonus), esc(b.currency()))
+	}
+	text += fmt.Sprintf("\n\n💰 موجودی جدید: <b>%s %s</b>", faNum(balance), esc(b.currency()))
+	b.send(row.TelegramId, text, b.shopMenu(row.TelegramId))
+
+	adminNote := fmt.Sprintf("شارژ #%s تأیید شد.", faNum(int64(id)))
+	if row.DiscountCode != "" && row.Bonus == 0 {
+		adminNote += fmt.Sprintf("\n⚠️ کد <code>%s</code> دیگر معتبر نبود و هدیه‌ای اعمال نشد.", esc(row.DiscountCode))
+	}
+	b.send(adminId, adminNote)
 }
 
 func (b *Bot) rejectTopUp(adminId int64, id int, note string) {
@@ -624,38 +747,253 @@ func (b *Bot) rejectTopUp(adminId int64, id int, note string) {
 	b.send(adminId, fmt.Sprintf("شارژ #%s رد شد.", faNum(int64(id))), b.adminMenu())
 }
 
+// showShopUsers lists shop users by name, one button each. Dumping every user's
+// figures and two action buttons into a single message made the list unreadable
+// and the buttons impossible to match to a row; picking a name opens that user's
+// own screen instead.
 func (b *Bot) showShopUsers(chatId int64) {
-	users, err := b.shopService.ListUsers(20)
+	users, err := b.shopService.ListUsers(30)
 	if err != nil || len(users) == 0 {
 		b.send(chatId, "هنوز کاربری در فروشگاه نیست.", b.adminMenu())
 		return
 	}
-	var rows [][]telego.InlineKeyboardButton
-	var body strings.Builder
-	body.WriteString("<b>کاربران فروشگاه</b>\n\n")
+	rows := make([][]telego.InlineKeyboardButton, 0, len(users))
 	for i := range users {
 		u := &users[i]
-		mark := "🟢"
-		if u.Blocked {
-			mark = "⛔️"
-		}
-		name := u.FirstName
-		if u.Username != "" {
-			name += " @" + u.Username
-		}
-		fmt.Fprintf(&body, "%s <code>%d</code> %s\n💰 %s %s | 📤 %s\n\n",
-			mark, u.TelegramId, esc(strings.TrimSpace(name)),
-			faNum(u.Balance), esc(b.currency()), faNum(u.TotalSpent))
-		action := "⛔️ مسدود"
-		if u.Blocked {
-			action = "✅ آزاد"
-		}
 		rows = append(rows, tu.InlineKeyboardRow(
-			tu.InlineKeyboardButton("💵 اصلاح موجودی").WithCallbackData(fmt.Sprintf("adj:%d", u.TelegramId)),
-			tu.InlineKeyboardButton(action).WithCallbackData(fmt.Sprintf("blk:%d", u.TelegramId)),
+			tu.InlineKeyboardButton(userButtonLabel(u, b.currency())).
+				WithCallbackData(fmt.Sprintf("usr:%d", u.TelegramId)),
 		))
 	}
-	b.send(chatId, body.String(), tu.InlineKeyboard(rows...))
+	b.send(chatId, msgPickUser, tu.InlineKeyboard(rows...))
+}
+
+// userButtonLabel names a shop user in the list: state, who they are, and the
+// balance — the number an admin is nearly always looking for.
+func userButtonLabel(u *model.BotUser, currency string) string {
+	mark := "🟢"
+	if u.Blocked {
+		mark = "⛔️"
+	}
+	name := strings.TrimSpace(u.FirstName)
+	if u.Username != "" {
+		name = strings.TrimSpace(name + " @" + u.Username)
+	}
+	if name == "" {
+		name = fmt.Sprintf("%d", u.TelegramId)
+	}
+	return fmt.Sprintf("%s %s — %s %s", mark, name, faNum(u.Balance), currency)
+}
+
+// showUserMenu is one shop user's own screen: their wallet, their configs and
+// every action an admin can take on them.
+func (b *Bot) showUserMenu(adminId int64, telegramId int64) {
+	u, err := b.shopService.GetUser(telegramId)
+	if err != nil {
+		b.send(adminId, msgUserGone, b.adminMenu())
+		return
+	}
+	configs, _ := b.shopService.ListConfigs(telegramId)
+	pending := b.shopService.CountPendingTopUpsOf(telegramId)
+
+	block := "⛔️ مسدود کردن"
+	if u.Blocked {
+		block = "✅ رفع مسدودی"
+	}
+	kb := tu.InlineKeyboard(
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("💵 اصلاح موجودی").WithCallbackData(fmt.Sprintf("adj:%d", u.TelegramId)),
+			tu.InlineKeyboardButton(block).WithCallbackData(fmt.Sprintf("blk:%d", u.TelegramId)),
+		),
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("📱 کانفیگ‌ها").WithCallbackData(fmt.Sprintf("usrcfg:%d", u.TelegramId)),
+			tu.InlineKeyboardButton("💳 تراکنش‌ها").WithCallbackData(fmt.Sprintf("usrtx:%d", u.TelegramId)),
+		),
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(btnCfgBack).WithCallbackData("usrlist"),
+		),
+	)
+	b.send(adminId, userDetailCard(u, len(configs), pending, b.currency()), kb)
+}
+
+// showUserConfigs is the admin's view of one user's configs.
+func (b *Bot) showUserConfigs(adminId int64, telegramId int64) {
+	configs, err := b.shopService.ListConfigs(telegramId)
+	if err != nil || len(configs) == 0 {
+		b.send(adminId, "این کاربر هنوز کانفیگی ندارد.")
+		return
+	}
+	var body strings.Builder
+	fmt.Fprintf(&body, "<b>کانفیگ‌های کاربر <code>%d</code></b>\n\n", telegramId)
+	for i := range configs {
+		cfg := &configs[i]
+		usage := b.shopService.Usage(cfg)
+		mark := "🟢"
+		switch {
+		case cfg.Paused:
+			mark = "⏸"
+		case !cfg.Active:
+			mark = "⛔️"
+		}
+		fmt.Fprintf(&body, "%s <code>%s</code>\n📶 %s از %s | 💳 %s %s\n\n",
+			mark, esc(cfg.Email), humanBytes(usage.UsedBytes), quotaGB(cfg.VolumeGB),
+			faNum(cfg.ChargedTraffic+cfg.ChargedDays), esc(b.currency()))
+	}
+	b.send(adminId, body.String())
+}
+
+// showUserLedger is the admin's view of one user's transactions.
+func (b *Bot) showUserLedger(adminId int64, telegramId int64) {
+	entries, err := b.shopService.Transactions(telegramId, 15)
+	if err != nil || len(entries) == 0 {
+		b.send(adminId, "این کاربر هنوز تراکنشی ندارد.")
+		return
+	}
+	var body strings.Builder
+	fmt.Fprintf(&body, "<b>تراکنش‌های کاربر <code>%d</code></b>\n\n", telegramId)
+	for _, e := range entries {
+		body.WriteString(txLine(e.Amount, e.Balance, e.Kind, e.Details, b.currency()))
+		body.WriteString("\n\n")
+	}
+	b.send(adminId, body.String())
+}
+
+// ------------------------------------------------------ discount codes --
+
+func (b *Bot) showDiscounts(chatId int64) {
+	codes, err := b.shopService.ListDiscounts(30)
+	if err != nil {
+		b.send(chatId, msgSomethingWrong, b.adminMenu())
+		return
+	}
+	rows := make([][]telego.InlineKeyboardButton, 0, len(codes)+1)
+	for i := range codes {
+		c := &codes[i]
+		rows = append(rows, tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(discountButtonLabel(c)).WithCallbackData(fmt.Sprintf("dsc:%d", c.Id)),
+		))
+	}
+	rows = append(rows, tu.InlineKeyboardRow(
+		tu.InlineKeyboardButton(btnNewCode).WithCallbackData("dscnew"),
+	))
+	body := msgNoDiscounts
+	if len(codes) > 0 {
+		body = msgPickDiscount
+	}
+	b.send(chatId, body, tu.InlineKeyboard(rows...))
+}
+
+func discountButtonLabel(c *model.DiscountCode) string {
+	mark := "🟢"
+	switch {
+	case !c.Enabled:
+		mark = "⛔️"
+	case c.ExpiresAt > 0 && nowMilli() > c.ExpiresAt:
+		mark = "⌛️"
+	case c.MaxUses > 0 && c.Used >= c.MaxUses:
+		mark = "🔚"
+	}
+	return fmt.Sprintf("%s %s — %s٪", mark, c.Code, faNum(int64(c.Percent)))
+}
+
+func (b *Bot) showDiscountMenu(chatId int64, id int) {
+	c, err := b.shopService.GetDiscount(id)
+	if err != nil {
+		b.send(chatId, msgDiscountGone, b.adminMenu())
+		return
+	}
+	toggle := "⛔️ غیرفعال کردن"
+	if !c.Enabled {
+		toggle = "✅ فعال کردن"
+	}
+	kb := tu.InlineKeyboard(
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(toggle).WithCallbackData(fmt.Sprintf("dsctog:%d", c.Id)),
+			tu.InlineKeyboardButton("🗑 حذف").WithCallbackData(fmt.Sprintf("dscdel:%d", c.Id)),
+		),
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(btnCfgBack).WithCallbackData("dsclist"),
+		),
+	)
+	b.send(chatId, discountCard(c, b.currency()), kb)
+}
+
+func (b *Bot) toggleDiscount(chatId int64, id int) {
+	c, err := b.shopService.GetDiscount(id)
+	if err != nil {
+		b.send(chatId, msgDiscountGone, b.adminMenu())
+		return
+	}
+	if _, err := b.shopService.SetDiscountEnabled(id, !c.Enabled); err != nil {
+		b.send(chatId, msgSomethingWrong, b.adminMenu())
+		return
+	}
+	b.showDiscountMenu(chatId, id)
+}
+
+func (b *Bot) deleteDiscount(chatId int64, id int) {
+	if err := b.shopService.DeleteDiscount(id); err != nil {
+		b.send(chatId, msgSomethingWrong, b.adminMenu())
+		return
+	}
+	b.send(chatId, msgDiscountDeleted)
+	b.showDiscounts(chatId)
+}
+
+// askNewDiscount starts the create-a-code wizard. It is one free-text answer:
+// asking four questions in a row for something an owner types once is worse
+// than one line with a documented shape.
+func (b *Bot) askNewDiscount(chatId int64) {
+	b.states.set(chatId, &state{step: stepNewDiscount})
+	b.send(chatId, msgAskNewDiscount, cancelKeyboard())
+}
+
+// createDiscount parses the wizard's one line: CODE PERCENT [MAX_USES] [DAYS].
+func (b *Bot) createDiscount(chatId int64, line string) {
+	fields := strings.Fields(strings.TrimSpace(line))
+	if len(fields) < 2 {
+		b.send(chatId, msgDiscountFormatBad)
+		return
+	}
+	percent, ok := parseNumber(fields[1])
+	if !ok || percent <= 0 || percent > 100 {
+		b.send(chatId, msgDiscountPercentBad)
+		return
+	}
+	maxUses := int64(0)
+	if len(fields) >= 3 {
+		if maxUses, ok = parseNumber(fields[2]); !ok {
+			b.send(chatId, msgDiscountFormatBad)
+			return
+		}
+	}
+	expiresAt := int64(0)
+	if len(fields) >= 4 {
+		days, ok := parseNumber(fields[3])
+		if !ok {
+			b.send(chatId, msgDiscountFormatBad)
+			return
+		}
+		if days > 0 {
+			expiresAt = time.Now().AddDate(0, 0, int(days)).UnixMilli()
+		}
+	}
+
+	b.states.clear(chatId)
+	code, err := b.shopService.CreateDiscount(fields[0], int(percent), 0, int(maxUses), expiresAt)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrDiscountExists):
+			b.send(chatId, msgDiscountExists, b.adminMenu())
+		case errors.Is(err, service.ErrDiscountInvalid):
+			b.send(chatId, msgDiscountPercentBad, b.adminMenu())
+		default:
+			b.send(chatId, msgSomethingWrong, b.adminMenu())
+		}
+		return
+	}
+	b.send(chatId, msgDiscountCreated, b.adminMenu())
+	b.showDiscountMenu(chatId, code.Id)
 }
 
 func (b *Bot) showAllConfigs(chatId int64) {

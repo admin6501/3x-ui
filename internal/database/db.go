@@ -68,6 +68,8 @@ func initModels() error {
 		&model.WalletTopUp{},
 		&model.WalletTransaction{},
 		&model.BotConfig{},
+		&model.DiscountCode{},
+		&model.DiscountRedemption{},
 		&model.Plan{},
 		&model.ResellerQuotaDisabledInbound{},
 		&model.Inbound{},

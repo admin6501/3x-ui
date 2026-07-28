@@ -253,11 +253,51 @@ type WalletTopUp struct {
         Status        string `json:"status" gorm:"type:varchar(16);index;default:pending"`
         ReceiptFileId string `json:"receiptFileId" gorm:"type:varchar(256);default:''"`
         Note          string `json:"note" gorm:"type:varchar(512);default:''"`
-        CreatedAt     int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
-        DecidedAt     int64  `json:"decidedAt" gorm:"default:0"`
+        // DiscountCode is the code the buyer attached to this request, and Bonus
+        // the extra credit it is worth. Both are settled at approval time, not
+        // when the code is typed, so a request that is never approved consumes
+        // nothing.
+        DiscountCode string `json:"discountCode" gorm:"type:varchar(64);default:''"`
+        Bonus        int64  `json:"bonus" gorm:"default:0"`
+        CreatedAt    int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
+        DecidedAt    int64  `json:"decidedAt" gorm:"default:0"`
 }
 
 func (WalletTopUp) TableName() string { return "wallet_topups" }
+
+// DiscountCode is a code a buyer types during a top-up to get extra credit. It
+// is expressed as a percentage of the top-up, which is how a shop owner thinks
+// about it ("20% off"), and bounded by an optional cap so a large top-up cannot
+// hand out an unintended fortune.
+type DiscountCode struct {
+        Id      int    `json:"id" gorm:"primaryKey;autoIncrement"`
+        Code    string `json:"code" gorm:"type:varchar(64);uniqueIndex"`
+        Percent int    `json:"percent" gorm:"default:0"`
+        // MaxBonus caps a single redemption. 0 means uncapped.
+        MaxBonus int64 `json:"maxBonus" gorm:"default:0"`
+        // MaxUses is how many times the code may be redeemed in total. 0 means
+        // unlimited. Each user may redeem a given code only once regardless.
+        MaxUses   int   `json:"maxUses" gorm:"default:0"`
+        Used      int   `json:"used" gorm:"default:0"`
+        ExpiresAt int64 `json:"expiresAt" gorm:"default:0"` // 0 = never
+        Enabled   bool  `json:"enabled" gorm:"default:true"`
+        CreatedAt int64 `json:"createdAt" gorm:"autoCreateTime:milli"`
+}
+
+func (DiscountCode) TableName() string { return "discount_codes" }
+
+// DiscountRedemption records that a user has spent a code. It is what stops the
+// same buyer redeeming one code over and over.
+type DiscountRedemption struct {
+        Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+        Code       string `json:"code" gorm:"type:varchar(64);index"`
+        TelegramId int64  `json:"telegramId" gorm:"column:telegram_id;index"`
+        TopUpId    int    `json:"topUpId"`
+        Bonus      int64  `json:"bonus"`
+        CreatedAt  int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
+}
+
+func (DiscountRedemption) TableName() string { return "discount_redemptions" }
 
 // Ledger entry kinds. Every movement of money is written here, so a balance can
 // always be explained.
@@ -267,6 +307,7 @@ const (
         TxRent   = "rent"   // the optional per-day fee for keeping a config
         TxAdjust = "adjust" // a manual correction by an admin
         TxRefund = "refund"
+        TxBonus  = "bonus" // extra credit from a discount code
 )
 
 // WalletTransaction is one line of the wallet ledger. Amount is signed: credits

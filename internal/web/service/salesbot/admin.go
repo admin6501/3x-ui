@@ -20,7 +20,7 @@ func (b *Bot) adminMenu() telego.ReplyMarkup {
 	return tu.Keyboard(
 		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminTop), tu.KeyboardButton(btnAdminUsr)},
 		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminCfg), tu.KeyboardButton(btnAdminStats)},
-		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminBroadcast)},
+		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminCodes), tu.KeyboardButton(btnAdminBroadcast)},
 		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminExit)},
 	).WithResizeKeyboard()
 }
@@ -53,6 +53,8 @@ func (b *Bot) onAdminButton(msg telego.Message) {
 		b.showShopUsers(chatId)
 	case btnAdminCfg:
 		b.showAllConfigs(chatId)
+	case btnAdminCodes:
+		b.showDiscounts(chatId)
 	case btnAdminStats:
 		b.showShopStats(chatId)
 	case btnAdminBroadcast:
@@ -125,7 +127,37 @@ func (b *Bot) onAdminCallback(q telego.CallbackQuery) {
 		// Blocking has to take their configs down, not just stop them buying.
 		b.shopService.BillAll(b.inboundService)
 		b.answer(q.ID, "انجام شد")
+		b.showUserMenu(chatId, arg)
+
+	case "usrlist":
+		b.answer(q.ID, "")
 		b.showShopUsers(chatId)
+	case "usr":
+		b.answer(q.ID, "")
+		b.showUserMenu(chatId, arg)
+	case "usrcfg":
+		b.answer(q.ID, "")
+		b.showUserConfigs(chatId, arg)
+	case "usrtx":
+		b.answer(q.ID, "")
+		b.showUserLedger(chatId, arg)
+
+	case "dsclist":
+		b.answer(q.ID, "")
+		b.showDiscounts(chatId)
+	case "dscnew":
+		b.answer(q.ID, "")
+		b.askNewDiscount(chatId)
+	case "dsc":
+		b.answer(q.ID, "")
+		b.showDiscountMenu(chatId, int(arg))
+	case "dsctog":
+		b.answer(q.ID, "")
+		b.toggleDiscount(chatId, int(arg))
+	case "dscdel":
+		b.answer(q.ID, "")
+		b.deleteDiscount(chatId, int(arg))
+
 	default:
 		b.answer(q.ID, "")
 	}
@@ -173,6 +205,14 @@ func (b *Bot) handleConversation(msg telego.Message, st *state) bool {
 		}
 		b.states.clear(chatId)
 		b.createConfig(chatId, volume)
+		return true
+
+	case stepDiscountCode:
+		b.applyDiscountCode(chatId, st.orderId, text)
+		return true
+
+	case stepNewDiscount:
+		b.createDiscount(chatId, text)
 		return true
 
 	case stepAddVolume:

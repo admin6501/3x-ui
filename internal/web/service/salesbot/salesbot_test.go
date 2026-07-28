@@ -3,8 +3,11 @@ package salesbot
 import (
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	xuilogger "github.com/mhsanaei/3x-ui/v3/internal/logger"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 
 	"github.com/op/go-logging"
 )
@@ -283,5 +286,66 @@ func TestChannelNamesNormalise(t *testing.T) {
 		if got := normalizeChannel(in); got != "@mychan" {
 			t.Errorf("normalizeChannel(%q) = %q, want @mychan", in, got)
 		}
+	}
+}
+
+// TestDiscountCodesNormaliseForMatching: buyers type a code off a poster, in
+// whatever case and with a stray space. Matching has to be forgiving or the
+// promotion looks broken.
+func TestDiscountCodesNormaliseForMatching(t *testing.T) {
+	for _, in := range []string{"NOWRUZ", "nowruz", " NoWruz ", "\tnowruz\n"} {
+		if got := service.NormalizeDiscountCode(in); got != "NOWRUZ" {
+			t.Errorf("NormalizeDiscountCode(%q) = %q, want NOWRUZ", in, got)
+		}
+	}
+	if got := service.NormalizeDiscountCode("   "); got != "" {
+		t.Errorf("a blank code normalised to %q, want empty", got)
+	}
+}
+
+// TestDiscountButtonLabelShowsWhyACodeIsDead: an admin scanning the code list
+// needs to see at a glance which codes are still working.
+func TestDiscountButtonLabelShowsWhyACodeIsDead(t *testing.T) {
+	live := &model.DiscountCode{Code: "LIVE", Percent: 20, Enabled: true}
+	if got := discountButtonLabel(live); !strings.HasPrefix(got, "🟢") {
+		t.Errorf("live code label = %q", got)
+	}
+	off := &model.DiscountCode{Code: "OFF", Percent: 20, Enabled: false}
+	if got := discountButtonLabel(off); !strings.HasPrefix(got, "⛔️") {
+		t.Errorf("disabled code label = %q", got)
+	}
+	expired := &model.DiscountCode{Code: "OLD", Percent: 20, Enabled: true,
+		ExpiresAt: time.Now().AddDate(0, 0, -1).UnixMilli()}
+	if got := discountButtonLabel(expired); !strings.HasPrefix(got, "⌛️") {
+		t.Errorf("expired code label = %q", got)
+	}
+	spent := &model.DiscountCode{Code: "SPENT", Percent: 20, Enabled: true, MaxUses: 3, Used: 3}
+	if got := discountButtonLabel(spent); !strings.HasPrefix(got, "🔚") {
+		t.Errorf("used-up code label = %q", got)
+	}
+}
+
+// TestConfigAndUserLabelsEscapeNothingButStayReadable: these are button
+// captions, not HTML, so they must carry the raw name — Telegram does not parse
+// markup in a button — while still telling the two states apart.
+func TestListLabelsCarryStateAndName(t *testing.T) {
+	paused := &model.BotConfig{Email: "tg1_abcd", VolumeGB: 20, Active: false, Paused: true}
+	if got := configButtonLabel(paused); !strings.HasPrefix(got, "⏸") || !strings.Contains(got, "tg1_abcd") {
+		t.Errorf("paused config label = %q", got)
+	}
+	off := &model.BotConfig{Email: "tg2_efgh", VolumeGB: 20, Active: false}
+	if got := configButtonLabel(off); !strings.HasPrefix(got, "⛔️") {
+		t.Errorf("suspended config label = %q", got)
+	}
+
+	blocked := &model.BotUser{TelegramId: 42, FirstName: "Ali", Username: "ali", Blocked: true}
+	got := userButtonLabel(blocked, "تومان")
+	if !strings.HasPrefix(got, "⛔️") || !strings.Contains(got, "Ali") || !strings.Contains(got, "@ali") {
+		t.Errorf("blocked user label = %q", got)
+	}
+	// A user who never set a name still has to be pickable.
+	anon := &model.BotUser{TelegramId: 4242}
+	if got := userButtonLabel(anon, "تومان"); !strings.Contains(got, "4242") {
+		t.Errorf("anonymous user label = %q", got)
 	}
 }

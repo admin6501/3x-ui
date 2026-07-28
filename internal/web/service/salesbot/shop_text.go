@@ -31,6 +31,8 @@ const (
 	btnCfgDelete    = "🗑 حذف"
 	btnCfgDeleteYes = "🗑 بله، حذف کن"
 	btnCfgBack      = "🔙 بازگشت"
+	btnHaveCode     = "🏷 کد تخفیف دارم"
+	btnNewCode      = "➕ کد تخفیف جدید"
 )
 
 const (
@@ -60,7 +62,35 @@ const (
 	msgAskAddVolume     = "چند گیگابایت به این کانفیگ اضافه شود؟ عدد را بنویسید.\n\n💡 بابت افزودن حجم چیزی کم نمی‌شود؛ هزینه همچنان فقط بابت مصرف واقعی است."
 	msgConfirmDelete    = "آیا از حذف کانفیگ <code>%s</code> مطمئن هستید؟ این کار برگشت‌پذیر نیست."
 	msgConfigDeleted    = "🗑 کانفیگ حذف شد."
-	msgSuspended        = "⛔️ <b>کیف پول شما خالی شد</b>\n\nکانفیگ‌های شما موقتاً غیرفعال شدند. به‌محض شارژ کیف پول، دوباره خودکار فعال می‌شوند."
+
+	msgPickUser = "👥 <b>کاربران فروشگاه</b>\n\nروی هرکدام بزنید تا صفحه‌ی مدیریتش باز شود:"
+	msgUserGone = "این کاربر پیدا نشد."
+
+	msgAskDiscountCode = "کد تخفیف را بنویسید:"
+	msgDiscountApplied = "🏷 کد <code>%s</code> اعمال شد!\n\n" +
+		"🎁 تخفیف: <b>%s٪</b> — معادل <b>%s %s</b> هدیه\n" +
+		"🧮 پس از تأیید مدیر، مجموع <b>%s %s</b> به کیف پولتان اضافه می‌شود."
+	msgDiscountUnknown = "چنین کد تخفیفی وجود ندارد. دوباره امتحان کنید یا «انصراف» را بزنید."
+	msgDiscountExpired = "این کد تخفیف منقضی شده است."
+	msgDiscountUsedUp  = "ظرفیت این کد تخفیف تمام شده است."
+	msgDiscountAlready = "شما قبلاً از این کد استفاده کرده‌اید."
+
+	msgNoDiscounts    = "🏷 هنوز کد تخفیفی نساخته‌اید."
+	msgPickDiscount   = "🏷 <b>کدهای تخفیف</b>\n\nروی هرکدام بزنید تا جزئیات و تنظیماتش باز شود:"
+	msgDiscountGone   = "این کد تخفیف دیگر وجود ندارد."
+	msgAskNewDiscount = "کد جدید را در یک خط بنویسید:\n\n" +
+		"<code>کد درصد [تعداد‌مجاز] [روز‌اعتبار]</code>\n\n" +
+		"مثال‌ها:\n" +
+		"<code>NOWRUZ 20</code> — ۲۰٪ هدیه، بدون محدودیت\n" +
+		"<code>VIP 30 50</code> — ۳۰٪ هدیه، فقط ۵۰ بار\n" +
+		"<code>HAFTE 15 100 7</code> — ۱۵٪ هدیه، ۱۰۰ بار، تا ۷ روز دیگر\n\n" +
+		"💡 هر کاربر از هر کد فقط یک‌بار می‌تواند استفاده کند."
+	msgDiscountFormatBad  = "قالب درست نیست. حداقل باید کد و درصد را بنویسید، مثل <code>NOWRUZ 20</code>."
+	msgDiscountPercentBad = "درصد باید عددی بین ۱ تا ۱۰۰ باشد."
+	msgDiscountExists     = "کدی با همین نام از قبل وجود دارد."
+	msgDiscountCreated    = "✅ کد تخفیف ساخته شد."
+	msgDiscountDeleted    = "🗑 کد تخفیف حذف شد."
+	msgSuspended          = "⛔️ <b>کیف پول شما خالی شد</b>\n\nکانفیگ‌های شما موقتاً غیرفعال شدند. به‌محض شارژ کیف پول، دوباره خودکار فعال می‌شوند."
 
 	msgShopHelp = "<b>راهنما</b>\n\n" +
 		"۱️⃣ <b>شارژ کیف پول</b> — مبلغ را می‌نویسید، رسید واریز را می‌فرستید و پس از تأیید مدیر موجودی‌تان اضافه می‌شود.\n\n" +
@@ -169,11 +199,77 @@ func faDate(ms int64) string {
 	return toPersianDigits(time.UnixMilli(ms).Format("2006-01-02"))
 }
 
+// userDetailCard is one shop user's own screen for an admin.
+func userDetailCard(u *model.BotUser, configs int, pendingTopUps int64, currency string) string {
+	var b strings.Builder
+	name := strings.TrimSpace(u.FirstName)
+	if u.Username != "" {
+		name = strings.TrimSpace(name + " @" + u.Username)
+	}
+	if name == "" {
+		name = "بدون نام"
+	}
+	fmt.Fprintf(&b, "👤 <b>%s</b>\n🆔 <code>%d</code>\n\n", esc(name), u.TelegramId)
+	if u.Blocked {
+		b.WriteString("⛔️ وضعیت: <b>مسدود</b>\n")
+	} else {
+		b.WriteString("🟢 وضعیت: <b>آزاد</b>\n")
+	}
+	fmt.Fprintf(&b, "💰 موجودی: <b>%s %s</b>\n", faNum(u.Balance), esc(currency))
+	fmt.Fprintf(&b, "📥 مجموع شارژ: %s %s\n", faNum(u.TotalPaid), esc(currency))
+	fmt.Fprintf(&b, "📤 مجموع مصرف: %s %s\n", faNum(u.TotalSpent), esc(currency))
+	fmt.Fprintf(&b, "📱 کانفیگ‌ها: %s\n", faNum(int64(configs)))
+	if pendingTopUps > 0 {
+		fmt.Fprintf(&b, "🔎 شارژ در انتظار تأیید: <b>%s</b>\n", faNum(pendingTopUps))
+	}
+	if u.Balance <= 0 {
+		b.WriteString("\n⚠️ موجودی این کاربر تمام شده و کانفیگ‌هایش خاموش‌اند.")
+	}
+	return b.String()
+}
+
+// discountCard is one code's own screen for an admin.
+func discountCard(c *model.DiscountCode, currency string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "🏷 <b>%s</b>\n\n", esc(c.Code))
+	fmt.Fprintf(&b, "🎁 هدیه: <b>%s٪</b> از مبلغ شارژ\n", faNum(int64(c.Percent)))
+	if c.MaxBonus > 0 {
+		fmt.Fprintf(&b, "🔒 سقف هدیه هر بار: %s %s\n", faNum(c.MaxBonus), esc(currency))
+	}
+	if c.MaxUses > 0 {
+		fmt.Fprintf(&b, "🔢 استفاده: <b>%s</b> از %s بار\n", faNum(int64(c.Used)), faNum(int64(c.MaxUses)))
+	} else {
+		fmt.Fprintf(&b, "🔢 استفاده: <b>%s</b> بار (بدون محدودیت)\n", faNum(int64(c.Used)))
+	}
+	if c.ExpiresAt > 0 {
+		fmt.Fprintf(&b, "⌛️ اعتبار تا: %s\n", faDate(c.ExpiresAt))
+	} else {
+		b.WriteString("⌛️ اعتبار: بدون تاریخ انقضا\n")
+	}
+
+	switch {
+	case !c.Enabled:
+		b.WriteString("\n⛔️ این کد غیرفعال است.")
+	case c.ExpiresAt > 0 && nowMilli() > c.ExpiresAt:
+		b.WriteString("\n⌛️ این کد منقضی شده است.")
+	case c.MaxUses > 0 && c.Used >= c.MaxUses:
+		b.WriteString("\n🔚 ظرفیت این کد تمام شده است.")
+	default:
+		b.WriteString("\n✅ این کد هم‌اکنون قابل استفاده است.")
+	}
+	return b.String()
+}
+
 // topUpInstructions is the screen between naming an amount and sending a receipt.
-func topUpInstructions(id int, amount int64, currency, payText string) string {
+func topUpInstructions(id int, amount int64, currency, payText, code string, bonus int64) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "💳 درخواست شارژ شماره <b>%s</b> ثبت شد.\n\n", faNum(int64(id)))
-	fmt.Fprintf(&b, "💰 مبلغ: <b>%s %s</b>\n\n", faNum(amount), esc(currency))
+	fmt.Fprintf(&b, "💰 مبلغ واریزی: <b>%s %s</b>\n", faNum(amount), esc(currency))
+	if strings.TrimSpace(code) != "" && bonus > 0 {
+		fmt.Fprintf(&b, "🏷 کد <code>%s</code>: <b>%s %s</b> هدیه\n", esc(code), faNum(bonus), esc(currency))
+		fmt.Fprintf(&b, "🧮 مجموع افزوده به کیف پول: <b>%s %s</b>\n", faNum(amount+bonus), esc(currency))
+	}
+	b.WriteString("\n")
 	if strings.TrimSpace(payText) != "" {
 		b.WriteString(esc(payText))
 		b.WriteString("\n\n")
@@ -197,6 +293,7 @@ func txLine(amount, balance int64, kind, details, currency string) string {
 		"rent":   "اجاره روزانه",
 		"adjust": "اصلاح توسط مدیر",
 		"refund": "بازگشت وجه",
+		"bonus":  "هدیه کد تخفیف",
 	}[kind]
 	if label == "" {
 		label = kind

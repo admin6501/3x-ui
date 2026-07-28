@@ -24,6 +24,7 @@ const (
 // Admin-side button captions.
 const (
 	btnAdminStats     = "📈 آمار فروش"
+	btnAdminCodes     = "🏷 کدهای تخفیف"
 	btnAdminBroadcast = "📢 پیام همگانی"
 	btnAdminExit      = "🚪 خروج از مدیریت"
 )
