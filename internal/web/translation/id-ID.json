@@ -2131,7 +2131,7 @@
         },
         "inbounds": {
           "title": "Inbound",
-          "body": "Inbound adalah pintu yang dibuka server untuk trafik: satu protokol pada satu port.\n- Pilih protokol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), port, dan transport.\n- Tambahkan TLS atau Reality kecuali inbound memang berada di belakang layanan lain.\n- Menu tiga titik menyalin tautan, menampilkan QR, mereset trafik, dan menggandakan inbound."
+          "body": "Inbound adalah pintu yang dibuka server untuk trafik: satu protokol pada satu port.\n- Pilih protokol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), port, dan transport.\n- Tambahkan TLS atau Reality kecuali inbound memang berada di belakang layanan lain.\n- Menu tiga titik menyalin tautan, menampilkan QR, mereset trafik, dan menggandakan inbound.\n- Pengali kuota pada sebuah inbound membuat pemakaiannya lebih mahal: pada 2, setiap 1 GB memotong 2 GB dari kuota klien, dan bot toko menagih sesuai itu."
         },
         "clients": {
           "title": "Klien",
@@ -2152,6 +2152,10 @@
         "subscription": {
           "title": "Langganan",
           "body": "Server langganan memberi pengguna daftar konfigurasi yang selalu terbarui dari satu tautan.\n- Aktifkan di Pengaturan → Langganan, lalu atur port, path, dan domain.\n- Format biasa, JSON, dan Clash/Mihomo bisa disajikan bersamaan.\n- Template Remark mengatur nama yang tampil di aplikasi pengguna, dengan variabel seperti email dan sisa kuota.\n- Membuka tautan di browser menampilkan halaman status dengan pemakaian, masa aktif, dan tombol aplikasi."
+        },
+        "shop": {
+          "title": "Bot toko Telegram",
+          "body": "Bot Telegram kedua, terpisah dari bot notifikasi, yang menjual konfigurasi dengan dompet prabayar.\n- Atur di Pengaturan → Notifikasi → Bot Penjualan: nyalakan, tempel token dari @BotFather, isi ID admin, lalu pilih bahasa bot dan inbound tempat konfigurasi baru dibuat.\n- Pembeli mengisi saldo dulu: menyebut jumlahnya, mengirim bukti transfer, dan admin menyetujuinya dari dalam bot.\n- Penjualannya bayar sesuai pemakaian — pembeli memilih ukuran, tetapi hanya kuota yang benar-benar terpakai yang ditagih dengan harga per GB Anda.\n- Pemakaian diukur setiap beberapa menit dan intervalnya Anda tentukan. Saat saldo habis konfigurasi mati, dan setelah diisi ulang menyala lagi.\n- Pembeli menamai konfigurasinya sendiri atau menyerahkannya ke bot. Dari \"Konfigurasi saya\" ia bisa mengirim ulang tautan, menambah kuota, mematikan, menyalakan, dan menghapus.\n- Kode diskon dibuat dari menu pengelolaan bot: bonus persentase atas pengisian saldo, dengan batas pemakaian dan masa berlaku opsional. Tiap pembeli memakai satu kode sekali saja.\n- Konfigurasi yang kuotanya habis atau dompetnya kosong dihapus dari bot dan panel setelah jumlah hari yang Anda tetapkan. 0 hari berarti tidak pernah dihapus, dan konfigurasi yang sengaja dimatikan pembeli tidak diusik."
         },
         "branding": {
           "title": "Branding halaman langganan",
@@ -2179,7 +2183,7 @@
         },
         "admins": {
           "title": "Admin dan peran",
-          "body": "Akun admin tambahan memungkinkan orang lain membantu tanpa menyerahkan seluruh panel.\n- Manager: semuanya kecuali pengaturan panel dan manajemen admin.\n- Reseller: hanya inbound yang ditugaskan, dengan kuota trafik dan klien sendiri.\n- Read-only: bisa melihat, tidak bisa mengubah.\n- Log audit mencatat siapa membuat, mengubah, atau menghapus akun admin."
+          "body": "Akun admin tambahan memungkinkan orang lain membantu tanpa menyerahkan seluruh panel.\n- Manager: semuanya kecuali pengaturan panel dan manajemen admin.\n- Reseller: hanya inbound yang ditugaskan, dengan kuota trafik dan klien sendiri.\n- Read-only: bisa melihat, tidak bisa mengubah.\n- Log audit mencatat siapa membuat, mengubah, atau menghapus akun admin.\n- Peran khusus memungkinkan Anda menyusun kumpulan izin sendiri dan menamainya, ketika tidak satu pun dari tiga peran bawaan cocok."
         },
         "security": {
           "title": "Menjaga panel tetap aman",

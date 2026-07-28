@@ -2131,7 +2131,7 @@
         },
         "inbounds": {
           "title": "Gelen bağlantılar",
-          "body": "Gelen bağlantı, sunucunuzun trafiğe açtığı kapıdır: tek portta tek protokol.\n- Protokol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), port ve taşıma seçin.\n- Başka bir şeyin arkasında değilse TLS veya Reality ekleyin.\n- Satırdaki üç nokta menüsü bağlantıları kopyalar, QR gösterir, trafiği sıfırlar ve kopyalar."
+          "body": "Gelen bağlantı, sunucunuzun trafiğe açtığı kapıdır: tek portta tek protokol.\n- Protokol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), port ve taşıma seçin.\n- Başka bir şeyin arkasında değilse TLS veya Reality ekleyin.\n- Satırdaki üç nokta menüsü bağlantıları kopyalar, QR gösterir, trafiği sıfırlar ve kopyalar.\n- Bir gelen bağlantıdaki trafik çarpanı kullanımı pahalılaştırır: 2 iken 1 GB aktarım istemcinin kotasından 2 GB düşer ve satış botu da buna göre ücretlendirir."
         },
         "clients": {
           "title": "Kullanıcılar",
@@ -2152,6 +2152,10 @@
         "subscription": {
           "title": "Abonelikler",
           "body": "Abonelik sunucusu, tek bağlantıdan her zaman güncel bir yapılandırma listesi sunar.\n- Ayarlar → Abonelik bölümünden açın; port, yol ve alan adını belirleyin.\n- Düz, JSON ve Clash/Mihomo biçimleri aynı anda sunulabilir.\n- Remark şablonu kullanıcının uygulamasında görünen adı belirler; e-posta, kalan trafik gibi değişkenler kullanılır.\n- Bağlantıyı tarayıcıda açmak kullanım, bitiş ve uygulama düğmeleri olan bir durum sayfası gösterir."
+        },
+        "shop": {
+          "title": "Telegram mağaza botu",
+          "body": "Bildirim botundan ayrı, ön ödemeli cüzdanla config satan ikinci bir Telegram botu.\n- Ayarlar → Bildirimler → Satış Botu'ndan kurun: açın, @BotFather'dan aldığınız tokeni yapıştırın, yönetici kimliklerini girin, botun dilini ve yeni configlerin oluşturulacağı gelen bağlantıyı seçin.\n- Alıcı önce bakiye yükler: tutarı yazar, dekontu gönderir ve yönetici botun içinden onaylar.\n- Satış kullandıkça öde şeklindedir — alıcı bir kota seçer ama yalnızca gerçekten kullandığı trafik, sizin GB fiyatınızdan ücretlendirilir.\n- Kullanım birkaç dakikada bir ölçülür; aralığı siz belirlersiniz. Cüzdan boşalınca configler kapanır, yükleme yapılınca yeniden açılır.\n- Alıcı configine kendi ad verir ya da bota bırakır. \"Configlerim\" bölümünden bağlantıları yeniden alabilir, kota ekleyebilir, kapatıp açabilir ve silebilir.\n- İndirim kodları botun yönetim menüsünden oluşturulur: yüklemeye yüzde olarak bonus, isteğe bağlı kullanım ve süre sınırlarıyla. Her alıcı bir kodu bir kez kullanır.\n- Kotası biten ya da cüzdanı boş kalan configler, belirlediğiniz gün sayısından sonra hem bottan hem panelden silinir. 0 gün hiç silmez ve alıcının bilerek kapattığı config hiç dokunulmaz."
         },
         "branding": {
           "title": "Abonelik sayfası markası",
@@ -2179,7 +2183,7 @@
         },
         "admins": {
           "title": "Yöneticiler ve roller",
-          "body": "Ek yönetici hesapları, paneli tümüyle devretmeden başkalarının yardım etmesini sağlar.\n- Manager: panel ayarları ve yönetici yönetimi dışında her şey.\n- Bayi: yalnızca kendisine atanan bağlantılar, kendi trafik ve kullanıcı kotalarıyla.\n- Salt okunur: görür ama değiştiremez.\n- Denetim günlüğü hesabı kimin oluşturduğunu, değiştirdiğini veya sildiğini kaydeder."
+          "body": "Ek yönetici hesapları, paneli tümüyle devretmeden başkalarının yardım etmesini sağlar.\n- Manager: panel ayarları ve yönetici yönetimi dışında her şey.\n- Bayi: yalnızca kendisine atanan bağlantılar, kendi trafik ve kullanıcı kotalarıyla.\n- Salt okunur: görür ama değiştiremez.\n- Denetim günlüğü hesabı kimin oluşturduğunu, değiştirdiğini veya sildiğini kaydeder.\n- Özel roller, hazır üç rolden hiçbiri uymadığında kendi izin kümenizi oluşturup adlandırmanızı sağlar."
         },
         "security": {
           "title": "Paneli güvende tutmak",

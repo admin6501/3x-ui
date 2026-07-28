@@ -2131,7 +2131,7 @@
         },
         "inbounds": {
           "title": "Entradas",
-          "body": "Una entrada es una puerta que tu servidor abre al tráfico: un protocolo en un puerto.\n- Elige protocolo (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), puerto y transporte.\n- Añade TLS o Reality salvo que la entrada vaya detrás de otra cosa.\n- El menú de tres puntos copia enlaces, muestra el QR, reinicia el tráfico y clona la entrada."
+          "body": "Una entrada es una puerta que tu servidor abre al tráfico: un protocolo en un puerto.\n- Elige protocolo (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), puerto y transporte.\n- Añade TLS o Reality salvo que la entrada vaya detrás de otra cosa.\n- El menú de tres puntos copia enlaces, muestra el QR, reinicia el tráfico y clona la entrada.\n- Un multiplicador de tráfico en una entrada encarece su consumo: con 2, cada gigabyte transferido descuenta dos de la cuota del cliente, y el bot de la tienda cobra en consecuencia."
         },
         "clients": {
           "title": "Clientes",
@@ -2152,6 +2152,10 @@
         "subscription": {
           "title": "Suscripciones",
           "body": "El servidor de suscripción entrega a tus usuarios una lista de configuraciones siempre al día desde un enlace.\n- Actívalo en Ajustes → Suscripción y define puerto, ruta y dominio.\n- Los formatos plano, JSON y Clash/Mihomo pueden servirse a la vez.\n- La plantilla Remark controla el nombre que ve el usuario, con variables como email o tráfico restante.\n- Abrir el enlace en un navegador muestra una página de estado con uso, caducidad y botones de apps."
+        },
+        "shop": {
+          "title": "Bot de tienda de Telegram",
+          "body": "Un segundo bot de Telegram, aparte del de notificaciones, que vende configuraciones con un monedero de prepago.\n- Configúralo en Ajustes → Notificaciones → Bot de ventas: actívalo, pega un token de @BotFather, indica los IDs de los administradores y elige el idioma del bot y la entrada donde se crean las configuraciones.\n- El comprador recarga primero: indica un importe, envía el comprobante y un administrador lo aprueba desde el propio bot.\n- La venta es de pago por consumo: el comprador elige un tamaño, pero solo se le cobra el tráfico que realmente usa a tu precio por gigabyte.\n- El consumo se mide cada pocos minutos y tú decides el intervalo. Cuando el monedero se vacía las configuraciones se apagan, y al recargar vuelven a encenderse.\n- El comprador pone nombre a su configuración o deja que lo elija el bot. Desde «Mis configuraciones» puede reenviar los enlaces, añadir tráfico, apagar, encender y eliminar.\n- Los códigos de descuento se crean desde el menú de administración del bot: un bono en porcentaje sobre la recarga, con límites opcionales de usos y caducidad. Cada comprador canjea un código una sola vez.\n- Las configuraciones sin tráfico o con el monedero vacío se eliminan del bot y del panel tras los días que indiques. 0 días no elimina nunca, y una configuración que el comprador apagó a propósito no se toca."
         },
         "branding": {
           "title": "Marca de la página de suscripción",
@@ -2179,7 +2183,7 @@
         },
         "admins": {
           "title": "Administradores y roles",
-          "body": "Las cuentas extra dejan que otros ayuden sin entregar el panel entero.\n- Manager: todo salvo ajustes del panel y gestión de administradores.\n- Revendedor: solo las entradas asignadas, con sus propias cuotas.\n- Solo lectura: mira pero no cambia nada.\n- El registro de auditoría guarda quién creó, cambió o borró una cuenta."
+          "body": "Las cuentas extra dejan que otros ayuden sin entregar el panel entero.\n- Manager: todo salvo ajustes del panel y gestión de administradores.\n- Revendedor: solo las entradas asignadas, con sus propias cuotas.\n- Solo lectura: mira pero no cambia nada.\n- El registro de auditoría guarda quién creó, cambió o borró una cuenta.\n- Los roles personalizados te permiten construir tu propio conjunto de permisos y ponerle nombre, cuando ninguno de los tres roles predefinidos encaja."
         },
         "security": {
           "title": "Mantener el panel seguro",

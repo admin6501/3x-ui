@@ -2140,7 +2140,7 @@
         },
         "inbounds": {
           "title": "Inbounds",
-          "body": "An inbound is a door your server opens for traffic: one protocol on one port.\n- Pick a protocol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard …), a port and a transport.\n- Add TLS or Reality unless the inbound is meant to sit behind something else.\n- The three-dot menu on each row copies links, shows a QR code, resets traffic and clones the inbound.\n- The client counters on each row show active, disabled, ended and online users at a glance."
+          "body": "An inbound is a door your server opens for traffic: one protocol on one port.\n- Pick a protocol (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard …), a port and a transport.\n- Add TLS or Reality unless the inbound is meant to sit behind something else.\n- The three-dot menu on each row copies links, shows a QR code, resets traffic and clones the inbound.\n- The client counters on each row show active, disabled, ended and online users at a glance.\n- A traffic multiplier on an inbound makes its usage cost more: at 2, moving 1 GB takes 2 GB off the client's quota, and the shop bot bills accordingly."
         },
         "clients": {
           "title": "Clients",
@@ -2161,6 +2161,10 @@
         "subscription": {
           "title": "Subscriptions",
           "body": "The subscription server hands your users an always-current list of configs from one link.\n- Enable it in Panel Settings → Subscription and set its port, path and domain.\n- Plain, JSON and Clash/Mihomo formats can be served side by side.\n- The Remark Template controls the name shown in the user's app, with variables like email and remaining traffic.\n- Opening the link in a browser shows a status page with usage, expiry and app buttons."
+        },
+        "shop": {
+          "title": "Telegram shop bot",
+          "body": "A second Telegram bot, separate from the notification one, that sells configs on a prepaid wallet.\n- Set it up in Settings → Notifications → Sales Bot: switch it on, paste a token from @BotFather, list the admin Telegram IDs, pick the bot's language and the inbound new configs are created on.\n- Buyers top up first: they name an amount, send a payment receipt, and an admin approves it from inside the bot.\n- Selling is pay-as-you-go — a buyer picks a size, and only the traffic they actually use is charged at your per-GB price. Buy 10 GB, use 1 GB, pay for 1 GB.\n- Usage is metered every few minutes; the interval is yours to set. When a wallet empties the buyer's configs switch off, and topping up switches them back on.\n- Buyers name their own configs, or let the bot pick. From \"My configs\" they can re-send links, add traffic, pause, resume and delete.\n- Discount codes are created from the bot's admin menu: a percentage bonus on a top-up, with optional use and expiry limits. Each buyer may redeem a code once.\n- Configs that run out of traffic, or whose wallet stays empty, are deleted from both bot and panel after the number of days you set. 0 days never deletes, and a config the buyer paused on purpose is never touched."
         },
         "branding": {
           "title": "Branding the subscription page",
@@ -2188,7 +2192,7 @@
         },
         "admins": {
           "title": "Admins and roles",
-          "body": "Extra admin accounts let other people help without handing over the whole panel.\n- Manager: everything except panel settings and admin management.\n- Reseller: only the inbounds assigned to them, with their own traffic and client quotas.\n- Read-only: can look, cannot change anything.\n- The audit log records who created, changed or deleted an admin account."
+          "body": "Extra admin accounts let other people help without handing over the whole panel.\n- Manager: everything except panel settings and admin management.\n- Reseller: only the inbounds assigned to them, with their own traffic and client quotas.\n- Read-only: can look, cannot change anything.\n- The audit log records who created, changed or deleted an admin account.\n- Custom roles let you build your own permission set and name it, when none of the three built-in roles fits."
         },
         "security": {
           "title": "Keeping the panel safe",

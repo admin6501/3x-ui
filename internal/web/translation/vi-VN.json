@@ -2131,7 +2131,7 @@
         },
         "inbounds": {
           "title": "Inbound",
-          "body": "Inbound là cánh cửa máy chủ mở cho lưu lượng: một giao thức trên một cổng.\n- Chọn giao thức (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), cổng và transport.\n- Bật TLS hoặc Reality trừ khi inbound nằm sau một dịch vụ khác.\n- Menu ba chấm sao chép liên kết, hiện mã QR, đặt lại lưu lượng và nhân bản inbound."
+          "body": "Inbound là cánh cửa máy chủ mở cho lưu lượng: một giao thức trên một cổng.\n- Chọn giao thức (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), cổng và transport.\n- Bật TLS hoặc Reality trừ khi inbound nằm sau một dịch vụ khác.\n- Menu ba chấm sao chép liên kết, hiện mã QR, đặt lại lưu lượng và nhân bản inbound.\n- Hệ số lưu lượng trên một inbound khiến mức dùng đắt hơn: ở mức 2, mỗi 1 GB truyền tải sẽ trừ 2 GB khỏi hạn mức của khách, và bot cửa hàng cũng tính theo đó."
         },
         "clients": {
           "title": "Người dùng",
@@ -2152,6 +2152,10 @@
         "subscription": {
           "title": "Đăng ký",
           "body": "Máy chủ đăng ký cung cấp danh sách cấu hình luôn mới nhất qua một liên kết.\n- Bật trong Cài đặt → Đăng ký và đặt cổng, đường dẫn, tên miền.\n- Các định dạng thường, JSON và Clash/Mihomo có thể phục vụ song song.\n- Mẫu Remark quyết định tên hiển thị trong ứng dụng, với biến như email và dung lượng còn lại.\n- Mở liên kết bằng trình duyệt sẽ thấy trang trạng thái kèm mức dùng, hạn dùng và nút ứng dụng."
+        },
+        "shop": {
+          "title": "Bot cửa hàng Telegram",
+          "body": "Một bot Telegram thứ hai, tách khỏi bot thông báo, bán cấu hình bằng ví trả trước.\n- Thiết lập tại Cài đặt → Thông báo → Bot bán hàng: bật lên, dán token từ @BotFather, nhập ID quản trị viên, chọn ngôn ngữ bot và inbound nơi tạo cấu hình mới.\n- Người mua nạp tiền trước: nhập số tiền, gửi biên lai, và quản trị viên duyệt ngay trong bot.\n- Bán theo hình thức trả theo mức dùng — người mua chọn dung lượng, nhưng chỉ bị tính phần lưu lượng thực sự dùng theo giá mỗi GB của bạn.\n- Mức dùng được đo mỗi vài phút và bạn tự đặt khoảng thời gian đó. Khi ví hết tiền các cấu hình sẽ tắt, nạp lại thì bật lại.\n- Người mua tự đặt tên cấu hình hoặc để bot chọn. Trong \"Cấu hình của tôi\" họ có thể lấy lại liên kết, thêm dung lượng, tắt, bật và xoá.\n- Mã giảm giá được tạo từ menu quản trị của bot: thưởng theo phần trăm số tiền nạp, kèm giới hạn lượt dùng và hạn dùng tuỳ chọn. Mỗi người mua dùng một mã một lần.\n- Cấu hình hết dung lượng hoặc ví trống sẽ bị xoá khỏi cả bot lẫn bảng điều khiển sau số ngày bạn đặt. 0 ngày là không bao giờ xoá, và cấu hình mà người mua cố ý tắt sẽ không bị đụng tới."
         },
         "branding": {
           "title": "Thương hiệu trang đăng ký",
@@ -2179,7 +2183,7 @@
         },
         "admins": {
           "title": "Quản trị viên và vai trò",
-          "body": "Tài khoản quản trị bổ sung giúp người khác hỗ trợ mà không phải giao cả bảng.\n- Manager: mọi thứ trừ cài đặt bảng và quản lý quản trị viên.\n- Đại lý: chỉ những inbound được giao, với hạn mức lưu lượng và người dùng riêng.\n- Chỉ đọc: xem được nhưng không sửa được.\n- Nhật ký kiểm toán ghi lại ai đã tạo, sửa hay xóa tài khoản quản trị."
+          "body": "Tài khoản quản trị bổ sung giúp người khác hỗ trợ mà không phải giao cả bảng.\n- Manager: mọi thứ trừ cài đặt bảng và quản lý quản trị viên.\n- Đại lý: chỉ những inbound được giao, với hạn mức lưu lượng và người dùng riêng.\n- Chỉ đọc: xem được nhưng không sửa được.\n- Nhật ký kiểm toán ghi lại ai đã tạo, sửa hay xóa tài khoản quản trị.\n- Vai trò tuỳ chỉnh cho phép bạn tự tạo bộ quyền riêng và đặt tên cho nó, khi không vai trò dựng sẵn nào phù hợp."
         },
         "security": {
           "title": "Giữ bảng điều khiển an toàn",

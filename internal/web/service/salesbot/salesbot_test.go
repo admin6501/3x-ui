@@ -375,7 +375,7 @@ func TestListLabelsCarryStateAndName(t *testing.T) {
 func TestBotSpeaksEveryShippedLanguage(t *testing.T) {
 	for _, lang := range locale.SupportedLangs {
 		tt := newTr(lang)
-		for _, key := range []string{"btn.wallet", "msg.welcome", "card.wallet.title", "unit.unlimited"} {
+		for _, key := range allTranslatedKeys {
 			got := tt.s(key)
 			if got == "" || got == keyPrefix+key {
 				t.Errorf("%s: %q resolved to %q", lang, key, got)

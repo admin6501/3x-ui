@@ -2131,7 +2131,7 @@
         },
         "inbounds": {
           "title": "Entradas",
-          "body": "Uma entrada é a porta que seu servidor abre para o tráfego: um protocolo em uma porta.\n- Escolha protocolo (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), porta e transporte.\n- Ative TLS ou Reality, a menos que a entrada fique atrás de outra coisa.\n- O menu de três pontos copia links, mostra QR, zera o tráfego e clona a entrada."
+          "body": "Uma entrada é a porta que seu servidor abre para o tráfego: um protocolo em uma porta.\n- Escolha protocolo (VLESS, VMess, Trojan, Shadowsocks, Hysteria, WireGuard…), porta e transporte.\n- Ative TLS ou Reality, a menos que a entrada fique atrás de outra coisa.\n- O menu de três pontos copia links, mostra QR, zera o tráfego e clona a entrada.\n- Um multiplicador de tráfego numa entrada encarece o consumo dela: com 2, cada gigabyte transferido desconta dois da cota do cliente, e o bot da loja cobra de acordo."
         },
         "clients": {
           "title": "Clientes",
@@ -2152,6 +2152,10 @@
         "subscription": {
           "title": "Assinaturas",
           "body": "O servidor de assinatura entrega uma lista sempre atual de configurações a partir de um link.\n- Ative em Configurações → Assinatura e defina porta, caminho e domínio.\n- Os formatos simples, JSON e Clash/Mihomo podem ser servidos juntos.\n- O modelo de Remark controla o nome exibido no app do usuário, com variáveis como e-mail e tráfego restante.\n- Abrir o link no navegador mostra uma página de status com uso, validade e botões de apps."
+        },
+        "shop": {
+          "title": "Bot de loja do Telegram",
+          "body": "Um segundo bot do Telegram, separado do de notificações, que vende configurações com uma carteira pré-paga.\n- Configure em Configurações → Notificações → Bot de vendas: ative, cole um token do @BotFather, informe os IDs dos administradores e escolha o idioma do bot e a entrada onde as configurações são criadas.\n- O comprador recarrega primeiro: informa um valor, envia o comprovante e um administrador aprova pelo próprio bot.\n- A venda é por consumo: o comprador escolhe um tamanho, mas só paga pelo tráfego que realmente usa, ao seu preço por gigabyte.\n- O consumo é medido a cada poucos minutos e o intervalo é você quem define. Quando a carteira esvazia as configurações desligam, e ao recarregar voltam a ligar.\n- O comprador dá nome à configuração ou deixa o bot escolher. Em \"Minhas configurações\" ele pode reenviar os links, adicionar tráfego, desligar, ligar e excluir.\n- Os cupons de desconto são criados pelo menu de administração do bot: um bônus em porcentagem sobre a recarga, com limites opcionais de usos e validade. Cada comprador usa um cupom uma única vez.\n- Configurações sem tráfego ou com a carteira vazia são excluídas do bot e do painel após os dias que você definir. 0 dia nunca exclui, e uma configuração que o comprador desligou de propósito não é tocada."
         },
         "branding": {
           "title": "Identidade da página de assinatura",
@@ -2179,7 +2183,7 @@
         },
         "admins": {
           "title": "Administradores e papéis",
-          "body": "Contas extras deixam outras pessoas ajudarem sem receber o painel inteiro.\n- Manager: tudo, menos configurações do painel e gestão de administradores.\n- Revendedor: apenas as entradas atribuídas, com cotas próprias.\n- Somente leitura: vê, mas não altera nada.\n- O log de auditoria registra quem criou, alterou ou excluiu uma conta."
+          "body": "Contas extras deixam outras pessoas ajudarem sem receber o painel inteiro.\n- Manager: tudo, menos configurações do painel e gestão de administradores.\n- Revendedor: apenas as entradas atribuídas, com cotas próprias.\n- Somente leitura: vê, mas não altera nada.\n- O log de auditoria registra quem criou, alterou ou excluiu uma conta.\n- Os papéis personalizados permitem montar seu próprio conjunto de permissões e dar um nome a ele, quando nenhum dos três papéis prontos serve."
         },
         "security": {
           "title": "Mantendo o painel seguro",
