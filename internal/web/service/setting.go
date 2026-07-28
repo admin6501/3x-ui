@@ -147,7 +147,6 @@ var defaultValueMap = map[string]string{
 	"salesBotEnable":   "false",
 	"salesBotToken":    "",
 	"salesBotAdmins":   "",
-	"salesBotPanelUrl": "",
 	"salesBotWelcome":  "",
 	"salesBotPayText":  "",
 	"salesBotSupport":  "",
@@ -1035,12 +1034,6 @@ func (s *SettingService) GetSalesBotAdmins() (string, error) {
 	return s.getString("salesBotAdmins")
 }
 
-// GetSalesBotPanelUrl is the panel address handed to a buyer with their new
-// credentials.
-func (s *SettingService) GetSalesBotPanelUrl() (string, error) {
-	return s.getString("salesBotPanelUrl")
-}
-
 func (s *SettingService) GetSalesBotWelcome() (string, error) {
 	return s.getString("salesBotWelcome")
 }
@@ -1428,6 +1421,36 @@ func (s *SettingService) BuildSubURIBase(host string) string {
 		return scheme + "://" + subDomain
 	}
 	return fmt.Sprintf("%s://%s:%d", scheme, subDomain, subPort)
+}
+
+// PublicHost is the panel's own externally reachable name, for code that has to
+// build a URL with no incoming request to infer the host from — a Telegram bot,
+// a scheduled job. It is the same order the subscription server falls back
+// through, so a link built here matches one built from a browser request.
+// Empty when the admin has told the panel neither domain.
+func (s *SettingService) PublicHost() string {
+	if d, err := s.GetSubDomain(); err == nil {
+		if h := hostOnly(d); h != "" {
+			return h
+		}
+	}
+	if d, err := s.GetWebDomain(); err == nil {
+		return hostOnly(d)
+	}
+	return ""
+}
+
+// hostOnly reduces whatever an admin typed into a domain field to a bare
+// host[:port]. A domain field often ends up holding a pasted address bar, and a
+// link built from "https://host:2053/panel/" is a dead link.
+func hostOnly(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	raw = strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
+	raw, _, _ = strings.Cut(raw, "/")
+	return strings.TrimSpace(raw)
 }
 
 // BuildSubURI is BuildSubURIBase with the subscription path appended — the

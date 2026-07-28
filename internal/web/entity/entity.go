@@ -149,7 +149,6 @@ type AllSetting struct {
 	SalesBotEnable   bool   `json:"salesBotEnable" form:"salesBotEnable"`     // Enable the reseller sales bot
 	SalesBotToken    string `json:"salesBotToken" form:"salesBotToken"`       // Sales bot token (its own bot, not the notification one)
 	SalesBotAdmins   string `json:"salesBotAdmins" form:"salesBotAdmins"`     // Comma-separated Telegram user IDs that may run the admin side
-	SalesBotPanelUrl string `json:"salesBotPanelUrl" form:"salesBotPanelUrl"` // Public host the bot puts into the links it sends buyers
 	SalesBotWelcome  string `json:"salesBotWelcome" form:"salesBotWelcome"`   // Custom welcome text; blank uses the built-in one
 	SalesBotPayText  string `json:"salesBotPayText" form:"salesBotPayText"`   // Payment instructions shown before the receipt upload
 	SalesBotSupport  string `json:"salesBotSupport" form:"salesBotSupport"`   // Support contact shown in the bot

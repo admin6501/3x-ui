@@ -111,7 +111,6 @@ export class AllSetting {
   salesBotEnable = false;
   salesBotToken = '';
   salesBotAdmins = '';
-  salesBotPanelUrl = '';
   salesBotWelcome = '';
   salesBotPayText = '';
   salesBotSupport = '';

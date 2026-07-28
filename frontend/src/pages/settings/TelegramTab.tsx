@@ -337,15 +337,6 @@ export default function TelegramTab({ allSetting, updateSetting }: TelegramTabPr
               />
             </SettingListItem>
 
-            <SettingListItem paddings="small" title={t('pages.settings.salesBotPanelUrl')} description={t('pages.settings.salesBotPanelUrlDesc')}>
-              <Input
-                value={allSetting.salesBotPanelUrl}
-                disabled={!allSetting.salesBotEnable}
-                placeholder="panel.example.com"
-                onChange={(e) => updateSetting({ salesBotPanelUrl: e.target.value })}
-              />
-            </SettingListItem>
-
             <SettingListItem paddings="small" title={t('pages.settings.salesBotPayText')} description={t('pages.settings.salesBotPayTextDesc')}>
               <Input.TextArea
                 rows={3}

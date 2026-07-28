@@ -224,22 +224,32 @@ func TestSignedNumbersForBalanceCorrections(t *testing.T) {
 	}
 }
 
-// TestPanelUrlReducesToAHost: the setting is typed by hand and people paste the
-// address bar of their panel into it. Whatever they paste has to come back out
-// as a bare host, because it is interpolated straight into a share link.
-func TestPanelUrlReducesToAHost(t *testing.T) {
-	cases := map[string]string{
-		"panel.example.com":               "panel.example.com",
-		"https://panel.example.com:2053/": "panel.example.com:2053",
-		"http://panel.example.com/panel/": "panel.example.com",
-		"  https://1.2.3.4:2096  ":        "1.2.3.4:2096",
-		"":                                "",
-		"   ":                             "",
-		"https://":                        "",
+// TestLinkHasHost: when the panel can name no address for an inbound, the share
+// link builder still emits a link — with nothing where the server should be.
+// Sending that to a buyer is worse than sending nothing, so it has to be caught.
+func TestLinkHasHost(t *testing.T) {
+	good := []string{
+		"vless://11111111-1111-1111-1111-111111111111@example.com:443?type=tcp#node",
+		"vmess://eyJhZGQiOiJ4In0=",
+		"trojan://secret@1.2.3.4:443#tag",
+		"ss://abcd@host:8388/?plugin=x#tag",
 	}
-	for in, want := range cases {
-		if got := hostFromPanelUrl(in); got != want {
-			t.Errorf("hostFromPanelUrl(%q) = %q, want %q", in, got, want)
+	for _, link := range good {
+		if !linkHasHost(link) {
+			t.Errorf("linkHasHost(%q) = false, want true", link)
+		}
+	}
+	bad := []string{
+		"vless://11111111-1111-1111-1111-111111111111@:443?type=tcp#node",
+		"trojan://secret@#tag",
+		"ss://abcd@:8388#tag",
+		"vless://11111111-1111-1111-1111-111111111111@/path",
+		"not-a-link",
+		"",
+	}
+	for _, link := range bad {
+		if linkHasHost(link) {
+			t.Errorf("linkHasHost(%q) = true, want false", link)
 		}
 	}
 }

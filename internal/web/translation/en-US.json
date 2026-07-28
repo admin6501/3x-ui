@@ -1539,8 +1539,6 @@
       "salesBotTokenDesc": "Token of its own bot from @BotFather. Do not reuse the notification bot's token.",
       "salesBotAdmins": "Admin Telegram IDs",
       "salesBotAdminsDesc": "Comma-separated numeric IDs allowed to approve top-ups and manage buyers. Send /id to the bot to get yours.",
-      "salesBotPanelUrl": "Public address for links",
-      "salesBotPanelUrlDesc": "Host the bot puts into the config and subscription links it sends buyers, e.g. panel.example.com. Fill this in — without it buyers get a config but no link.",
       "salesBotPayText": "Payment instructions",
       "salesBotPayTextDesc": "Shown before the receipt upload — card number and account holder, typically.",
       "salesBotWelcome": "Welcome message",

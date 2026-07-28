@@ -69,3 +69,42 @@ func TestBuildSubURIIncludesThePath(t *testing.T) {
 		t.Errorf("BuildSubURI = %q, want the base with subPath appended", got)
 	}
 }
+
+// TestPublicHostFallsBackThroughTheDomains: code with no incoming request — the
+// sales bot, a job — has to name the panel from settings alone, and must reach
+// the same host a browser request would. Whatever the admin pasted into a domain
+// field is reduced to a bare host, because it goes straight into a link.
+func TestPublicHostFallsBackThroughTheDomains(t *testing.T) {
+	setupConflictDB(t)
+	s := &SettingService{}
+	set := func(sub, web string) {
+		if err := s.saveSetting("subDomain", sub); err != nil {
+			t.Fatalf("set subDomain: %v", err)
+		}
+		if err := s.saveSetting("webDomain", web); err != nil {
+			t.Fatalf("set webDomain: %v", err)
+		}
+	}
+
+	set("", "")
+	if got := s.PublicHost(); got != "" {
+		t.Errorf("with neither domain set, PublicHost = %q, want empty", got)
+	}
+	set("", "panel.example.com")
+	if got := s.PublicHost(); got != "panel.example.com" {
+		t.Errorf("web domain only: %q", got)
+	}
+	set("sub.example.com", "panel.example.com")
+	if got := s.PublicHost(); got != "sub.example.com" {
+		t.Errorf("sub domain must win: %q", got)
+	}
+	// A pasted address bar is still just a host.
+	set("https://sub.example.com:2096/sub/", "")
+	if got := s.PublicHost(); got != "sub.example.com:2096" {
+		t.Errorf("pasted URL not reduced to a host: %q", got)
+	}
+	set("   ", "  panel.example.com  ")
+	if got := s.PublicHost(); got != "panel.example.com" {
+		t.Errorf("whitespace-only sub domain should fall through: %q", got)
+	}
+}

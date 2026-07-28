@@ -365,46 +365,13 @@ func (b *Bot) createConfig(chatId int64, volumeGB int64) {
 	b.sendConfig(chatId, cfg, 0, 0)
 }
 
-// publicHost is the address the shop puts into the links it hands out. The
-// panel has no incoming request to infer it from when the bot builds a link, so
-// it comes from the shop's own setting.
-func (b *Bot) publicHost() string {
-	raw, _ := b.settingService.GetSalesBotPanelUrl()
-	if host := hostFromPanelUrl(raw); host != "" {
-		return host
-	}
-	// Nothing set for the shop: fall back to whatever the panel already knows
-	// about its own public name, the same order the subscription server uses.
-	if d, err := b.settingService.GetSubDomain(); err == nil {
-		if host := hostFromPanelUrl(d); host != "" {
-			return host
-		}
-	}
-	if d, err := b.settingService.GetWebDomain(); err == nil {
-		return hostFromPanelUrl(d)
-	}
-	return ""
-}
-
-// hostFromPanelUrl reduces whatever an admin pasted into the setting to a bare
-// host[:port]. They paste the address bar of their panel as often as they type a
-// hostname, and a link built from "https://host:2053/panel/" is a dead link.
-func hostFromPanelUrl(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
-	}
-	// Accept "https://host:2053/" as well as a bare "host".
-	raw = strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
-	raw, _, _ = strings.Cut(raw, "/")
-	return strings.TrimSpace(raw)
-}
-
-// subLink builds the subscription URL a client app is pointed at. It prefers
-// the explicitly configured subscription URI and otherwise derives one from the
-// subscription server's own settings — including its path, without which the URL
-// points at the subscription server's root and serves nothing. A panel with the
-// subscription server switched off has no such URL to give at all.
+// subLink builds the subscription URL a client app is pointed at, from the
+// panel's own subscription settings and nothing else — the bot has no address of
+// its own to offer. It prefers an explicitly configured subscription URI and
+// otherwise derives one the way the subscription server does, including its
+// path, without which the URL points at the server's root and serves nothing.
+// A panel with the subscription server switched off, or with no domain set at
+// all, has no such URL to give.
 func (b *Bot) subLink(cfg *model.BotConfig) string {
 	if cfg.SubID == "" {
 		return ""
@@ -414,7 +381,7 @@ func (b *Bot) subLink(cfg *model.BotConfig) string {
 	}
 	base, _ := b.settingService.GetSubURI()
 	if strings.TrimSpace(base) == "" {
-		host := b.publicHost()
+		host := b.settingService.PublicHost()
 		if host == "" {
 			return ""
 		}
@@ -434,27 +401,56 @@ func joinSubLink(base, subID string) string {
 	return strings.TrimSuffix(base, "/") + "/" + subID
 }
 
-// configLinks returns the client's direct share links (vless://…). These are
-// what a buyer actually pastes into their app, and unlike the subscription URL
-// they need no subscription server to be configured at all — so they are the
-// shop's primary deliverable.
+// configLinks returns the client's direct share links (vless://…) exactly as the
+// panel builds them for its own share/QR button. The empty host is deliberate:
+// there is no request to take one from, so the panel resolves the address the
+// way it always does — the inbound's node address, its listen, or its custom
+// share address, then the Sub/Web domain. The bot has no business substituting
+// an address of its own.
+//
+// Unlike the subscription URL these need no subscription server configured at
+// all, which makes them the shop's primary deliverable.
 func (b *Bot) configLinks(cfg *model.BotConfig) []string {
 	if b.inboundService == nil {
 		return nil
 	}
-	host := b.publicHost()
-	if host == "" {
-		// Without a host the builder still returns links, but with an empty
-		// address in them — worse than none, because nothing would flag them.
-		logger.Warning("shop: no public address configured, cannot build config links for", cfg.Email)
-		return nil
-	}
-	links, err := b.inboundService.GetAllClientLinks(host, cfg.Email)
+	links, err := b.inboundService.GetAllClientLinks("", cfg.Email)
 	if err != nil {
 		logger.Warning("shop: could not build config links for", cfg.Email, err)
 		return nil
 	}
-	return links
+	// A panel that can name no address for the inbound produces links with an
+	// empty host — a dead link is worse than none, because nothing flags it.
+	out := links[:0]
+	for _, link := range links {
+		if linkHasHost(link) {
+			out = append(out, link)
+		}
+	}
+	if len(out) < len(links) {
+		logger.Warning("shop: dropped address-less links for", cfg.Email,
+			"— set the inbound's address, or the panel's Sub/Web domain")
+	}
+	return out
+}
+
+// linkHasHost reports whether a share link actually names a server. "vless://id@"
+// with nothing after the "@", or "ss://…@:443", is what the builder emits when
+// no address could be resolved.
+func linkHasHost(link string) bool {
+	_, rest, ok := strings.Cut(link, "://")
+	if !ok {
+		return false
+	}
+	if at := strings.LastIndex(rest, "@"); at >= 0 {
+		rest = rest[at+1:]
+	}
+	// Trim anything after the authority.
+	for _, sep := range []string{"/", "?", "#"} {
+		rest, _, _ = strings.Cut(rest, sep)
+	}
+	host, _, _ := strings.Cut(rest, ":")
+	return strings.TrimSpace(host) != ""
 }
 
 // sendConfig delivers one config: its usage card, then the links themselves.
@@ -475,7 +471,11 @@ func (b *Bot) sendLinks(chatId int64, cfg *model.BotConfig, sub string) {
 		b.send(chatId, msgNoLinkYet)
 		for _, adminId := range b.admins() {
 			b.send(adminId, fmt.Sprintf(
-				"⚠️ برای کانفیگ <code>%s</code> هیچ لینکی ساخته نشد. «آدرس عمومی برای لینک‌ها» را در تنظیمات ربات فروش پر کنید.",
+				"⚠️ برای کانفیگ <code>%s</code> هیچ لینکی ساخته نشد.\n\n"+
+					"پنل نتوانست آدرسی برای این ورودی پیدا کند. یکی از این‌ها را تنظیم کنید:\n"+
+					"• آدرس خود ورودی (Listen یا «آدرس اشتراک‌گذاری» در فرم ورودی)\n"+
+					"• «نام دامنه» در تنظیمات سابسکریپشن\n"+
+					"• دامنه پنل در تنظیمات عمومی",
 				esc(cfg.Email)))
 		}
 		return
