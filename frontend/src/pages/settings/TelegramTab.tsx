@@ -328,6 +328,17 @@ export default function TelegramTab({ allSetting, updateSetting }: TelegramTabPr
               />
             </SettingListItem>
 
+            <SettingListItem paddings="small" title={t('pages.settings.salesBotLang')} description={t('pages.settings.salesBotLangDesc')}>
+              <Select
+                value={allSetting.salesBotLang}
+                disabled={!allSetting.salesBotEnable}
+                data-testid="sales-bot-lang"
+                onChange={(v) => updateSetting({ salesBotLang: v })}
+                style={{ width: '100%' }}
+                options={langOptions}
+              />
+            </SettingListItem>
+
             <SettingListItem paddings="small" title={t('pages.settings.salesBotAdmins')} description={t('pages.settings.salesBotAdminsDesc')}>
               <Input
                 value={allSetting.salesBotAdmins}

@@ -1,7 +1,6 @@
 package salesbot
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -47,7 +46,7 @@ func (b *Bot) guard(chatId int64, fn func()) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Warning("sales bot: handler panicked:", r)
-			b.send(chatId, msgSomethingWrong)
+			b.send(chatId, b.m(msgSomethingWrong))
 		}
 	}()
 	fn()
@@ -56,7 +55,7 @@ func (b *Bot) guard(chatId int64, fn func()) {
 // idCard answers /id — buyers need their numeric id to be added as an admin,
 // and it is the first thing a shop owner looks for when setting the bot up.
 func (b *Bot) idCard(msg telego.Message) string {
-	return fmt.Sprintf("🆔 شناسه عددی شما: <code>%d</code>", msg.Chat.ID)
+	return b.t().f("msg.idCard", msg.Chat.ID)
 }
 
 // ------------------------------------------------------------ main menu --
@@ -77,7 +76,7 @@ func (b *Bot) onStart(msg telego.Message) {
 	}
 	welcome, _ := b.settingService.GetSalesBotWelcome()
 	if strings.TrimSpace(welcome) == "" {
-		welcome = msgShopWelcome
+		welcome = b.m(msgShopWelcome)
 	} else {
 		welcome = esc(welcome)
 	}
@@ -95,7 +94,7 @@ func (b *Bot) onMessage(msg telego.Message) {
 			b.onTopUpReceipt(msg, st)
 			return
 		}
-		b.send(chatId, "برای ارسال رسید، ابتدا از «💰 کیف پول من» درخواست شارژ ثبت کنید.", b.shopMenu(chatId))
+		b.send(chatId, b.m(msgReceiptFirst), b.shopMenu(chatId))
 		return
 	}
 
@@ -113,7 +112,7 @@ func (b *Bot) onMessage(msg telego.Message) {
 		return
 	}
 
-	switch strings.TrimSpace(msg.Text) {
+	switch buttonKeyFor(msg.Text) {
 	case btnWallet:
 		b.showWallet(chatId)
 	case btnTopUp:
@@ -129,29 +128,29 @@ func (b *Bot) onMessage(msg telego.Message) {
 	case btnSupport:
 		b.showSupport(chatId)
 	case btnHelp:
-		b.send(chatId, msgShopHelp, b.shopMenu(chatId))
+		b.send(chatId, b.m(msgShopHelp), b.shopMenu(chatId))
 	case btnMainMenu, btnBack:
 		b.states.clear(chatId)
-		b.send(chatId, "منوی اصلی 🏠", b.shopMenu(chatId))
+		b.send(chatId, b.m(msgMainMenu), b.shopMenu(chatId))
 	case btnCancel:
 		b.states.clear(chatId)
-		b.send(chatId, msgCancelled, b.shopMenu(chatId))
+		b.send(chatId, b.m(msgCancelled), b.shopMenu(chatId))
 	case btnAdmin:
 		b.onAdminMenu(msg)
 	case btnAdminTop, btnAdminUsr, btnAdminCfg, btnAdminStats, btnAdminCodes, btnAdminBroadcast, btnAdminExit:
 		b.onAdminButton(msg)
 	default:
-		b.send(chatId, msgShopHelp, b.shopMenu(chatId))
+		b.send(chatId, b.m(msgShopHelp), b.shopMenu(chatId))
 	}
 }
 
 func (b *Bot) showSupport(chatId int64) {
 	support, _ := b.settingService.GetSalesBotSupport()
 	if strings.TrimSpace(support) == "" {
-		b.send(chatId, msgNoSupport, b.mainMenu(chatId))
+		b.send(chatId, b.m(msgNoSupport), b.mainMenu(chatId))
 		return
 	}
-	b.send(chatId, "📞 پشتیبانی: "+esc(support), b.mainMenu(chatId))
+	b.send(chatId, b.t().f("msg.supportIs", esc(support)), b.mainMenu(chatId))
 }
 
 // ----------------------------------------------------------- callbacks --
@@ -164,11 +163,11 @@ func (b *Bot) onCallback(q telego.CallbackQuery) {
 	switch action {
 	case "joined":
 		if b.requireChannel(chatId) {
-			b.answer(q.ID, msgJoinOk)
-			b.send(chatId, msgShopWelcome, b.shopMenu(chatId))
+			b.answer(q.ID, b.m(msgJoinOk))
+			b.send(chatId, b.m(msgShopWelcome), b.shopMenu(chatId))
 			return
 		}
-		b.answer(q.ID, msgNotJoinedYet)
+		b.answer(q.ID, b.m(msgNotJoinedYet))
 
 	case "topup":
 		b.answer(q.ID, "")
@@ -176,8 +175,8 @@ func (b *Bot) onCallback(q telego.CallbackQuery) {
 
 	case "topupcancel":
 		b.states.clear(chatId)
-		b.answer(q.ID, msgCancelled)
-		b.send(chatId, msgCancelled, b.shopMenu(chatId))
+		b.answer(q.ID, b.m(msgCancelled))
+		b.send(chatId, b.m(msgCancelled), b.shopMenu(chatId))
 
 	case "cfglist":
 		b.answer(q.ID, "")
@@ -186,7 +185,7 @@ func (b *Bot) onCallback(q telego.CallbackQuery) {
 	case "code":
 		id, ok := callbackArg(parts)
 		if !ok {
-			b.answer(q.ID, msgSomethingWrong)
+			b.answer(q.ID, b.m(msgSomethingWrong))
 			return
 		}
 		b.answer(q.ID, "")
@@ -197,7 +196,7 @@ func (b *Bot) onCallback(q telego.CallbackQuery) {
 	case "cfg", "cfglink", "cfgtog", "cfgvol", "cfgdel", "cfgdelok":
 		id, ok := callbackArg(parts)
 		if !ok {
-			b.answer(q.ID, msgSomethingWrong)
+			b.answer(q.ID, b.m(msgSomethingWrong))
 			return
 		}
 		b.answer(q.ID, "")
@@ -234,37 +233,3 @@ func callbackArg(parts []string) (int, bool) {
 }
 
 const bytesPerGB = 1024 * 1024 * 1024
-
-// progressBar draws a ten-segment usage bar, which reads far better on a phone
-// than a bare percentage.
-func progressBar(used, total float64) string {
-	if total <= 0 {
-		return ""
-	}
-	ratio := used / total
-	if ratio < 0 {
-		ratio = 0
-	}
-	if ratio > 1 {
-		ratio = 1
-	}
-	filled := int(ratio*10 + 0.5)
-	return strings.Repeat("█", filled) + strings.Repeat("░", 10-filled) +
-		fmt.Sprintf(" %s٪", faNum(int64(ratio*100+0.5)))
-}
-
-// humanBytes formats a byte count for a Persian reader.
-func humanBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return faNum(n) + " بایت"
-	}
-	units := []string{"کیلوبایت", "مگابایت", "گیگابایت", "ترابایت"}
-	value := float64(n)
-	idx := -1
-	for value >= unit && idx < len(units)-1 {
-		value /= unit
-		idx++
-	}
-	return toPersianDigits(fmt.Sprintf("%.2f", value)) + " " + units[idx]
-}

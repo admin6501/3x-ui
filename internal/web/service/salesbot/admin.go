@@ -1,7 +1,6 @@
 package salesbot
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -18,24 +17,25 @@ const (
 
 func (b *Bot) adminMenu() telego.ReplyMarkup {
 	return tu.Keyboard(
-		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminTop), tu.KeyboardButton(btnAdminUsr)},
-		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminCfg), tu.KeyboardButton(btnAdminStats)},
-		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminCodes), tu.KeyboardButton(btnAdminBroadcast)},
-		[]telego.KeyboardButton{tu.KeyboardButton(btnAdminExit)},
+		[]telego.KeyboardButton{tu.KeyboardButton(b.m(btnAdminTop)), tu.KeyboardButton(b.m(btnAdminUsr))},
+		[]telego.KeyboardButton{tu.KeyboardButton(b.m(btnAdminCfg)), tu.KeyboardButton(b.m(btnAdminStats))},
+		[]telego.KeyboardButton{tu.KeyboardButton(b.m(btnAdminCodes)), tu.KeyboardButton(b.m(btnAdminBroadcast))},
+		[]telego.KeyboardButton{tu.KeyboardButton(b.m(btnAdminExit))},
 	).WithResizeKeyboard()
 }
 
 func (b *Bot) onAdminMenu(msg telego.Message) {
 	chatId := msg.Chat.ID
 	if !b.isAdmin(chatId) {
-		b.send(chatId, msgNotAdmin, b.mainMenu(chatId))
+		b.send(chatId, b.m(msgNotAdmin), b.mainMenu(chatId))
 		return
 	}
 	b.states.clear(chatId)
 	pending := b.shopService.CountPendingTopUps()
-	text := msgAdminWelcome
+	tt := b.t()
+	text := tt.s(msgAdminWelcome)
 	if pending > 0 {
-		text += fmt.Sprintf("\n\n🔔 <b>%s درخواست شارژ</b> در انتظار بررسی است.", faNum(pending))
+		text += "\n\n" + tt.f("msg.pendingTopUps", tt.num(pending))
 	}
 	b.send(chatId, text, b.adminMenu())
 }
@@ -43,10 +43,10 @@ func (b *Bot) onAdminMenu(msg telego.Message) {
 func (b *Bot) onAdminButton(msg telego.Message) {
 	chatId := msg.Chat.ID
 	if !b.isAdmin(chatId) {
-		b.send(chatId, msgNotAdmin, b.mainMenu(chatId))
+		b.send(chatId, b.m(msgNotAdmin), b.mainMenu(chatId))
 		return
 	}
-	switch strings.TrimSpace(msg.Text) {
+	switch buttonKeyFor(msg.Text) {
 	case btnAdminTop:
 		b.showTopUpQueue(chatId)
 	case btnAdminUsr:
@@ -59,15 +59,15 @@ func (b *Bot) onAdminButton(msg telego.Message) {
 		b.showShopStats(chatId)
 	case btnAdminBroadcast:
 		b.states.set(chatId, &state{step: stepBroadcast})
-		b.send(chatId, msgAskBroadcast, cancelKeyboard())
+		b.send(chatId, b.m(msgAskBroadcast), b.cancelKeyboard())
 	case btnAdminExit:
 		b.states.clear(chatId)
-		b.send(chatId, msgLeftAdmin, b.mainMenu(chatId))
+		b.send(chatId, b.m(msgLeftAdmin), b.mainMenu(chatId))
 	}
 }
 
-func cancelKeyboard() telego.ReplyMarkup {
-	return tu.Keyboard([]telego.KeyboardButton{tu.KeyboardButton(btnCancel)}).WithResizeKeyboard()
+func (b *Bot) cancelKeyboard() telego.ReplyMarkup {
+	return tu.Keyboard([]telego.KeyboardButton{tu.KeyboardButton(b.m(btnCancel))}).WithResizeKeyboard()
 }
 
 func (b *Bot) broadcast(adminId int64, text string) {
@@ -77,10 +77,11 @@ func (b *Bot) broadcast(adminId int64, text string) {
 		if id == 0 {
 			continue
 		}
-		b.send(id, "📢 <b>اطلاعیه</b>\n\n"+esc(text))
+		b.send(id, b.m("msg.broadcastHeader")+"\n\n"+esc(text))
 		sent++
 	}
-	b.send(adminId, fmt.Sprintf("پیام برای <b>%s</b> نفر ارسال شد.", faNum(int64(sent))), b.adminMenu())
+	tt := b.t()
+	b.send(adminId, tt.f("msg.broadcastSent", tt.num(int64(sent))), b.adminMenu())
 }
 
 // --------------------------------------------------- admin callbacks --
@@ -88,7 +89,7 @@ func (b *Bot) broadcast(adminId int64, text string) {
 func (b *Bot) onAdminCallback(q telego.CallbackQuery) {
 	chatId := q.From.ID
 	if !b.isAdmin(chatId) {
-		b.answer(q.ID, msgNotAdmin)
+		b.answer(q.ID, b.m(msgNotAdmin))
 		return
 	}
 	parts := strings.Split(q.Data, ":")
@@ -105,28 +106,26 @@ func (b *Bot) onAdminCallback(q telego.CallbackQuery) {
 	case "topno":
 		b.answer(q.ID, "")
 		b.states.set(chatId, &state{step: stepRejectNote, orderId: int(arg)})
-		b.send(chatId, msgAskRejectNote, tu.Keyboard(
-			[]telego.KeyboardButton{tu.KeyboardButton(btnSkip), tu.KeyboardButton(btnCancel)},
+		b.send(chatId, b.m(msgAskRejectNote), tu.Keyboard(
+			[]telego.KeyboardButton{tu.KeyboardButton(b.m(btnSkip)), tu.KeyboardButton(b.m(btnCancel))},
 		).WithResizeKeyboard())
 	case "adj":
 		b.answer(q.ID, "")
 		b.states.set(chatId, &state{step: stepAdjustAmount, targetUser: arg})
-		b.send(chatId, fmt.Sprintf(
-			"مبلغ اصلاح موجودی کاربر <code>%d</code> را بنویسید.\nبرای کم‌کردن، عدد را با علامت منها بنویسید (مثلاً -50000):", arg),
-			cancelKeyboard())
+		b.send(chatId, b.t().f("msg.askAdjustAmount", arg), b.cancelKeyboard())
 	case "blk":
 		user, err := b.shopService.GetUser(arg)
 		if err != nil {
-			b.answer(q.ID, msgSomethingWrong)
+			b.answer(q.ID, b.m(msgSomethingWrong))
 			return
 		}
 		if err := b.shopService.SetBlocked(arg, !user.Blocked); err != nil {
-			b.answer(q.ID, msgSomethingWrong)
+			b.answer(q.ID, b.m(msgSomethingWrong))
 			return
 		}
 		// Blocking has to take their configs down, not just stop them buying.
 		b.shopService.BillAll(b.inboundService)
-		b.answer(q.ID, "انجام شد")
+		b.answer(q.ID, b.m("msg.done"))
 		b.showUserMenu(chatId, arg)
 
 	case "usrlist":
@@ -171,26 +170,26 @@ func (b *Bot) handleConversation(msg telego.Message, st *state) bool {
 	chatId := msg.Chat.ID
 	text := strings.TrimSpace(msg.Text)
 
-	if text == btnCancel {
+	if buttonKeyFor(text) == btnCancel {
 		b.states.clear(chatId)
 		menu := b.mainMenu(chatId)
 		if b.isAdmin(chatId) {
 			menu = b.adminMenu()
 		}
-		b.send(chatId, msgCancelled, menu)
+		b.send(chatId, b.m(msgCancelled), menu)
 		return true
 	}
 
 	switch st.step {
 	case stepTopUpReceipt:
 		// Only a photo advances this step; a stray message gets a nudge.
-		b.send(chatId, msgReceiptOnlyPic)
+		b.send(chatId, b.m(msgReceiptOnlyPic))
 		return true
 
 	case stepTopUpAmount:
 		amount, ok := parseNumber(text)
 		if !ok {
-			b.send(chatId, msgVolumeBad)
+			b.send(chatId, b.m(msgVolumeBad))
 			return true
 		}
 		b.states.clear(chatId)
@@ -200,7 +199,7 @@ func (b *Bot) handleConversation(msg telego.Message, st *state) bool {
 	case stepBuyVolume:
 		volume, ok := parseNumber(text)
 		if !ok || volume <= 0 {
-			b.send(chatId, msgVolumeBad)
+			b.send(chatId, b.m(msgVolumeBad))
 			return true
 		}
 		b.states.clear(chatId)
@@ -218,7 +217,7 @@ func (b *Bot) handleConversation(msg telego.Message, st *state) bool {
 	case stepAddVolume:
 		volume, ok := parseNumber(text)
 		if !ok || volume <= 0 {
-			b.send(chatId, msgVolumeBad)
+			b.send(chatId, b.m(msgVolumeBad))
 			return true
 		}
 		b.addVolume(chatId, st.configId, volume)
@@ -227,26 +226,25 @@ func (b *Bot) handleConversation(msg telego.Message, st *state) bool {
 	case stepAdjustAmount:
 		amount, ok := parseSignedNumber(text)
 		if !ok {
-			b.send(chatId, msgVolumeBad)
+			b.send(chatId, b.m(msgVolumeBad))
 			return true
 		}
 		b.states.clear(chatId)
-		balance, err := b.shopService.Adjust(st.targetUser, amount, "اصلاح توسط مدیر")
+		balance, err := b.shopService.Adjust(st.targetUser, amount, b.m("msg.adjustedByAdmin"))
 		if err != nil {
-			b.send(chatId, msgSomethingWrong, b.adminMenu())
+			b.send(chatId, b.m(msgSomethingWrong), b.adminMenu())
 			return true
 		}
 		// A correction in either direction can switch configs on or off.
 		b.shopService.BillAll(b.inboundService)
-		b.send(chatId, fmt.Sprintf("موجودی کاربر <code>%d</code> اکنون <b>%s %s</b> است.",
-			st.targetUser, faNum(balance), esc(b.currency())), b.adminMenu())
-		b.send(st.targetUser, fmt.Sprintf("💰 موجودی کیف پول شما توسط مدیر به <b>%s %s</b> تغییر کرد.",
-			faNum(balance), esc(b.currency())), b.shopMenu(st.targetUser))
+		tt := b.t()
+		b.send(chatId, tt.f("msg.userBalanceNow", st.targetUser, tt.num(balance), esc(b.currency())), b.adminMenu())
+		b.send(st.targetUser, tt.f("msg.balanceChangedByAdmin", tt.num(balance), esc(b.currency())), b.shopMenu(st.targetUser))
 		return true
 
 	case stepRejectNote:
 		note := text
-		if text == btnSkip {
+		if buttonKeyFor(text) == btnSkip {
 			note = ""
 		}
 		b.states.clear(chatId)

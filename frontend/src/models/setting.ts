@@ -114,6 +114,7 @@ export class AllSetting {
   salesBotWelcome = '';
   salesBotPayText = '';
   salesBotSupport = '';
+  salesBotLang = 'fa-IR';
   salesBotCurrency = 'تومان';
   hasSalesBotToken = false;
   shopPricePerGB = 0;

@@ -45,6 +45,7 @@ export interface AllSetting {
   salesBotAdmins: string;
   salesBotCurrency: string;
   salesBotEnable: boolean;
+  salesBotLang: string;
   salesBotPayText: string;
   salesBotSupport: string;
   salesBotToken: string;
@@ -172,6 +173,7 @@ export interface AllSettingView {
   salesBotAdmins: string;
   salesBotCurrency: string;
   salesBotEnable: boolean;
+  salesBotLang: string;
   salesBotPayText: string;
   salesBotSupport: string;
   salesBotToken: string;

@@ -108,6 +108,9 @@ func initModels() error {
 	if err := dropResellerSalesTables(); err != nil {
 		return err
 	}
+	if err := dropRetiredSettings(); err != nil {
+		return err
+	}
 	if err := dropLegacyForeignKeys(); err != nil {
 		return err
 	}
@@ -153,6 +156,36 @@ func dropResellerSalesTables() error {
 			// on, so leaving it behind must not stop the panel from starting.
 			log.Printf("Could not drop the legacy users.telegram_id column: %v", err)
 		}
+	}
+	return nil
+}
+
+// retiredSettings are setting keys the panel no longer reads. A stale row is
+// harmless to the running panel but does end up in an exported settings dump and
+// in anything that iterates the table, so it is cleared out rather than left to
+// puzzle whoever reads the database next.
+var retiredSettings = []string{
+	// The sales bot briefly had a public address of its own. The panel resolves
+	// a share link's address from the inbound and the Sub/Web domain, so the
+	// second answer was removed.
+	"salesBotPanelUrl",
+}
+
+// dropRetiredSettings deletes the rows behind settings the panel has stopped
+// reading. Idempotent — a database that never had them is a no-op.
+func dropRetiredSettings() error {
+	if !db.Migrator().HasTable(&model.Setting{}) {
+		return nil
+	}
+	res := db.Where("key IN ?", retiredSettings).Delete(&model.Setting{})
+	if res.Error != nil {
+		// Cosmetic: the keys are unread from here on, so a failed cleanup must
+		// not stop the panel from starting.
+		log.Printf("Could not remove retired settings: %v", res.Error)
+		return nil
+	}
+	if res.RowsAffected > 0 {
+		log.Printf("Removed %d retired setting(s)", res.RowsAffected)
 	}
 	return nil
 }

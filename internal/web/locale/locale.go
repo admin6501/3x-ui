@@ -5,8 +5,10 @@ package locale
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
@@ -45,6 +47,10 @@ func InitLocalizer(i18nFS embed.FS, settingService SettingService) error {
 	if err := parseTranslationFiles(i18nFS, i18nBundle); err != nil {
 		return err
 	}
+
+	// Per-language localizers cached earlier point at the bundle we just
+	// replaced, so drop them rather than serve strings from a dead one.
+	resetLangLocalizers()
 
 	// setup bot locale
 	if err := initTGBotLocalizer(settingService); err != nil {
@@ -123,14 +129,7 @@ func initTGBotLocalizer(settingService SettingService) error {
 func LocalizerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Ensure bundle is initialized so creating a Localizer won't panic
-		if i18nBundle == nil {
-			i18nBundle = i18n.NewBundle(language.MustParse("en-US"))
-			i18nBundle.RegisterUnmarshalFunc("json", json.Unmarshal)
-			// Try lazy-load from disk when running sub server without InitLocalizer
-			if err := loadTranslationsFromDisk(i18nBundle); err != nil {
-				logger.Warning("i18n lazy load failed:", err)
-			}
-		}
+		ensureBundle()
 		var lang string
 
 		if cookie, err := c.Request.Cookie("lang"); err == nil {
@@ -147,9 +146,49 @@ func LocalizerMiddleware() gin.HandlerFunc {
 	}
 }
 
+// findTranslationDir locates internal/web from wherever the process happens to
+// be running. `go test` runs each package in its own directory, so a fixed
+// relative path only works from the repository root — and a test that asserts on
+// translated text would otherwise see message ids instead of strings.
+func findTranslationDir() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for range 10 {
+		candidate := filepath.Join(dir, "internal", "web")
+		if _, err := os.Stat(filepath.Join(candidate, "translation")); err == nil {
+			return candidate, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", errors.New("translation directory not found")
+}
+
+// ensureBundle builds the message bundle if InitLocalizer has not run — the sub
+// server on its own, or a test. Safe to call from any goroutine.
+func ensureBundle() {
+	if i18nBundle != nil {
+		return
+	}
+	i18nBundle = i18n.NewBundle(language.MustParse("en-US"))
+	i18nBundle.RegisterUnmarshalFunc("json", json.Unmarshal)
+	if err := loadTranslationsFromDisk(i18nBundle); err != nil {
+		logger.Warning("i18n lazy load failed:", err)
+	}
+}
+
 // loadTranslationsFromDisk attempts to load translation files from "internal/web/translation" using the local filesystem.
 func loadTranslationsFromDisk(bundle *i18n.Bundle) error {
-	root := os.DirFS("internal/web")
+	dir, err := findTranslationDir()
+	if err != nil {
+		return err
+	}
+	root := os.DirFS(dir)
 	return fs.WalkDir(root, "translation", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

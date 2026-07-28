@@ -7,6 +7,7 @@ import (
 
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	xuilogger "github.com/mhsanaei/3x-ui/v3/internal/logger"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/locale"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 
 	"github.com/op/go-logging"
@@ -18,6 +19,14 @@ func TestMain(m *testing.M) {
 	xuilogger.InitLogger(logging.ERROR)
 	m.Run()
 }
+
+// The bot's copy lives in the panel's translation files, so a test that asserts
+// on rendered text has to name the language it is asserting in. fa is the shop's
+// default; en proves the same code renders a second language.
+var (
+	fa = newTr("fa-IR")
+	en = newTr("en-US")
+)
 
 // TestParseNumberAcceptsWhatPeopleActuallyType — an admin setting a price in a
 // Persian keyboard types Persian digits, and copies prices with separators in
@@ -53,7 +62,7 @@ func TestParseNumberAcceptsWhatPeopleActuallyType(t *testing.T) {
 // are admin- or user-influenced text that lands inside an HTML-parse-mode
 // message. Unescaped, a stray "<" breaks every message it appears in.
 func TestEscapeKeepsMarkupOutOfMessages(t *testing.T) {
-	card := configCard("<b>evil</b>&co", 10, 0, 0, true, "تومان", "")
+	card := fa.configCard("<b>evil</b>&co", 10, 0, 0, true, "تومان", "")
 	if strings.Contains(card, "<b>evil</b>&co") {
 		t.Error("the config name was interpolated as raw markup")
 	}
@@ -65,40 +74,40 @@ func TestEscapeKeepsMarkupOutOfMessages(t *testing.T) {
 // TestQuotaWordingSpeaksUnlimited: the panel stores 0 for "no limit", and a
 // buyer shown a bare "0 گیگابایت" would think they bought nothing.
 func TestQuotaWordingSpeaksUnlimited(t *testing.T) {
-	if got := quotaGB(0); got != "نامحدود" {
-		t.Errorf("quotaGB(0) = %q, want نامحدود", got)
+	if got := fa.quota(0); got != "نامحدود" {
+		t.Errorf("fa.quota(0) = %q, want نامحدود", got)
 	}
-	if got := quotaGB(100); !strings.Contains(got, "گیگابایت") {
-		t.Errorf("quotaGB(100) = %q, want a gigabyte figure", got)
+	if got := fa.quota(100); !strings.Contains(got, "گیگابایت") {
+		t.Errorf("fa.quota(100) = %q, want a gigabyte figure", got)
 	}
 }
 
 // TestPricesReadAsPersian — prices are the thing buyers scan for, so they are
 // grouped and rendered in Persian digits.
 func TestPricesReadAsPersian(t *testing.T) {
-	if got := faNum(1500000); got != "۱٬۵۰۰٬۰۰۰" {
-		t.Errorf("faNum(1500000) = %q", got)
+	if got := fa.num(1500000); got != "۱٬۵۰۰٬۰۰۰" {
+		t.Errorf("fa.num(1500000) = %q", got)
 	}
-	if got := faNum(0); got != "۰" {
-		t.Errorf("faNum(0) = %q", got)
+	if got := fa.num(0); got != "۰" {
+		t.Errorf("fa.num(0) = %q", got)
 	}
-	if got := faNum(-42); got != "-۴۲" {
-		t.Errorf("faNum(-42) = %q", got)
+	if got := fa.num(-42); got != "-۴۲" {
+		t.Errorf("fa.num(-42) = %q", got)
 	}
 }
 
 // TestProgressBarClamps keeps a reseller who overshot their quota from getting
 // a bar longer than the bar.
 func TestProgressBarClamps(t *testing.T) {
-	full := progressBar(200, 100)
+	full := fa.progressBar(200, 100)
 	if strings.Count(full, "█") != 10 || strings.Count(full, "░") != 0 {
 		t.Errorf("over-quota bar = %q, want a full bar", full)
 	}
-	empty := progressBar(0, 100)
+	empty := fa.progressBar(0, 100)
 	if strings.Count(empty, "█") != 0 || strings.Count(empty, "░") != 10 {
 		t.Errorf("empty bar = %q", empty)
 	}
-	if progressBar(5, 0) != "" {
+	if fa.progressBar(5, 0) != "" {
 		t.Error("an unlimited quota has no bar to draw")
 	}
 }
@@ -280,10 +289,10 @@ func TestSubscriptionLinkJoin(t *testing.T) {
 // not show an empty "🔗 لینک اشتراک" heading — that is what made the reported
 // message look like the bot had sent a broken link rather than none.
 func TestConfigCardOmitsAnEmptyLink(t *testing.T) {
-	if got := configCard("user@example.com", 10, 0, 0, true, "تومان", "   "); strings.Contains(got, "لینک اشتراک") {
+	if got := fa.configCard("user@example.com", 10, 0, 0, true, "تومان", "   "); strings.Contains(got, "لینک اشتراک") {
 		t.Errorf("blank link still drew a link section:\n%s", got)
 	}
-	got := configCard("user@example.com", 10, 0, 0, true, "تومان", "https://s.example.com/sub/x")
+	got := fa.configCard("user@example.com", 10, 0, 0, true, "تومان", "https://s.example.com/sub/x")
 	if !strings.Contains(got, "https://s.example.com/sub/x") {
 		t.Errorf("link missing from card:\n%s", got)
 	}
@@ -317,20 +326,20 @@ func TestDiscountCodesNormaliseForMatching(t *testing.T) {
 // needs to see at a glance which codes are still working.
 func TestDiscountButtonLabelShowsWhyACodeIsDead(t *testing.T) {
 	live := &model.DiscountCode{Code: "LIVE", Percent: 20, Enabled: true}
-	if got := discountButtonLabel(live); !strings.HasPrefix(got, "🟢") {
+	if got := discountButtonLabel(fa, live); !strings.HasPrefix(got, "🟢") {
 		t.Errorf("live code label = %q", got)
 	}
 	off := &model.DiscountCode{Code: "OFF", Percent: 20, Enabled: false}
-	if got := discountButtonLabel(off); !strings.HasPrefix(got, "⛔️") {
+	if got := discountButtonLabel(fa, off); !strings.HasPrefix(got, "⛔️") {
 		t.Errorf("disabled code label = %q", got)
 	}
 	expired := &model.DiscountCode{Code: "OLD", Percent: 20, Enabled: true,
 		ExpiresAt: time.Now().AddDate(0, 0, -1).UnixMilli()}
-	if got := discountButtonLabel(expired); !strings.HasPrefix(got, "⌛️") {
+	if got := discountButtonLabel(fa, expired); !strings.HasPrefix(got, "⌛️") {
 		t.Errorf("expired code label = %q", got)
 	}
 	spent := &model.DiscountCode{Code: "SPENT", Percent: 20, Enabled: true, MaxUses: 3, Used: 3}
-	if got := discountButtonLabel(spent); !strings.HasPrefix(got, "🔚") {
+	if got := discountButtonLabel(fa, spent); !strings.HasPrefix(got, "🔚") {
 		t.Errorf("used-up code label = %q", got)
 	}
 }
@@ -340,22 +349,128 @@ func TestDiscountButtonLabelShowsWhyACodeIsDead(t *testing.T) {
 // markup in a button — while still telling the two states apart.
 func TestListLabelsCarryStateAndName(t *testing.T) {
 	paused := &model.BotConfig{Email: "tg1_abcd", VolumeGB: 20, Active: false, Paused: true}
-	if got := configButtonLabel(paused); !strings.HasPrefix(got, "⏸") || !strings.Contains(got, "tg1_abcd") {
+	if got := configButtonLabel(fa, paused); !strings.HasPrefix(got, "⏸") || !strings.Contains(got, "tg1_abcd") {
 		t.Errorf("paused config label = %q", got)
 	}
 	off := &model.BotConfig{Email: "tg2_efgh", VolumeGB: 20, Active: false}
-	if got := configButtonLabel(off); !strings.HasPrefix(got, "⛔️") {
+	if got := configButtonLabel(fa, off); !strings.HasPrefix(got, "⛔️") {
 		t.Errorf("suspended config label = %q", got)
 	}
 
 	blocked := &model.BotUser{TelegramId: 42, FirstName: "Ali", Username: "ali", Blocked: true}
-	got := userButtonLabel(blocked, "تومان")
+	got := userButtonLabel(fa, blocked, "تومان")
 	if !strings.HasPrefix(got, "⛔️") || !strings.Contains(got, "Ali") || !strings.Contains(got, "@ali") {
 		t.Errorf("blocked user label = %q", got)
 	}
 	// A user who never set a name still has to be pickable.
 	anon := &model.BotUser{TelegramId: 4242}
-	if got := userButtonLabel(anon, "تومان"); !strings.Contains(got, "4242") {
+	if got := userButtonLabel(fa, anon, "تومان"); !strings.Contains(got, "4242") {
 		t.Errorf("anonymous user label = %q", got)
+	}
+}
+
+// TestBotSpeaksEveryShippedLanguage: the shop's language is picked in the panel,
+// so every language the panel ships has to give the bot a real string — not a
+// message id, and not an empty message.
+func TestBotSpeaksEveryShippedLanguage(t *testing.T) {
+	for _, lang := range locale.SupportedLangs {
+		tt := newTr(lang)
+		for _, key := range []string{"btn.wallet", "msg.welcome", "card.wallet.title", "unit.unlimited"} {
+			got := tt.s(key)
+			if got == "" || got == keyPrefix+key {
+				t.Errorf("%s: %q resolved to %q", lang, key, got)
+			}
+		}
+	}
+}
+
+// TestTranslationIsNotJustPersian proves the language setting actually changes
+// the copy rather than the bot always answering in its default.
+func TestTranslationIsNotJustPersian(t *testing.T) {
+	if fa.s("btn.wallet") == en.s("btn.wallet") {
+		t.Error("Persian and English produced the same wallet button")
+	}
+	if !strings.Contains(en.s("card.wallet.title"), "wallet") {
+		t.Errorf("English wallet card title = %q", en.s("card.wallet.title"))
+	}
+	if !strings.Contains(fa.s("card.wallet.title"), "کیف پول") {
+		t.Errorf("Persian wallet card title = %q", fa.s("card.wallet.title"))
+	}
+}
+
+// TestNumbersFollowTheLanguage: a Persian shop reads Persian numerals, an
+// English one does not, and a byte count carries the language's own unit word.
+func TestNumbersFollowTheLanguage(t *testing.T) {
+	if got := fa.num(1500000); got != "۱٬۵۰۰٬۰۰۰" {
+		t.Errorf("fa.num(1500000) = %q", got)
+	}
+	if got := en.num(1500000); got != "1,500,000" {
+		t.Errorf("en.num(1500000) = %q", got)
+	}
+	ar := newTr("ar-EG")
+	if got := ar.num(42); got != "٤٢" {
+		t.Errorf("ar.num(42) = %q", got)
+	}
+	if got := en.quota(0); got != "unlimited" {
+		t.Errorf("en.quota(0) = %q", got)
+	}
+	if got := en.bytes(2048); !strings.Contains(got, "KB") {
+		t.Errorf("en.bytes(2048) = %q", got)
+	}
+	if got := fa.bytes(2048); !strings.Contains(got, "کیلوبایت") {
+		t.Errorf("fa.bytes(2048) = %q", got)
+	}
+}
+
+// TestButtonRoutingSurvivesALanguageChange: Telegram keeps showing the keyboard
+// it last rendered, so a tap can arrive with a caption from the language the
+// shop was in before. Matching every shipped language keeps those taps working
+// instead of dropping them into the help text.
+func TestButtonRoutingSurvivesALanguageChange(t *testing.T) {
+	if got := buttonKeyFor(fa.s("btn.wallet")); got != btnWallet {
+		t.Errorf("Persian wallet caption routed to %q", got)
+	}
+	if got := buttonKeyFor(en.s("btn.wallet")); got != btnWallet {
+		t.Errorf("English wallet caption routed to %q", got)
+	}
+	if got := buttonKeyFor(newTr("ru-RU").s("btn.adminUsers")); got != btnAdminUsr {
+		t.Errorf("Russian users caption routed to %q", got)
+	}
+	if got := buttonKeyFor("something a user typed"); got != "" {
+		t.Errorf("free text routed to a button: %q", got)
+	}
+	if got := buttonKeyFor(""); got != "" {
+		t.Errorf("empty text routed to %q", got)
+	}
+}
+
+// TestFormatVerbsMatchAcrossLanguages: a translation with the wrong number of
+// verbs renders "%!s(MISSING)" to a paying customer. Every language is checked
+// against English, which is the reference the code is written for.
+func TestFormatVerbsMatchAcrossLanguages(t *testing.T) {
+	verbs := func(s string) int {
+		n := 0
+		for i := 0; i+1 < len(s); i++ {
+			if s[i] == '%' {
+				switch s[i+1] {
+				case 's', 'd':
+					n++
+					i++
+				case '%':
+					i++
+				}
+			}
+		}
+		return n
+	}
+	ref := newTr(locale.DefaultLang)
+	for _, key := range allTranslatedKeys {
+		want := verbs(ref.s(key))
+		for _, lang := range locale.SupportedLangs {
+			got := verbs(newTr(lang).s(key))
+			if got != want {
+				t.Errorf("%s: %q has %d format verbs, English has %d", lang, key, got, want)
+			}
+		}
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/util/random"
 	"github.com/mhsanaei/3x-ui/v3/internal/util/reflect_util"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/entity"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/locale"
 	"github.com/mhsanaei/3x-ui/v3/internal/xray"
 
 	"gorm.io/gorm"
@@ -151,6 +152,7 @@ var defaultValueMap = map[string]string{
 	"salesBotPayText":  "",
 	"salesBotSupport":  "",
 	"salesBotCurrency": "تومان",
+	"salesBotLang":     "fa-IR",
 
 	// Telegram shop — wallet-funded, pay-as-you-go config sales.
 	"shopPricePerGB":  "0",
@@ -1032,6 +1034,17 @@ func (s *SettingService) SetSalesBotToken(token string) error {
 // admin side, as a raw CSV.
 func (s *SettingService) GetSalesBotAdmins() (string, error) {
 	return s.getString("salesBotAdmins")
+}
+
+// GetSalesBotLang is the language the sales bot talks to buyers in. It is
+// independent of the notification bot's language and of the panel's: the shop's
+// audience is customers, not admins.
+func (s *SettingService) GetSalesBotLang() (string, error) {
+	lang, err := s.getString("salesBotLang")
+	if err != nil || !locale.IsSupportedLang(lang) {
+		return "fa-IR", err
+	}
+	return lang, nil
 }
 
 func (s *SettingService) GetSalesBotWelcome() (string, error) {

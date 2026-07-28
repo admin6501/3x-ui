@@ -152,6 +152,7 @@ type AllSetting struct {
 	SalesBotWelcome  string `json:"salesBotWelcome" form:"salesBotWelcome"`   // Custom welcome text; blank uses the built-in one
 	SalesBotPayText  string `json:"salesBotPayText" form:"salesBotPayText"`   // Payment instructions shown before the receipt upload
 	SalesBotSupport  string `json:"salesBotSupport" form:"salesBotSupport"`   // Support contact shown in the bot
+	SalesBotLang     string `json:"salesBotLang" form:"salesBotLang"`         // Language the sales bot talks to buyers in
 	SalesBotCurrency string `json:"salesBotCurrency" form:"salesBotCurrency"` // Currency label shown next to prices
 
 	// Telegram shop — wallet-funded, pay-as-you-go config sales.

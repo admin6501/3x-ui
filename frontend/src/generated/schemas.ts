@@ -144,6 +144,10 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Reseller sales bot — a second Telegram bot, separate from the notification\nbot above, that sells reseller accounts to buyers in Telegram.\nEnable the reseller sales bot",
         "type": "boolean"
       },
+      "salesBotLang": {
+        "description": "Language the sales bot talks to buyers in",
+        "type": "string"
+      },
       "salesBotPayText": {
         "description": "Payment instructions shown before the receipt upload",
         "type": "string"
@@ -529,6 +533,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "salesBotAdmins",
       "salesBotCurrency",
       "salesBotEnable",
+      "salesBotLang",
       "salesBotPayText",
       "salesBotSupport",
       "salesBotToken",
@@ -778,6 +783,10 @@ export const SCHEMAS: Record<string, unknown> = {
       "salesBotEnable": {
         "description": "Reseller sales bot — a second Telegram bot, separate from the notification\nbot above, that sells reseller accounts to buyers in Telegram.\nEnable the reseller sales bot",
         "type": "boolean"
+      },
+      "salesBotLang": {
+        "description": "Language the sales bot talks to buyers in",
+        "type": "string"
       },
       "salesBotPayText": {
         "description": "Payment instructions shown before the receipt upload",
@@ -1172,6 +1181,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "salesBotAdmins",
       "salesBotCurrency",
       "salesBotEnable",
+      "salesBotLang",
       "salesBotPayText",
       "salesBotSupport",
       "salesBotToken",

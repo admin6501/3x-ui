@@ -96,6 +96,7 @@ export const AllSettingSchema = z.object({
   salesBotWelcome: z.string().optional(),
   salesBotPayText: z.string().optional(),
   salesBotSupport: z.string().optional(),
+  salesBotLang: z.string().optional(),
   salesBotCurrency: z.string().optional(),
   hasSalesBotToken: z.boolean().optional(),
   shopPricePerGB: nonNegativeInt.optional(),
