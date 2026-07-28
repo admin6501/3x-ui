@@ -474,3 +474,56 @@ func TestFormatVerbsMatchAcrossLanguages(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryLanguageIsActuallyTranslated: a locale that was never filled in falls
+// back to English, which renders fine and is therefore easy to ship by accident.
+// Comparing the buyer-facing copy against English catches that — a language that
+// matches English on nearly every key has not been translated.
+//
+// English itself is skipped, and short strings (units, "%s GB") are excluded
+// because they legitimately coincide across languages.
+func TestEveryLanguageIsActuallyTranslated(t *testing.T) {
+	ref := newTr(locale.DefaultLang)
+	var checked []string
+	for _, key := range allTranslatedKeys {
+		if len(ref.s(key)) >= 25 {
+			checked = append(checked, key)
+		}
+	}
+	if len(checked) < 50 {
+		t.Fatalf("only %d keys long enough to compare; the key list looks wrong", len(checked))
+	}
+	for _, lang := range locale.SupportedLangs {
+		if lang == locale.DefaultLang {
+			continue
+		}
+		tt := newTr(lang)
+		same := 0
+		for _, key := range checked {
+			if tt.s(key) == ref.s(key) {
+				same++
+			}
+		}
+		if same*4 > len(checked) {
+			t.Errorf("%s matches English on %d of %d long strings — it looks untranslated",
+				lang, same, len(checked))
+		}
+	}
+}
+
+// TestNoDoubledPercentOutsideFormatting: only strings rendered through Sprintf
+// may carry "%%". Everywhere else it reaches the user literally, which is what
+// happened to one Russian string during translation.
+func TestNoDoubledPercentOutsideFormatting(t *testing.T) {
+	for _, lang := range locale.SupportedLangs {
+		tt := newTr(lang)
+		for _, key := range allTranslatedKeys {
+			if key == "fmt.percent" {
+				continue
+			}
+			if strings.Contains(tt.s(key), "%%") {
+				t.Errorf("%s: %q contains %%%% but is not a format string", lang, key)
+			}
+		}
+	}
+}
