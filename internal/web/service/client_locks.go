@@ -36,8 +36,24 @@ func lockInbound(inboundId int) *sync.Mutex {
 	return m
 }
 
+// compactOrphans drops clients that were deleted through the panel but are still
+// carried in an inbound's JSON — a node snapshot or a concurrent write can hand
+// back a list that predates the delete, and re-saving it would resurrect them.
+//
+// It removes a client only when its email is BOTH missing from client_records
+// and tombstoned by a recent delete. A missing record on its own is not proof of
+// a delete: client_records is a mirror of the inbound JSON, not its source of
+// truth, and a JSON client legitimately outlives its mirror after a partial
+// backup restore, a hand-edited inbound, or an import. Treating those as
+// deletions turned a single client add into a silent mass delete of every
+// unmirrored account on that inbound. Callers write the compacted list back and
+// then SyncInbound, which adopts the survivors and heals the mirror.
 func compactOrphans(db *gorm.DB, clients []any) []any {
 	if len(clients) == 0 {
+		return clients
+	}
+	// Nothing was deleted recently, so nothing here can be a leftover.
+	if !anyTombstones() {
 		return clients
 	}
 	emails := make([]string, 0, len(clients))
@@ -69,7 +85,8 @@ func compactOrphans(db *gorm.DB, clients []any) []any {
 	if len(existing) == len(emails) {
 		return clients
 	}
-	out := make([]any, 0, len(existing))
+	out := make([]any, 0, len(clients))
+	var dropped []string
 	for _, c := range clients {
 		cm, ok := c.(map[string]any)
 		if !ok {
@@ -83,9 +100,41 @@ func compactOrphans(db *gorm.DB, clients []any) []any {
 		}
 		if _, ok := existing[e]; ok {
 			out = append(out, c)
+			continue
 		}
+		// Unmirrored. Only a recent delete justifies removing it.
+		if isClientEmailTombstoned(e) {
+			dropped = append(dropped, e)
+			continue
+		}
+		out = append(out, c)
+	}
+	if len(dropped) > 0 {
+		logger.Debug("compactOrphans dropped just-deleted clients:", dropped)
 	}
 	return out
+}
+
+// clearTombstones drops every recorded delete. Tests use it so one case's
+// tombstones cannot leak into the next.
+func clearTombstones() {
+	recentlyDeletedMu.Lock()
+	defer recentlyDeletedMu.Unlock()
+	clear(recentlyDeleted)
+}
+
+// anyTombstones reports whether any client was deleted recently enough that a
+// stale write could still resurrect it.
+func anyTombstones() bool {
+	recentlyDeletedMu.Lock()
+	defer recentlyDeletedMu.Unlock()
+	cutoff := time.Now().Add(-deleteTombstoneTTL)
+	for _, ts := range recentlyDeleted {
+		if ts.After(cutoff) {
+			return true
+		}
+	}
+	return false
 }
 
 func tombstoneClientEmail(email string) {

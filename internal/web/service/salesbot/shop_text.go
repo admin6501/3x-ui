@@ -3,6 +3,9 @@ package salesbot
 import (
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 )
 
 // Buyer-facing buttons for the wallet shop. They double as router keys.
@@ -17,6 +20,17 @@ const (
 	btnAdminTop = "💳 درخواست‌های شارژ"
 	btnAdminUsr = "👥 کاربران"
 	btnAdminCfg = "📱 کانفیگ‌ها"
+)
+
+// Inline buttons on one config's own management screen.
+const (
+	btnCfgLinks     = "🔗 لینک‌ها"
+	btnCfgAddVol    = "➕ افزودن حجم"
+	btnCfgPause     = "⏸ غیرفعال کردن"
+	btnCfgResume    = "▶️ فعال کردن"
+	btnCfgDelete    = "🗑 حذف"
+	btnCfgDeleteYes = "🗑 بله، حذف کن"
+	btnCfgBack      = "🔙 بازگشت"
 )
 
 const (
@@ -37,7 +51,16 @@ const (
 	msgTopUpSent     = "رسید شما دریافت شد ✅\n\nپس از تأیید مدیر، مبلغ به کیف پولتان اضافه می‌شود و همین‌جا خبرتان می‌کنیم."
 	msgVolumeBad     = "لطفاً یک عدد درست بنویسید."
 	msgNoLinkYet     = "⚠️ کانفیگ ساخته شد ولی لینک آن آماده نشد. لطفاً با پشتیبانی تماس بگیرید — مدیر هم خبردار شد."
-	msgSuspended     = "⛔️ <b>کیف پول شما خالی شد</b>\n\nکانفیگ‌های شما موقتاً غیرفعال شدند. به‌محض شارژ کیف پول، دوباره خودکار فعال می‌شوند."
+
+	msgPickConfig       = "📱 <b>کانفیگ‌های شما</b>\n\nروی هرکدام بزنید تا اطلاعات و تنظیماتش باز شود:"
+	msgConfigGone       = "این کانفیگ دیگر وجود ندارد."
+	msgConfigPaused     = "⏸ کانفیگ غیرفعال شد. هر وقت خواستید دوباره فعالش کنید."
+	msgConfigResumed    = "▶️ کانفیگ دوباره فعال شد."
+	msgConfigNeedsFunds = "کانفیگ از حالت توقف خارج شد، ولی تا شارژ کیف پول روشن نمی‌شود."
+	msgAskAddVolume     = "چند گیگابایت به این کانفیگ اضافه شود؟ عدد را بنویسید.\n\n💡 بابت افزودن حجم چیزی کم نمی‌شود؛ هزینه همچنان فقط بابت مصرف واقعی است."
+	msgConfirmDelete    = "آیا از حذف کانفیگ <code>%s</code> مطمئن هستید؟ این کار برگشت‌پذیر نیست."
+	msgConfigDeleted    = "🗑 کانفیگ حذف شد."
+	msgSuspended        = "⛔️ <b>کیف پول شما خالی شد</b>\n\nکانفیگ‌های شما موقتاً غیرفعال شدند. به‌محض شارژ کیف پول، دوباره خودکار فعال می‌شوند."
 
 	msgShopHelp = "<b>راهنما</b>\n\n" +
 		"۱️⃣ <b>شارژ کیف پول</b> — مبلغ را می‌نویسید، رسید واریز را می‌فرستید و پس از تأیید مدیر موجودی‌تان اضافه می‌شود.\n\n" +
@@ -107,6 +130,43 @@ func configCard(email string, volumeGB, usedBytes, cost int64, active bool, curr
 		fmt.Fprintf(&b, "\n🔗 لینک اشتراک:\n<code>%s</code>", esc(link))
 	}
 	return b.String()
+}
+
+// configDetailCard is one config's own screen — the fuller view behind a name in
+// the config list, with the state spelled out rather than left to an icon.
+func configDetailCard(cfg *model.BotConfig, usedBytes, cost int64, currency string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "📱 <b>%s</b>\n\n", esc(cfg.Email))
+
+	switch {
+	case cfg.Paused:
+		b.WriteString("⏸ وضعیت: <b>غیرفعال شده توسط شما</b>\n")
+	case cfg.Active:
+		b.WriteString("🟢 وضعیت: <b>فعال</b>\n")
+	default:
+		b.WriteString("⛔️ وضعیت: <b>خاموش — کیف پول خالی است</b>\n")
+	}
+
+	fmt.Fprintf(&b, "📦 حجم: <b>%s</b>\n", quotaGB(cfg.VolumeGB))
+	fmt.Fprintf(&b, "📶 مصرف: <b>%s</b>\n", humanBytes(usedBytes))
+	if cfg.VolumeGB > 0 {
+		b.WriteString(progressBar(float64(usedBytes), float64(cfg.VolumeGB)*bytesPerGB) + "\n")
+		if remaining := cfg.VolumeGB*bytesPerGB - usedBytes; remaining > 0 {
+			fmt.Fprintf(&b, "🔋 باقی‌مانده: <b>%s</b>\n", humanBytes(remaining))
+		} else {
+			b.WriteString("🔋 باقی‌مانده: <b>تمام شده</b>\n")
+		}
+	}
+	fmt.Fprintf(&b, "\n💳 هزینه تا اینجا: <b>%s %s</b>\n", faNum(cost), esc(currency))
+	if cfg.CreatedAt > 0 {
+		fmt.Fprintf(&b, "🗓 ساخته شده: %s\n", faDate(cfg.CreatedAt))
+	}
+	return b.String()
+}
+
+// faDate renders a millisecond timestamp as a Persian-digit date.
+func faDate(ms int64) string {
+	return toPersianDigits(time.UnixMilli(ms).Format("2006-01-02"))
 }
 
 // topUpInstructions is the screen between naming an amount and sending a receipt.

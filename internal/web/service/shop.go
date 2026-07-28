@@ -393,6 +393,57 @@ func (s *ShopService) GetConfig(id int) (*model.BotConfig, error) {
 	return &row, nil
 }
 
+// SetConfigPaused is the owner switching their own config off or on. It records
+// the intent on the config so a billing run cannot undo it, then moves the panel
+// client to match. Resuming only takes effect if the wallet can pay for it.
+func (s *ShopService) SetConfigPaused(inboundSvc *InboundService, id int, paused bool) (*model.BotConfig, error) {
+	cfg, err := s.GetConfig(id)
+	if err != nil {
+		return nil, err
+	}
+	user, err := s.GetUser(cfg.TelegramId)
+	if err != nil {
+		return nil, err
+	}
+	active := !paused && user.Balance > 0 && !user.Blocked
+	if err := database.GetDB().Model(&model.BotConfig{}).Where("id = ?", id).
+		Updates(map[string]any{"paused": paused, "active": active}).Error; err != nil {
+		return nil, err
+	}
+	if err := s.setClientEnabled(inboundSvc, cfg.Email, active); err != nil {
+		logger.Warning("shop: could not toggle client", cfg.Email, err)
+	}
+	cfg.Paused = paused
+	cfg.Active = active
+	return cfg, nil
+}
+
+// AddVolume raises a config's traffic cap. Nothing is charged here: the wallet
+// pays for traffic as it is used, so the cap is only the ceiling the user is
+// allowed to reach before the config stops.
+func (s *ShopService) AddVolume(inboundSvc *InboundService, id int, extraGB int64) (*model.BotConfig, error) {
+	if extraGB <= 0 {
+		return nil, ErrVolumeInvalid
+	}
+	cfg, err := s.GetConfig(id)
+	if err != nil {
+		return nil, err
+	}
+	total := cfg.VolumeGB + extraGB
+	if maxVolume, _ := s.settingService.GetShopMaxVolumeGB(); maxVolume > 0 && total > maxVolume {
+		return nil, ErrVolumeTooLarge
+	}
+	if _, err := s.clientService.ResetClientTrafficLimitByEmail(inboundSvc, cfg.Email, int(total)); err != nil {
+		return nil, err
+	}
+	if err := database.GetDB().Model(&model.BotConfig{}).Where("id = ?", id).
+		Update("volume_gb", total).Error; err != nil {
+		return nil, err
+	}
+	cfg.VolumeGB = total
+	return cfg, nil
+}
+
 // DeleteConfig removes the config and its panel client. Whatever it already
 // consumed stays charged — the ledger is history, not a reservation.
 func (s *ShopService) DeleteConfig(inboundSvc *InboundService, id int) error {
@@ -549,24 +600,30 @@ func (s *ShopService) reconcileWallets(inboundSvc *InboundService, touched map[i
 	var suspended []int64
 	for i := range users {
 		u := &users[i]
-		wantActive := u.Balance > 0 && !u.Blocked
+		funded := u.Balance > 0 && !u.Blocked
 		var configs []model.BotConfig
 		if err := db.Model(&model.BotConfig{}).
-			Where("telegram_id = ? AND active <> ?", u.TelegramId, wantActive).Find(&configs).Error; err != nil {
+			Where("telegram_id = ?", u.TelegramId).Find(&configs).Error; err != nil {
 			continue
 		}
-		if len(configs) == 0 {
-			continue
-		}
+		cutOff := false
 		for j := range configs {
 			cfg := &configs[j]
+			// A config the owner paused stays off however healthy the wallet is.
+			wantActive := funded && !cfg.Paused
+			if cfg.Active == wantActive {
+				continue
+			}
 			if err := s.setClientEnabled(inboundSvc, cfg.Email, wantActive); err != nil {
 				logger.Warning("shop: could not toggle client", cfg.Email, err)
 				continue
 			}
 			_ = db.Model(&model.BotConfig{}).Where("id = ?", cfg.Id).Update("active", wantActive).Error
+			if !wantActive && !cfg.Paused {
+				cutOff = true
+			}
 		}
-		if !wantActive {
+		if cutOff {
 			if _, hit := touched[u.TelegramId]; hit {
 				suspended = append(suspended, u.TelegramId)
 			}

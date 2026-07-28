@@ -49,3 +49,23 @@ func TestBuildSubURIBase(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildSubURIIncludesThePath: the base alone is the subscription server's
+// root, which serves nothing. A URL handed to a user has to carry subPath —
+// the sales bot shipped "http://host:2096/<subid>" without it.
+func TestBuildSubURIIncludesThePath(t *testing.T) {
+	setupConflictDB(t)
+	s := &SettingService{}
+	if err := s.saveSetting("subDomain", ""); err != nil {
+		t.Fatalf("set subDomain: %v", err)
+	}
+	if err := s.saveSetting("subPort", "2096"); err != nil {
+		t.Fatalf("set subPort: %v", err)
+	}
+	if err := s.saveSetting("subPath", "/sub/"); err != nil {
+		t.Fatalf("set subPath: %v", err)
+	}
+	if got := s.BuildSubURI("panel.example.com"); got != "http://panel.example.com:2096/sub/" {
+		t.Errorf("BuildSubURI = %q, want the base with subPath appended", got)
+	}
+}

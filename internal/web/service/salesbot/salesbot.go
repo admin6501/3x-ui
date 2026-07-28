@@ -379,7 +379,9 @@ type state struct {
 	orderId int
 	// targetUser is the shop user an admin action applies to.
 	targetUser int64
-	touched    time.Time
+	// configId is the config a buyer's config-management step applies to.
+	configId int
+	touched  time.Time
 }
 
 // stateStore keeps per-chat conversation state. Handlers run on the dispatch

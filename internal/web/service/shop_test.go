@@ -427,3 +427,138 @@ func TestStatsAddUp(t *testing.T) {
 		t.Errorf("pendingTopUps = %d, want 1", stats.PendingTopUps)
 	}
 }
+
+// TestPausingSurvivesABillingRun: a config its owner switched off from the bot
+// must stay off. Billing owns Active, so without a separate Paused flag the next
+// run would look at a funded wallet and switch the config straight back on.
+func TestPausingSurvivesABillingRun(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34011, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0"})
+
+	_, _ = shop.User(900011, "", "")
+	if _, err := shop.Adjust(900011, 100000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, err := shop.CreateConfig(inboundSvc, 900011, 10)
+	if err != nil {
+		t.Fatalf("create config: %v", err)
+	}
+
+	paused, err := shop.SetConfigPaused(inboundSvc, cfg.Id, true)
+	if err != nil {
+		t.Fatalf("pause: %v", err)
+	}
+	if !paused.Paused || paused.Active {
+		t.Fatalf("after pausing: paused=%v active=%v", paused.Paused, paused.Active)
+	}
+	rec, err := shop.clientService.GetRecordByEmail(nil, cfg.Email)
+	if err != nil {
+		t.Fatalf("load client: %v", err)
+	}
+	if rec.Enable {
+		t.Error("pausing should disable the panel client too")
+	}
+
+	// A billing run with money in the wallet must not undo the pause.
+	meter(t, cfg.Email, gb)
+	shop.BillAll(inboundSvc)
+	reloaded, _ := shop.GetConfig(cfg.Id)
+	if reloaded.Active {
+		t.Error("billing re-enabled a config the owner had paused")
+	}
+
+	// Resuming brings it back.
+	resumed, err := shop.SetConfigPaused(inboundSvc, cfg.Id, false)
+	if err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if resumed.Paused || !resumed.Active {
+		t.Fatalf("after resuming: paused=%v active=%v", resumed.Paused, resumed.Active)
+	}
+	rec, _ = shop.clientService.GetRecordByEmail(nil, cfg.Email)
+	if !rec.Enable {
+		t.Error("resuming should re-enable the panel client")
+	}
+}
+
+// TestResumingWithAnEmptyWalletStaysOff: un-pausing is not a way to get service
+// without paying for it.
+func TestResumingWithAnEmptyWalletStaysOff(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34012, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0"})
+
+	_, _ = shop.User(900012, "", "")
+	if _, err := shop.Adjust(900012, 5000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, err := shop.CreateConfig(inboundSvc, 900012, 10)
+	if err != nil {
+		t.Fatalf("create config: %v", err)
+	}
+	if _, err := shop.SetConfigPaused(inboundSvc, cfg.Id, true); err != nil {
+		t.Fatalf("pause: %v", err)
+	}
+	if _, err := shop.Adjust(900012, -5000, "spend it all"); err != nil {
+		t.Fatalf("drain: %v", err)
+	}
+
+	resumed, err := shop.SetConfigPaused(inboundSvc, cfg.Id, false)
+	if err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if resumed.Active {
+		t.Error("an empty wallet must not be able to resume a config")
+	}
+}
+
+// TestAddVolumeRaisesTheCapWithoutCharging: the wallet pays for traffic as it is
+// used, so raising the ceiling is free at the moment it happens.
+func TestAddVolumeRaisesTheCapWithoutCharging(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34013, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0", "shopMaxVolumeGB": "50"})
+
+	_, _ = shop.User(900013, "", "")
+	if _, err := shop.Adjust(900013, 100000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, err := shop.CreateConfig(inboundSvc, 900013, 10)
+	if err != nil {
+		t.Fatalf("create config: %v", err)
+	}
+	before := balanceOf(t, shop, 900013)
+
+	grown, err := shop.AddVolume(inboundSvc, cfg.Id, 15)
+	if err != nil {
+		t.Fatalf("add volume: %v", err)
+	}
+	if grown.VolumeGB != 25 {
+		t.Errorf("volume = %d GB, want 25", grown.VolumeGB)
+	}
+	if got := balanceOf(t, shop, 900013); got != before {
+		t.Errorf("balance moved from %d to %d; adding volume must not charge", before, got)
+	}
+	rec, err := shop.clientService.GetRecordByEmail(nil, cfg.Email)
+	if err != nil {
+		t.Fatalf("load client: %v", err)
+	}
+	if rec.TotalGB != 25*gb {
+		t.Errorf("panel client cap = %d bytes, want %d", rec.TotalGB, 25*gb)
+	}
+
+	// The configured maximum still applies.
+	if _, err := shop.AddVolume(inboundSvc, cfg.Id, 30); err != ErrVolumeTooLarge {
+		t.Errorf("adding past the maximum returned %v, want ErrVolumeTooLarge", err)
+	}
+	if _, err := shop.AddVolume(inboundSvc, cfg.Id, 0); err != ErrVolumeInvalid {
+		t.Errorf("adding zero returned %v, want ErrVolumeInvalid", err)
+	}
+}

@@ -2,6 +2,7 @@ package salesbot
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
@@ -178,9 +179,49 @@ func (b *Bot) onCallback(q telego.CallbackQuery) {
 		b.answer(q.ID, msgCancelled)
 		b.send(chatId, msgCancelled, b.shopMenu(chatId))
 
+	case "cfglist":
+		b.answer(q.ID, "")
+		b.showConfigs(chatId)
+
+	// Every config action carries the config's id; ownership is re-checked on
+	// the way in, so a guessed id reaches nothing.
+	case "cfg", "cfglink", "cfgtog", "cfgvol", "cfgdel", "cfgdelok":
+		id, ok := callbackArg(parts)
+		if !ok {
+			b.answer(q.ID, msgSomethingWrong)
+			return
+		}
+		b.answer(q.ID, "")
+		switch action {
+		case "cfg":
+			b.showConfigMenu(chatId, id)
+		case "cfglink":
+			b.sendConfigLinks(chatId, id)
+		case "cfgtog":
+			b.toggleConfig(chatId, id)
+		case "cfgvol":
+			b.askAddVolume(chatId, id)
+		case "cfgdel":
+			b.confirmDeleteConfig(chatId, id)
+		case "cfgdelok":
+			b.deleteConfig(chatId, id)
+		}
+
 	default:
 		b.onAdminCallback(q)
 	}
+}
+
+// callbackArg reads the numeric argument out of a "verb:id" callback.
+func callbackArg(parts []string) (int, bool) {
+	if len(parts) < 2 {
+		return 0, false
+	}
+	id, err := strconv.Atoi(parts[1])
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+	return id, true
 }
 
 const bytesPerGB = 1024 * 1024 * 1024

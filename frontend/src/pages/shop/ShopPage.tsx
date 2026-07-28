@@ -71,6 +71,7 @@ interface ConfigUsage {
     chargedTraffic: number;
     chargedDays: number;
     active: boolean;
+    paused: boolean;
   };
   usedBytes: number;
   totalGB: number;
@@ -329,8 +330,16 @@ export default function ShopPage() {
       title: t('pages.shop.status'),
       key: 'active',
       width: 110,
+      // A config its owner paused from the bot is off on purpose — worth telling
+      // apart from one the billing run cut off for an empty wallet.
       render: (_: unknown, row) =>
-        row.config.active ? <Tag color="green">{t('enabled')}</Tag> : <Tag color="red">{t('disabled')}</Tag>,
+        row.config.paused ? (
+          <Tag color="orange">{t('pages.shop.pausedByUser')}</Tag>
+        ) : row.config.active ? (
+          <Tag color="green">{t('enabled')}</Tag>
+        ) : (
+          <Tag color="red">{t('disabled')}</Tag>
+        ),
     },
     {
       title: t('pages.shop.actions'),

@@ -2203,6 +2203,7 @@
       "spent": "Spent",
       "blocked": "Blocked",
       "active": "Active",
+      "pausedByUser": "Paused by user",
       "block": "Block",
       "unblock": "Unblock",
       "adjust": "Adjust balance",

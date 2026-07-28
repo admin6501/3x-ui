@@ -1393,6 +1393,15 @@ func (s *SettingService) BuildSubURIBase(host string) string {
 	return fmt.Sprintf("%s://%s:%d", scheme, subDomain, subPort)
 }
 
+// BuildSubURI is BuildSubURIBase with the subscription path appended — the
+// complete prefix a subscription id is hung off. Callers that hand a URL to a
+// user want this one; the base alone points at the subscription server's root,
+// which serves nothing.
+func (s *SettingService) BuildSubURI(host string) string {
+	subPath, _ := s.GetSubPath()
+	return s.BuildSubURIBase(host) + subPath
+}
+
 func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 	type settingFunc func() (any, error)
 	settings := map[string]settingFunc{

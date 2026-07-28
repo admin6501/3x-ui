@@ -175,6 +175,15 @@ func (b *Bot) handleConversation(msg telego.Message, st *state) bool {
 		b.createConfig(chatId, volume)
 		return true
 
+	case stepAddVolume:
+		volume, ok := parseNumber(text)
+		if !ok || volume <= 0 {
+			b.send(chatId, msgVolumeBad)
+			return true
+		}
+		b.addVolume(chatId, st.configId, volume)
+		return true
+
 	case stepAdjustAmount:
 		amount, ok := parseSignedNumber(text)
 		if !ok {

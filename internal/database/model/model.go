@@ -300,8 +300,13 @@ type BotConfig struct {
         // ChargedDays is the same idea for the optional per-day rental fee.
         ChargedDays int64 `json:"chargedDays" gorm:"default:0"`
         Active      bool  `json:"active" gorm:"default:true"`
-        CreatedAt   int64 `json:"createdAt" gorm:"autoCreateTime:milli"`
-        UpdatedAt   int64 `json:"updatedAt" gorm:"autoUpdateTime:milli"`
+        // Paused is the owner switching their own config off from the bot. It is
+        // kept apart from Active, which billing owns: without it the next billing
+        // run would see a funded wallet and switch a deliberately paused config
+        // straight back on.
+        Paused    bool  `json:"paused" gorm:"default:false"`
+        CreatedAt int64 `json:"createdAt" gorm:"autoCreateTime:milli"`
+        UpdatedAt int64 `json:"updatedAt" gorm:"autoUpdateTime:milli"`
 }
 
 func (BotConfig) TableName() string { return "bot_configs" }

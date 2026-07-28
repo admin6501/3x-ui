@@ -20,6 +20,7 @@ const (
 	stepTopUpAmount  = "topup_amount"
 	stepTopUpReceipt = "topup_receipt"
 	stepBuyVolume    = "buy_volume"
+	stepAddVolume    = "add_volume"
 	stepAdjustAmount = "adjust_amount"
 )
 
@@ -293,10 +294,14 @@ func hostFromPanelUrl(raw string) string {
 
 // subLink builds the subscription URL a client app is pointed at. It prefers
 // the explicitly configured subscription URI and otherwise derives one from the
-// subscription server's own settings, so a panel that never filled in subURI —
-// which is the default — still hands out a working link.
+// subscription server's own settings — including its path, without which the URL
+// points at the subscription server's root and serves nothing. A panel with the
+// subscription server switched off has no such URL to give at all.
 func (b *Bot) subLink(cfg *model.BotConfig) string {
 	if cfg.SubID == "" {
+		return ""
+	}
+	if on, err := b.settingService.GetSubEnable(); err == nil && !on {
 		return ""
 	}
 	base, _ := b.settingService.GetSubURI()
@@ -305,7 +310,7 @@ func (b *Bot) subLink(cfg *model.BotConfig) string {
 		if host == "" {
 			return ""
 		}
-		base = b.settingService.BuildSubURIBase(host)
+		base = b.settingService.BuildSubURI(host)
 	}
 	return joinSubLink(base, cfg.SubID)
 }
@@ -350,7 +355,13 @@ func (b *Bot) configLinks(cfg *model.BotConfig) []string {
 func (b *Bot) sendConfig(chatId int64, cfg *model.BotConfig, usedBytes, cost int64) {
 	sub := b.subLink(cfg)
 	b.send(chatId, configCard(cfg.Email, cfg.VolumeGB, usedBytes, cost, cfg.Active, b.currency(), sub))
+	b.sendLinks(chatId, cfg, sub)
+}
 
+// sendLinks delivers the direct config links, or explains their absence. A
+// config with no deliverable link is a sale that gave the buyer nothing, so that
+// case says so out loud rather than going quiet.
+func (b *Bot) sendLinks(chatId int64, cfg *model.BotConfig, sub string) {
 	links := b.configLinks(cfg)
 	if len(links) == 0 && sub == "" {
 		b.send(chatId, msgNoLinkYet)
@@ -366,17 +377,172 @@ func (b *Bot) sendConfig(chatId int64, cfg *model.BotConfig, usedBytes, cost int
 	}
 }
 
+// showConfigs lists the buyer's configs by name, one button each. Dumping every
+// card and link at once buried the useful ones once a buyer had more than two;
+// picking a name opens that config's own screen instead.
 func (b *Bot) showConfigs(chatId int64) {
 	configs, err := b.shopService.ListConfigs(chatId)
 	if err != nil || len(configs) == 0 {
 		b.send(chatId, msgNoConfigs, b.shopMenu(chatId))
 		return
 	}
+	rows := make([][]telego.InlineKeyboardButton, 0, len(configs))
 	for i := range configs {
 		cfg := &configs[i]
-		usage := b.shopService.Usage(cfg)
-		b.sendConfig(chatId, cfg, usage.UsedBytes, cfg.ChargedTraffic+cfg.ChargedDays)
+		rows = append(rows, tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(configButtonLabel(cfg)).WithCallbackData(fmt.Sprintf("cfg:%d", cfg.Id)),
+		))
 	}
+	b.send(chatId, msgPickConfig, tu.InlineKeyboard(rows...))
+}
+
+// configButtonLabel names a config in the list: its state, its name and its size,
+// which is everything needed to tell two of them apart at a glance.
+func configButtonLabel(cfg *model.BotConfig) string {
+	mark := "🟢"
+	switch {
+	case cfg.Paused:
+		mark = "⏸"
+	case !cfg.Active:
+		mark = "⛔️"
+	}
+	return fmt.Sprintf("%s %s — %s", mark, cfg.Email, quotaGB(cfg.VolumeGB))
+}
+
+// ownedConfig fetches a config and refuses it to anyone but its owner, so a
+// guessed id in a callback cannot reach someone else's account.
+func (b *Bot) ownedConfig(chatId int64, id int) *model.BotConfig {
+	cfg, err := b.shopService.GetConfig(id)
+	if err != nil || cfg.TelegramId != chatId {
+		return nil
+	}
+	return cfg
+}
+
+// showConfigMenu is one config's own screen: what it has used, what it has cost,
+// and every action its owner can take on it.
+func (b *Bot) showConfigMenu(chatId int64, id int) {
+	cfg := b.ownedConfig(chatId, id)
+	if cfg == nil {
+		b.send(chatId, msgConfigGone, b.shopMenu(chatId))
+		return
+	}
+	usage := b.shopService.Usage(cfg)
+	body := configDetailCard(cfg, usage.UsedBytes, cfg.ChargedTraffic+cfg.ChargedDays, b.currency())
+
+	toggle := btnCfgPause
+	if cfg.Paused {
+		toggle = btnCfgResume
+	}
+	kb := tu.InlineKeyboard(
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(btnCfgLinks).WithCallbackData(fmt.Sprintf("cfglink:%d", cfg.Id)),
+			tu.InlineKeyboardButton(btnCfgAddVol).WithCallbackData(fmt.Sprintf("cfgvol:%d", cfg.Id)),
+		),
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(toggle).WithCallbackData(fmt.Sprintf("cfgtog:%d", cfg.Id)),
+			tu.InlineKeyboardButton(btnCfgDelete).WithCallbackData(fmt.Sprintf("cfgdel:%d", cfg.Id)),
+		),
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton(btnCfgBack).WithCallbackData("cfglist"),
+		),
+	)
+	b.send(chatId, body, kb)
+}
+
+// toggleConfig pauses or resumes a config on its owner's request.
+func (b *Bot) toggleConfig(chatId int64, id int) {
+	cfg := b.ownedConfig(chatId, id)
+	if cfg == nil {
+		b.send(chatId, msgConfigGone, b.shopMenu(chatId))
+		return
+	}
+	updated, err := b.shopService.SetConfigPaused(b.inboundService, id, !cfg.Paused)
+	if err != nil {
+		b.send(chatId, msgSomethingWrong, b.shopMenu(chatId))
+		return
+	}
+	switch {
+	case updated.Paused:
+		b.send(chatId, msgConfigPaused)
+	case updated.Active:
+		b.send(chatId, msgConfigResumed)
+	default:
+		// Un-paused but still off: the wallet cannot pay for it yet.
+		b.send(chatId, msgConfigNeedsFunds)
+	}
+	b.showConfigMenu(chatId, id)
+}
+
+// askAddVolume starts the add-volume step for one config.
+func (b *Bot) askAddVolume(chatId int64, id int) {
+	if b.ownedConfig(chatId, id) == nil {
+		b.send(chatId, msgConfigGone, b.shopMenu(chatId))
+		return
+	}
+	b.states.set(chatId, &state{step: stepAddVolume, configId: id})
+	b.send(chatId, msgAskAddVolume, cancelKeyboard())
+}
+
+// addVolume applies the number the owner typed at the add-volume step.
+func (b *Bot) addVolume(chatId int64, id int, extraGB int64) {
+	b.states.clear(chatId)
+	if b.ownedConfig(chatId, id) == nil {
+		b.send(chatId, msgConfigGone, b.shopMenu(chatId))
+		return
+	}
+	cfg, err := b.shopService.AddVolume(b.inboundService, id, extraGB)
+	if err != nil {
+		switch err {
+		case service.ErrVolumeTooLarge:
+			maxVol, _ := b.settingService.GetShopMaxVolumeGB()
+			b.send(chatId, fmt.Sprintf("حداکثر حجم مجاز هر کانفیگ <b>%s گیگابایت</b> است.", faNum(maxVol)), b.shopMenu(chatId))
+		case service.ErrVolumeInvalid:
+			b.send(chatId, msgVolumeBad, b.shopMenu(chatId))
+		default:
+			b.send(chatId, msgSomethingWrong, b.shopMenu(chatId))
+		}
+		return
+	}
+	b.send(chatId, fmt.Sprintf("✅ حجم کانفیگ به <b>%s</b> رسید.", quotaGB(cfg.VolumeGB)), b.shopMenu(chatId))
+	b.showConfigMenu(chatId, id)
+}
+
+// confirmDeleteConfig asks before destroying a config, because the button sits
+// next to the ones a buyer presses routinely.
+func (b *Bot) confirmDeleteConfig(chatId int64, id int) {
+	cfg := b.ownedConfig(chatId, id)
+	if cfg == nil {
+		b.send(chatId, msgConfigGone, b.shopMenu(chatId))
+		return
+	}
+	kb := tu.InlineKeyboard(tu.InlineKeyboardRow(
+		tu.InlineKeyboardButton(btnCfgDeleteYes).WithCallbackData(fmt.Sprintf("cfgdelok:%d", cfg.Id)),
+		tu.InlineKeyboardButton(btnCfgBack).WithCallbackData(fmt.Sprintf("cfg:%d", cfg.Id)),
+	))
+	b.send(chatId, fmt.Sprintf(msgConfirmDelete, esc(cfg.Email)), kb)
+}
+
+func (b *Bot) deleteConfig(chatId int64, id int) {
+	if b.ownedConfig(chatId, id) == nil {
+		b.send(chatId, msgConfigGone, b.shopMenu(chatId))
+		return
+	}
+	if err := b.shopService.DeleteConfig(b.inboundService, id); err != nil {
+		b.send(chatId, msgSomethingWrong, b.shopMenu(chatId))
+		return
+	}
+	b.send(chatId, msgConfigDeleted, b.shopMenu(chatId))
+}
+
+// sendConfigLinks re-sends one config's links on request.
+func (b *Bot) sendConfigLinks(chatId int64, id int) {
+	cfg := b.ownedConfig(chatId, id)
+	if cfg == nil {
+		b.send(chatId, msgConfigGone, b.shopMenu(chatId))
+		return
+	}
+	b.sendLinks(chatId, cfg, b.subLink(cfg))
 }
 
 func (b *Bot) showLedger(chatId int64) {
