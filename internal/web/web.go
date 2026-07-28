@@ -343,8 +343,10 @@ func (s *Server) startTask(restartXray bool) {
 	s.cron.AddJob("@hourly", job.NewAutoDeleteExpiredClientsJob())
 
 	// The Telegram shop bills for traffic as it is consumed, so it has to meter
-	// often enough that a wallet cannot go far negative between runs.
-	s.cron.AddJob("@every 2m", job.NewShopBillingJob(func(ids []int64) {
+	// often enough that a wallet cannot go far negative between runs. The tick is
+	// every minute and the job itself honours the admin's configured interval, so
+	// changing that setting takes effect without a restart.
+	s.cron.AddJob("@every 1m", job.NewShopBillingJob(func(ids []int64) {
 		salesbot.Manager(&s.inboundService, &s.xrayService).NotifySuspended(ids)
 	}))
 

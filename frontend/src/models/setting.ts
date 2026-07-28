@@ -126,6 +126,7 @@ export class AllSetting {
   shopMaxVolumeGB = 0;
   shopJoinChannel = '';
   shopConfigDays = 0;
+  shopBillingInterval = 2;
 
   constructor(data?: unknown) {
     if (data != null) {

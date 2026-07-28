@@ -1460,7 +1460,9 @@
       "shopJoinChannel": "Required channel",
       "shopJoinChannelDesc": "Users must join this channel before the shop serves them, e.g. @mychannel. Empty = no requirement.",
       "shopConfigDays": "Config validity (days)",
-      "shopConfigDaysDesc": "How long a new config lasts. 0 = no expiry date."
+      "shopConfigDaysDesc": "How long a new config lasts. 0 = no expiry date.",
+      "shopBillingInterval": "Billing interval (minutes)",
+      "shopBillingIntervalDesc": "How often the panel meters every config and debits its owner's wallet. Shorter means a wallet can go less far into the red before its configs are switched off; longer means fewer database reads. Between 1 and 1440; the default is 2. Takes effect on save — no restart needed."
     },
     "xray": {
       "title": "Konfigurasi Xray",

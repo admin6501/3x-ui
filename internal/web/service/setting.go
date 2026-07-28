@@ -163,6 +163,8 @@ var defaultValueMap = map[string]string{
 	"shopMaxVolumeGB": "0",
 	"shopJoinChannel": "",
 	"shopConfigDays":  "0",
+	// How often, in minutes, the billing run meters every config.
+	"shopBillingInterval": "2",
 
 	// Event bus — per-subscriber event filtering (empty = all disabled)
 	"tgEnabledEvents":   "login.attempt,cpu.high",
@@ -1100,6 +1102,41 @@ func (s *SettingService) GetShopMinBalance() (int64, error) {
 func (s *SettingService) GetShopMaxVolumeGB() (int64, error) {
 	v, err := s.getInt("shopMaxVolumeGB")
 	return int64(v), err
+}
+
+// ShopBillingIntervalBounds are the limits on how often the billing run meters
+// every config. The floor keeps a busy panel from metering itself to death; the
+// ceiling keeps a wallet from running a day into the red before anyone notices.
+const (
+	ShopBillingIntervalDefault = 2
+	ShopBillingIntervalMin     = 1
+	ShopBillingIntervalMax     = 1440
+)
+
+// GetShopBillingInterval is how many minutes pass between billing runs. It is
+// always returned inside its bounds, so a hand-edited or missing value cannot
+// switch billing off — that would hand out free traffic.
+func (s *SettingService) GetShopBillingInterval() (int, error) {
+	v, err := s.getInt("shopBillingInterval")
+	if err != nil {
+		return ShopBillingIntervalDefault, err
+	}
+	return ClampShopBillingInterval(v), nil
+}
+
+// ClampShopBillingInterval brings any number into the supported range, treating
+// zero and negatives as "unset" rather than "never bill".
+func ClampShopBillingInterval(v int) int {
+	if v <= 0 {
+		return ShopBillingIntervalDefault
+	}
+	if v < ShopBillingIntervalMin {
+		return ShopBillingIntervalMin
+	}
+	if v > ShopBillingIntervalMax {
+		return ShopBillingIntervalMax
+	}
+	return v
 }
 
 // GetShopJoinChannel is the channel a user must be a member of before the shop

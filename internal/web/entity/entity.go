@@ -165,6 +165,8 @@ type AllSetting struct {
 	ShopMaxVolumeGB int64  `json:"shopMaxVolumeGB" form:"shopMaxVolumeGB" validate:"gte=0"` // Largest traffic cap a user may request; 0 = no ceiling
 	ShopJoinChannel string `json:"shopJoinChannel" form:"shopJoinChannel"`                  // Channel the user must join first; empty = no requirement
 	ShopConfigDays  int    `json:"shopConfigDays" form:"shopConfigDays" validate:"gte=0"`   // Validity of a new config in days; 0 = no expiry
+	// ShopBillingInterval is how many minutes pass between billing runs.
+	ShopBillingInterval int `json:"shopBillingInterval" form:"shopBillingInterval" validate:"gte=0,lte=1440"`
 }
 
 // AllSettingView is the browser-safe settings read model. Secret values

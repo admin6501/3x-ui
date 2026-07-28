@@ -51,6 +51,7 @@ export interface AllSetting {
   salesBotToken: string;
   salesBotWelcome: string;
   sessionMaxAge: number;
+  shopBillingInterval: number;
   shopConfigDays: number;
   shopInboundId: number;
   shopJoinChannel: string;
@@ -178,6 +179,7 @@ export interface AllSettingView {
   salesBotToken: string;
   salesBotWelcome: string;
   sessionMaxAge: number;
+  shopBillingInterval: number;
   shopConfigDays: number;
   shopInboundId: number;
   shopJoinChannel: string;

@@ -170,6 +170,12 @@ export const SCHEMAS: Record<string, unknown> = {
         "minimum": 1,
         "type": "integer"
       },
+      "shopBillingInterval": {
+        "description": "ShopBillingInterval is how many minutes pass between billing runs.",
+        "maximum": 1440,
+        "minimum": 0,
+        "type": "integer"
+      },
       "shopConfigDays": {
         "description": "Validity of a new config in days; 0 = no expiry",
         "minimum": 0,
@@ -533,6 +539,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "salesBotToken",
       "salesBotWelcome",
       "sessionMaxAge",
+      "shopBillingInterval",
       "shopConfigDays",
       "shopInboundId",
       "shopJoinChannel",
@@ -801,6 +808,12 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Session maximum age in minutes (cap at one year)",
         "maximum": 525600,
         "minimum": 1,
+        "type": "integer"
+      },
+      "shopBillingInterval": {
+        "description": "ShopBillingInterval is how many minutes pass between billing runs.",
+        "maximum": 1440,
+        "minimum": 0,
         "type": "integer"
       },
       "shopConfigDays": {
@@ -1174,6 +1187,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "salesBotToken",
       "salesBotWelcome",
       "sessionMaxAge",
+      "shopBillingInterval",
       "shopConfigDays",
       "shopInboundId",
       "shopJoinChannel",
