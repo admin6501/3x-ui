@@ -71,3 +71,49 @@ func TestResellerEmailSetScoping(t *testing.T) {
 		t.Error("expected ok=false (no scoping) for super_admin")
 	}
 }
+
+// TestPanelWideClientActionsRefuseResellers pins the guard on the actions that
+// ignore inbound scoping entirely.
+//
+// "Delete depleted", for instance, sweeps every ended client in the database
+// with no inbound filter at all — for a reseller it would read as clearing
+// their own inbound while actually clearing the whole panel. These are refused
+// server-side; the Clients page hides them from a reseller on top of that, but
+// the guard here is what makes it safe.
+func TestPanelWideClientActionsRefuseResellers(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Every route below operates across all inbounds.
+	panelWide := []string{
+		"/delDepleted", "/delOrphans", "/resetAllTraffics", "/export", "/import",
+		"/bulkAdjust", "/bulkDel", "/bulkCreate", "/bulkAttach", "/bulkDetach",
+		"/bulkResetTraffic",
+	}
+
+	reseller := &model.User{Id: 2, Username: "res", Role: "reseller"}
+	for _, route := range panelWide {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest("POST", "/panel/api/clients"+route, nil)
+		session.SetAPIAuthUser(c, reseller)
+
+		rejectReseller(c)
+
+		if !c.IsAborted() {
+			t.Errorf("%s: a reseller was allowed through", route)
+		}
+		if rec.Code != 403 {
+			t.Errorf("%s: status %d, want 403", route, rec.Code)
+		}
+	}
+
+	// A super admin passes through untouched.
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest("POST", "/panel/api/clients/delDepleted", nil)
+	session.SetAPIAuthUser(c, &model.User{Id: 1, Username: "admin", Role: "super_admin"})
+	rejectReseller(c)
+	if c.IsAborted() {
+		t.Error("a super admin was refused a panel-wide action")
+	}
+}

@@ -51,6 +51,7 @@ import {
 
 import { useTheme } from '@/hooks/useTheme';
 import { formatInboundLabel } from '@/lib/inbounds/label';
+import { isScoped } from '@/lib/permissions';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useClients } from '@/hooks/useClients';
@@ -236,6 +237,9 @@ export default function ClientsPage() {
   const [bulkGroupOpen, setBulkGroupOpen] = useState(false);
   const [bulkAttachOpen, setBulkAttachOpen] = useState(false);
   const [bulkDetachOpen, setBulkDetachOpen] = useState(false);
+  // A reseller only ever sees their own inbounds' clients, and every
+  // panel-wide bulk action is refused to them server-side.
+  const reseller = isScoped();
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
 
   const [textOpen, setTextOpen] = useState(false);
@@ -1019,12 +1023,19 @@ export default function ClientsPage() {
                               >
                                 {t('pages.clients.selectedCount', { count: selectedRowKeys.length })}
                               </Tag>
-                              <Button icon={<UsergroupAddOutlined />} onClick={() => setBulkAttachOpen(true)}>
-                                {!isMobile && t('pages.clients.attach')}
-                              </Button>
-                              <Button danger icon={<UsergroupDeleteOutlined />} onClick={() => setBulkDetachOpen(true)}>
-                                {!isMobile && t('pages.clients.detach')}
-                              </Button>
+                              {/* Moving a client between inbounds is a panel-wide
+                                  action the server refuses to a reseller; the group
+                                  actions beside it are theirs to use. */}
+                              {!reseller && (
+                                <>
+                                  <Button icon={<UsergroupAddOutlined />} onClick={() => setBulkAttachOpen(true)}>
+                                    {!isMobile && t('pages.clients.attach')}
+                                  </Button>
+                                  <Button danger icon={<UsergroupDeleteOutlined />} onClick={() => setBulkDetachOpen(true)}>
+                                    {!isMobile && t('pages.clients.detach')}
+                                  </Button>
+                                </>
+                              )}
                               <Button icon={<TagsOutlined />} onClick={() => setBulkGroupOpen(true)}>
                                 {!isMobile && t('pages.clients.addToGroup')}
                               </Button>
@@ -1033,18 +1044,26 @@ export default function ClientsPage() {
                               </Button>
                             </>
                           )}
+                          {/* With nothing selected a reseller has no menu items
+                              left, so the button would open an empty dropdown. */}
+                          {!(reseller && selectedRowKeys.length === 0) && (
                           <Dropdown
                             trigger={['click']}
                             placement="bottomRight"
                             menu={{
+                              // Every panel-wide action here is refused to a
+                              // reseller by the server, so showing them would only
+                              // offer a menu that always errors — and "delete all
+                              // expired clients" would read as if it were about to
+                              // sweep their own inbounds.
                               items: selectedRowKeys.length > 0
                                 ? [
-                                  {
+                                  ...(reseller ? [] : [{
                                     key: 'adjust',
                                     icon: <ClockCircleOutlined />,
                                     label: t('pages.clients.adjust'),
                                     onClick: () => setBulkAdjustOpen(true),
-                                  },
+                                  }]),
                                   {
                                     key: 'subLinks',
                                     icon: <LinkOutlined />,
@@ -1052,7 +1071,7 @@ export default function ClientsPage() {
                                     onClick: () => setSubLinksOpen(true),
                                   },
                                 ]
-                                : [
+                                : reseller ? [] : [
                                   {
                                     key: 'bulk',
                                     icon: <UsergroupAddOutlined />,
@@ -1099,6 +1118,7 @@ export default function ClientsPage() {
                               {!isMobile && t('more')}
                             </Button>
                           </Dropdown>
+                          )}
                           {selectedRowKeys.length > 0 && (
                             <Button
                               danger
