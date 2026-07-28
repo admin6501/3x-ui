@@ -87,7 +87,7 @@ func (b *Bot) promptJoin(chatId int64) {
 		tu.InlineKeyboardRow(tu.InlineKeyboardButton(b.m(btnJoinChannel)).WithURL(link)),
 		tu.InlineKeyboardRow(tu.InlineKeyboardButton(b.m(btnJoined)).WithCallbackData("joined")),
 	)
-	b.send(chatId, msgMustJoin+"\n\n"+esc(name), kb)
+	b.send(chatId, b.m(msgMustJoin)+"\n\n"+esc(name), kb)
 }
 
 // -------------------------------------------------------------- screens --
@@ -244,7 +244,7 @@ func (b *Bot) applyDiscountCode(chatId int64, topUpId int, typed string) {
 	}
 	code, bonus, err := b.shopService.ValidateDiscount(typed, chatId, row.Amount)
 	if err != nil {
-		b.send(chatId, discountError(err))
+		b.send(chatId, b.m(discountErrorKey(err)))
 		return
 	}
 	updated, err := b.shopService.AttachDiscountCode(topUpId, code.Code)
@@ -259,8 +259,10 @@ func (b *Bot) applyDiscountCode(chatId int64, topUpId int, typed string) {
 	b.showTopUpInstructions(chatId, updated)
 }
 
-// discountError turns a validation failure into something a buyer can act on.
-func discountError(err error) string {
+// discountErrorKey turns a validation failure into the key of something a buyer
+// can act on. It returns a key rather than a rendered string so the caller,
+// which knows the shop's language, does the localizing.
+func discountErrorKey(err error) string {
 	switch {
 	case errors.Is(err, service.ErrDiscountExpired):
 		return msgDiscountExpired
@@ -559,9 +561,9 @@ func (b *Bot) showConfigMenu(chatId int64, id int) {
 	usage := b.shopService.Usage(cfg)
 	body := tt.configDetailCard(cfg, usage.UsedBytes, cfg.ChargedTraffic+cfg.ChargedDays, b.currency())
 
-	toggle := btnCfgPause
+	toggle := b.m(btnCfgPause)
 	if cfg.Paused {
-		toggle = btnCfgResume
+		toggle = b.m(btnCfgResume)
 	}
 	kb := tu.InlineKeyboard(
 		tu.InlineKeyboardRow(
@@ -922,9 +924,9 @@ func (b *Bot) showDiscounts(chatId int64) {
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton(b.m(btnNewCode)).WithCallbackData("dscnew"),
 	))
-	body := msgNoDiscounts
+	body := b.m(msgNoDiscounts)
 	if len(codes) > 0 {
-		body = msgPickDiscount
+		body = b.m(msgPickDiscount)
 	}
 	b.send(chatId, body, tu.InlineKeyboard(rows...))
 }
