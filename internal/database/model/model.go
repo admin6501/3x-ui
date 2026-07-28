@@ -345,7 +345,13 @@ type BotConfig struct {
         // kept apart from Active, which billing owns: without it the next billing
         // run would see a funded wallet and switch a deliberately paused config
         // straight back on.
-        Paused    bool  `json:"paused" gorm:"default:false"`
+        Paused bool `json:"paused" gorm:"default:false"`
+        // DeadSince is when the config first became unusable through no choice of
+        // its owner — traffic exhausted, or the wallet empty. It is what the
+        // clean-up sweep counts from, and is cleared the moment the config
+        // recovers. 0 means the config is fine. A config its owner paused on
+        // purpose is not dead and is never swept.
+        DeadSince int64 `json:"deadSince" gorm:"default:0"`
         CreatedAt int64 `json:"createdAt" gorm:"autoCreateTime:milli"`
         UpdatedAt int64 `json:"updatedAt" gorm:"autoUpdateTime:milli"`
 }

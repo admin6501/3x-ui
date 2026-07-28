@@ -53,6 +53,7 @@ export interface AllSetting {
   sessionMaxAge: number;
   shopBillingInterval: number;
   shopConfigDays: number;
+  shopDeleteDeadDays: number;
   shopInboundId: number;
   shopJoinChannel: string;
   shopMaxTopUp: number;
@@ -181,6 +182,7 @@ export interface AllSettingView {
   sessionMaxAge: number;
   shopBillingInterval: number;
   shopConfigDays: number;
+  shopDeleteDeadDays: number;
   shopInboundId: number;
   shopJoinChannel: string;
   shopMaxTopUp: number;

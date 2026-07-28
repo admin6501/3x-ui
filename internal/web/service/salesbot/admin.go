@@ -202,8 +202,17 @@ func (b *Bot) handleConversation(msg telego.Message, st *state) bool {
 			b.send(chatId, b.m(msgVolumeBad))
 			return true
 		}
+		b.askConfigName(chatId, volume)
+		return true
+
+	case stepConfigNameChoice:
+		// The choice is made with buttons; a typed message here is a nudge.
+		b.send(chatId, b.m(msgAskNameChoice))
+		return true
+
+	case stepConfigName:
 		b.states.clear(chatId)
-		b.createConfig(chatId, volume)
+		b.createConfig(chatId, st.volumeGB, text)
 		return true
 
 	case stepDiscountCode:

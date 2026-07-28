@@ -348,6 +348,8 @@ func (s *Server) startTask(restartXray bool) {
 	// changing that setting takes effect without a restart.
 	s.cron.AddJob("@every 1m", job.NewShopBillingJob(func(ids []int64) {
 		salesbot.Manager(&s.inboundService, &s.xrayService).NotifySuspended(ids)
+	}, func(deleted []service.DeletedConfig) {
+		salesbot.Manager(&s.inboundService, &s.xrayService).NotifyDeleted(deleted)
 	}))
 
 	// check client ips from log file every day

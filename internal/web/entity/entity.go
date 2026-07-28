@@ -167,6 +167,8 @@ type AllSetting struct {
 	ShopConfigDays  int    `json:"shopConfigDays" form:"shopConfigDays" validate:"gte=0"`   // Validity of a new config in days; 0 = no expiry
 	// ShopBillingInterval is how many minutes pass between billing runs.
 	ShopBillingInterval int `json:"shopBillingInterval" form:"shopBillingInterval" validate:"gte=0,lte=1440"`
+	// ShopDeleteDeadDays is how long a dead config survives before the shop deletes it. 0 = never.
+	ShopDeleteDeadDays int `json:"shopDeleteDeadDays" form:"shopDeleteDeadDays" validate:"gte=0,lte=3650"`
 }
 
 // AllSettingView is the browser-safe settings read model. Secret values

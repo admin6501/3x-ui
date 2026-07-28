@@ -37,6 +37,8 @@ var (
 	ErrNoShopInbound    = errors.New("no inbound is configured for the shop")
 	ErrUserBlocked      = errors.New("this user is blocked")
 	ErrConfigNotFound   = errors.New("config not found")
+	ErrNameInvalid      = errors.New("a config name must be 3-32 characters of letters, digits, dot, dash or underscore")
+	ErrNameTaken        = errors.New("that config name is already in use")
 )
 
 const shopBytesPerGB = int64(1024 * 1024 * 1024)
@@ -338,7 +340,9 @@ func (s *ShopService) CountPendingTopUps() int64 {
 // CreateConfig makes a panel client on the shop's inbound with the requested
 // traffic cap and records it for billing. Nothing is charged here: the user
 // pays for what they actually consume.
-func (s *ShopService) CreateConfig(inboundSvc *InboundService, telegramId int64, volumeGB int64) (*model.BotConfig, error) {
+// CreateConfig sells one config. name is what the buyer asked it to be called;
+// empty means "pick one for me".
+func (s *ShopService) CreateConfig(inboundSvc *InboundService, telegramId int64, volumeGB int64, name string) (*model.BotConfig, error) {
 	user, err := s.User(telegramId, "", "")
 	if err != nil {
 		return nil, err
@@ -368,7 +372,10 @@ func (s *ShopService) CreateConfig(inboundSvc *InboundService, telegramId int64,
 		return nil, ErrNoShopInbound
 	}
 
-	email := s.freeEmail(telegramId)
+	email, err := s.configEmail(name)
+	if err != nil {
+		return nil, err
+	}
 	subId := random.NumLower(16)
 	client := model.Client{
 		Email:   email,
@@ -397,21 +404,76 @@ func (s *ShopService) CreateConfig(inboundSvc *InboundService, telegramId int64,
 	return cfg, nil
 }
 
-// freeEmail builds a client email that is unique in the panel.
-func (s *ShopService) freeEmail(telegramId int64) string {
-	db := database.GetDB()
-	for range 20 {
-		candidate := fmt.Sprintf("tg%d_%s", telegramId, strings.ToLower(random.NumLower(4)))
-		var count int64
-		if err := db.Model(&model.ClientRecord{}).Where("email = ?", candidate).Count(&count).Error; err != nil {
-			return candidate
+// configEmail settles on the name a config is stored under. A name the buyer
+// typed is validated and taken as-is; an empty one is generated.
+func (s *ShopService) configEmail(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return s.freeEmail(), nil
+	}
+	if err := ValidateConfigName(name); err != nil {
+		return "", err
+	}
+	taken, err := s.nameTaken(name)
+	if err != nil {
+		return "", err
+	}
+	if taken {
+		return "", ErrNameTaken
+	}
+	return name, nil
+}
+
+// ValidateConfigName is what a buyer may call their own config. The panel keys
+// clients by this string and puts it in share links and traffic stats, so it is
+// kept to plain ASCII of a sane length rather than whatever a phone keyboard can
+// produce.
+func ValidateConfigName(name string) error {
+	name = strings.TrimSpace(name)
+	if len(name) < configNameMinLen || len(name) > configNameMaxLen {
+		return ErrNameInvalid
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case r == '_', r == '-', r == '.':
+		default:
+			return ErrNameInvalid
 		}
-		if count == 0 {
+	}
+	return nil
+}
+
+const (
+	configNameMinLen = 3
+	configNameMaxLen = 32
+)
+
+func (s *ShopService) nameTaken(name string) (bool, error) {
+	var count int64
+	if err := database.GetDB().Model(&model.ClientRecord{}).
+		Where("email = ?", name).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// freeEmail invents a config name that is unique in the panel.
+//
+// It deliberately carries no Telegram id: the name travels in share links, in
+// the subscription page and in the panel's client list, and pinning a buyer's
+// account id to all of those identifies them to anyone who sees one.
+func (s *ShopService) freeEmail() string {
+	for range 20 {
+		candidate := configNamePrefix + strings.ToLower(random.NumLower(8))
+		if taken, err := s.nameTaken(candidate); err != nil || !taken {
 			return candidate
 		}
 	}
-	return fmt.Sprintf("tg%d_%s", telegramId, strings.ToLower(random.NumLower(10)))
+	return configNamePrefix + strings.ToLower(random.NumLower(16))
 }
+
+const configNamePrefix = "cfg-"
 
 func (s *ShopService) ListConfigs(telegramId int64) ([]model.BotConfig, error) {
 	var rows []model.BotConfig
@@ -676,6 +738,88 @@ func (s *ShopService) reconcileWallets(inboundSvc *InboundService, touched map[i
 		}
 	}
 	return suspended
+}
+
+// DeletedConfig is one config the clean-up sweep removed, kept long enough to
+// tell its owner why it disappeared.
+type DeletedConfig struct {
+	TelegramId int64
+	Email      string
+}
+
+// MaintainConfigs marks configs that have gone dead, un-marks those that
+// recovered, and deletes the ones that have been dead longer than the admin's
+// configured grace period.
+//
+// "Dead" is traffic exhausted or an empty wallet — states the owner did not
+// choose. A config its owner paused on purpose is left alone however long it
+// stays off; deleting someone's config because they turned it off for a holiday
+// would be a nasty surprise.
+//
+// Marking runs even when the grace period is zero, so switching the sweep on
+// later does not immediately delete everything that was already dead.
+func (s *ShopService) MaintainConfigs(inboundSvc *InboundService) []DeletedConfig {
+	db := database.GetDB()
+	var configs []model.BotConfig
+	if err := db.Model(&model.BotConfig{}).Find(&configs).Error; err != nil || len(configs) == 0 {
+		return nil
+	}
+
+	balances := map[int64]int64{}
+	blocked := map[int64]bool{}
+	var users []model.BotUser
+	if err := db.Model(&model.BotUser{}).Find(&users).Error; err == nil {
+		for i := range users {
+			balances[users[i].TelegramId] = users[i].Balance
+			blocked[users[i].TelegramId] = users[i].Blocked
+		}
+	}
+
+	now := nowMilli()
+	graceDays, _ := s.settingService.GetShopDeleteDeadDays()
+	cutoff := int64(0)
+	if graceDays > 0 {
+		cutoff = now - int64(graceDays)*24*60*60*1000
+	}
+
+	var deleted []DeletedConfig
+	for i := range configs {
+		cfg := &configs[i]
+		dead := s.configIsDead(cfg, balances[cfg.TelegramId], blocked[cfg.TelegramId])
+
+		switch {
+		case !dead && cfg.DeadSince != 0:
+			_ = db.Model(&model.BotConfig{}).Where("id = ?", cfg.Id).Update("dead_since", 0).Error
+		case dead && cfg.DeadSince == 0:
+			_ = db.Model(&model.BotConfig{}).Where("id = ?", cfg.Id).Update("dead_since", now).Error
+		case dead && cutoff > 0 && cfg.DeadSince <= cutoff:
+			if err := s.DeleteConfig(inboundSvc, cfg.Id); err != nil {
+				logger.Warning("shop: could not sweep dead config", cfg.Email, err)
+				continue
+			}
+			logger.Debug("shop: swept dead config", cfg.Email)
+			deleted = append(deleted, DeletedConfig{TelegramId: cfg.TelegramId, Email: cfg.Email})
+		}
+	}
+	return deleted
+}
+
+// configIsDead reports whether a config is unusable for a reason its owner did
+// not pick.
+func (s *ShopService) configIsDead(cfg *model.BotConfig, balance int64, blocked bool) bool {
+	if cfg.Paused {
+		return false
+	}
+	if balance <= 0 || blocked {
+		return true
+	}
+	if cfg.VolumeGB > 0 {
+		usage := s.Usage(cfg)
+		if usage.UsedBytes >= cfg.VolumeGB*shopBytesPerGB {
+			return true
+		}
+	}
+	return false
 }
 
 // setClientEnabled flips one client's enable flag through the client service,

@@ -425,6 +425,12 @@ export default function TelegramTab({ allSetting, updateSetting }: TelegramTabPr
                 onChange={(v) => updateSetting({ shopBillingInterval: Number(v) || 0 })} />
             </SettingListItem>
 
+            <SettingListItem paddings="small" title={t('pages.settings.shopDeleteDeadDays')} description={t('pages.settings.shopDeleteDeadDaysDesc')}>
+              <InputNumber min={0} max={3650} style={{ width: '100%' }} value={allSetting.shopDeleteDeadDays}
+                disabled={!allSetting.salesBotEnable} data-testid="shop-delete-dead-days"
+                onChange={(v) => updateSetting({ shopDeleteDeadDays: Number(v) || 0 })} />
+            </SettingListItem>
+
             <SettingListItem paddings="small" title={t('pages.settings.shopMinTopUp')} description={t('pages.settings.shopMinTopUpDesc')}>
               <InputNumber min={0} style={{ width: '100%' }} value={allSetting.shopMinTopUp}
                 disabled={!allSetting.salesBotEnable} data-testid="shop-min-topup"

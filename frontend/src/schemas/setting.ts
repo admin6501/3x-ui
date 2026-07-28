@@ -109,6 +109,7 @@ export const AllSettingSchema = z.object({
   shopJoinChannel: z.string().optional(),
   shopConfigDays: nonNegativeInt.optional(),
   shopBillingInterval: nonNegativeInt.optional(),
+  shopDeleteDeadDays: nonNegativeInt.optional(),
 }).loose();
 
 export type AllSettingInput = z.infer<typeof AllSettingSchema>;

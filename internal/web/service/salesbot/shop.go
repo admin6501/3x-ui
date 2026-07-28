@@ -25,6 +25,10 @@ const (
 	stepAdjustAmount = "adjust_amount"
 	stepDiscountCode = "discount_code"
 	stepNewDiscount  = "new_discount"
+	// The two halves of naming a new config: choosing how it is named, and — if
+	// the buyer wants to choose — typing the name.
+	stepConfigNameChoice = "config_name_choice"
+	stepConfigName       = "config_name"
 )
 
 func nowMilli() int64 { return time.Now().UnixMilli() }
@@ -345,8 +349,20 @@ func (b *Bot) askVolume(chatId int64) {
 	b.send(chatId, prompt, b.cancelKeyboard())
 }
 
-func (b *Bot) createConfig(chatId int64, volumeGB int64) {
-	cfg, err := b.shopService.CreateConfig(b.inboundService, chatId, volumeGB)
+// askConfigName is the step between naming a size and getting the config. A
+// buyer who does not care presses one button; one who does gets to choose,
+// rather than being handed a name the shop invented for them.
+func (b *Bot) askConfigName(chatId int64, volumeGB int64) {
+	b.states.set(chatId, &state{step: stepConfigNameChoice, volumeGB: volumeGB})
+	kb := tu.InlineKeyboard(tu.InlineKeyboardRow(
+		tu.InlineKeyboardButton(b.m(btnNameAuto)).WithCallbackData("nameauto"),
+		tu.InlineKeyboardButton(b.m(btnNameCustom)).WithCallbackData("namecustom"),
+	))
+	b.send(chatId, b.m(msgAskNameChoice), kb)
+}
+
+func (b *Bot) createConfig(chatId int64, volumeGB int64, name string) {
+	cfg, err := b.shopService.CreateConfig(b.inboundService, chatId, volumeGB, name)
 	if err != nil {
 		switch err {
 		case service.ErrInsufficientFund:
@@ -356,6 +372,10 @@ func (b *Bot) createConfig(chatId int64, volumeGB int64) {
 			b.send(chatId, b.t().f("msg.maxVolumeIs", b.t().quota(maxVol)), b.shopMenu(chatId))
 		case service.ErrVolumeInvalid:
 			b.send(chatId, b.m(msgVolumeBad), b.shopMenu(chatId))
+		case service.ErrNameInvalid:
+			b.send(chatId, b.m(msgNameInvalid), b.shopMenu(chatId))
+		case service.ErrNameTaken:
+			b.send(chatId, b.m(msgNameTaken), b.shopMenu(chatId))
 		case service.ErrNoShopInbound:
 			b.send(chatId, b.m(msgShopNoInbound), b.shopMenu(chatId))
 		case service.ErrUserBlocked:
@@ -609,6 +629,10 @@ func (b *Bot) addVolume(chatId int64, id int, extraGB int64) {
 			b.send(chatId, tt.f("msg.maxVolumePerConfig", tt.quota(maxVol)), b.shopMenu(chatId))
 		case service.ErrVolumeInvalid:
 			b.send(chatId, b.m(msgVolumeBad), b.shopMenu(chatId))
+		case service.ErrNameInvalid:
+			b.send(chatId, b.m(msgNameInvalid), b.shopMenu(chatId))
+		case service.ErrNameTaken:
+			b.send(chatId, b.m(msgNameTaken), b.shopMenu(chatId))
 		default:
 			b.send(chatId, b.m(msgSomethingWrong), b.shopMenu(chatId))
 		}
@@ -679,6 +703,18 @@ func (b *Bot) NotifySuspended(ids []int64) {
 	}
 	for _, id := range ids {
 		b.send(id, b.m(msgSuspended), b.shopMenu(id))
+	}
+}
+
+// NotifyDeleted tells owners that the clean-up sweep removed a config of theirs.
+// A config disappearing without a word would read as the shop having lost it.
+func (b *Bot) NotifyDeleted(deleted []service.DeletedConfig) {
+	if !b.IsRunning() {
+		return
+	}
+	tt := b.t()
+	for _, d := range deleted {
+		b.send(d.TelegramId, tt.f("msg.configSwept", esc(d.Email)), b.shopMenu(d.TelegramId))
 	}
 }
 

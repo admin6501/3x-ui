@@ -25,7 +25,7 @@ func setBillingInterval(t *testing.T, minutes int) {
 func TestBillingHonoursTheConfiguredInterval(t *testing.T) {
 	setupJobDB(t)
 	setBillingInterval(t, 5)
-	j := NewShopBillingJob(nil)
+	j := NewShopBillingJob(nil, nil)
 
 	start := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	if !j.due(start) {
@@ -83,7 +83,7 @@ func TestBillingIntervalCannotBeSwitchedOff(t *testing.T) {
 
 	// A zero in the settings must not make every tick bill.
 	setBillingInterval(t, 0)
-	j := NewShopBillingJob(nil)
+	j := NewShopBillingJob(nil, nil)
 	start := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	if !j.due(start) {
 		t.Fatal("first tick should bill")

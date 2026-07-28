@@ -26,14 +26,17 @@ type ShopBillingJob struct {
 	// notify tells the bot which users were just cut off, so they hear about it
 	// from the shop rather than by noticing their connection died. Optional.
 	notify func(telegramIds []int64)
+	// notifyDeleted tells the bot whose configs the clean-up sweep removed. A
+	// config vanishing without a word would read as the shop losing it. Optional.
+	notifyDeleted func(deleted []service.DeletedConfig)
 
 	mu      sync.Mutex
 	lastRun time.Time
 }
 
-// NewShopBillingJob creates the billing job. notify may be nil.
-func NewShopBillingJob(notify func([]int64)) *ShopBillingJob {
-	return &ShopBillingJob{notify: notify}
+// NewShopBillingJob creates the billing job. Both callbacks may be nil.
+func NewShopBillingJob(notify func([]int64), notifyDeleted func([]service.DeletedConfig)) *ShopBillingJob {
+	return &ShopBillingJob{notify: notify, notifyDeleted: notifyDeleted}
 }
 
 // due reports whether the configured interval has elapsed, and records the run.
@@ -60,5 +63,14 @@ func (j *ShopBillingJob) Run() {
 	}
 	if len(result.SuspendedIds) > 0 && j.notify != nil {
 		j.notify(result.SuspendedIds)
+	}
+
+	// The sweep runs on the same tick but is independent of pricing: a shop that
+	// charges nothing still accumulates configs whose owner walked away.
+	if deleted := j.shopService.MaintainConfigs(&j.inboundService); len(deleted) > 0 {
+		logger.Debugf("shop: swept %d config(s) that had been dead past the grace period", len(deleted))
+		if j.notifyDeleted != nil {
+			j.notifyDeleted(deleted)
+		}
 	}
 }

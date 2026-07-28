@@ -178,6 +178,26 @@ func (b *Bot) onCallback(q telego.CallbackQuery) {
 		b.answer(q.ID, b.m(msgCancelled))
 		b.send(chatId, b.m(msgCancelled), b.shopMenu(chatId))
 
+	case "nameauto":
+		st, ok := b.states.get(chatId)
+		if !ok || st.step != stepConfigNameChoice {
+			b.answer(q.ID, b.m(msgSomethingWrong))
+			return
+		}
+		b.states.clear(chatId)
+		b.answer(q.ID, "")
+		b.createConfig(chatId, st.volumeGB, "")
+
+	case "namecustom":
+		st, ok := b.states.get(chatId)
+		if !ok || st.step != stepConfigNameChoice {
+			b.answer(q.ID, b.m(msgSomethingWrong))
+			return
+		}
+		b.states.set(chatId, &state{step: stepConfigName, volumeGB: st.volumeGB})
+		b.answer(q.ID, "")
+		b.send(chatId, b.m(msgAskName), b.cancelKeyboard())
+
 	case "cfglist":
 		b.answer(q.ID, "")
 		b.showConfigs(chatId)

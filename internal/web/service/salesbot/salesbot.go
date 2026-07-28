@@ -381,6 +381,8 @@ type state struct {
 	targetUser int64
 	// configId is the config a buyer's config-management step applies to.
 	configId int
+	// volumeGB is the size a buyer picked, held while they choose a name for it.
+	volumeGB int64
 	touched  time.Time
 }
 

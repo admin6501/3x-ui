@@ -246,6 +246,8 @@ const (
 	btnCfgBack      = "ibtn.back"
 	btnHaveCode     = "ibtn.haveCode"
 	btnNewCode      = "ibtn.newCode"
+	btnNameAuto     = "ibtn.nameAuto"
+	btnNameCustom   = "ibtn.nameCustom"
 	btnJoinChannel  = "ibtn.joinChannel"
 	btnApprove      = "ibtn.approve"
 	btnReject       = "ibtn.reject"
@@ -320,6 +322,10 @@ const (
 	msgNoConfigsYet       = "msg.noConfigsYet"
 	msgConfigCreated      = "msg.configCreated"
 	msgMainMenu           = "msg.mainMenu"
+	msgAskNameChoice      = "msg.askNameChoice"
+	msgAskName            = "msg.askName"
+	msgNameInvalid        = "msg.nameInvalid"
+	msgNameTaken          = "msg.nameTaken"
 )
 
 // t returns a translator for the language the shop is configured to speak.

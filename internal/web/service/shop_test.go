@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/database"
@@ -152,7 +154,7 @@ func TestRunningOutSwitchesConfigsOff(t *testing.T) {
 	if _, err := shop.Adjust(900003, 3000, "seed"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	cfg, err := shop.CreateConfig(inboundSvc, 900003, 10)
+	cfg, err := shop.CreateConfig(inboundSvc, 900003, 10, "")
 	if err != nil {
 		t.Fatalf("create config: %v", err)
 	}
@@ -308,21 +310,21 @@ func TestBuyingNeedsFunds(t *testing.T) {
 	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "20000", "shopMaxVolumeGB": "100"})
 
 	_, _ = shop.User(900008, "", "")
-	if _, err := shop.CreateConfig(inboundSvc, 900008, 10); err != ErrInsufficientFund {
+	if _, err := shop.CreateConfig(inboundSvc, 900008, 10, ""); err != ErrInsufficientFund {
 		t.Errorf("empty wallet = %v, want ErrInsufficientFund", err)
 	}
 	_, _ = shop.Adjust(900008, 10000, "seed")
-	if _, err := shop.CreateConfig(inboundSvc, 900008, 10); err != ErrInsufficientFund {
+	if _, err := shop.CreateConfig(inboundSvc, 900008, 10, ""); err != ErrInsufficientFund {
 		t.Errorf("below the minimum balance = %v, want ErrInsufficientFund", err)
 	}
 	_, _ = shop.Adjust(900008, 20000, "seed")
-	if _, err := shop.CreateConfig(inboundSvc, 900008, 200); err != ErrVolumeTooLarge {
+	if _, err := shop.CreateConfig(inboundSvc, 900008, 200, ""); err != ErrVolumeTooLarge {
 		t.Errorf("over the volume ceiling = %v, want ErrVolumeTooLarge", err)
 	}
-	if _, err := shop.CreateConfig(inboundSvc, 900008, 0); err != ErrVolumeInvalid {
+	if _, err := shop.CreateConfig(inboundSvc, 900008, 0, ""); err != ErrVolumeInvalid {
 		t.Errorf("zero volume = %v, want ErrVolumeInvalid", err)
 	}
-	cfg, err := shop.CreateConfig(inboundSvc, 900008, 10)
+	cfg, err := shop.CreateConfig(inboundSvc, 900008, 10, "")
 	if err != nil {
 		t.Fatalf("a funded user could not buy: %v", err)
 	}
@@ -347,11 +349,11 @@ func TestConfigNeedsAnInbound(t *testing.T) {
 
 	_, _ = shop.User(900009, "", "")
 	_, _ = shop.Adjust(900009, 100000, "seed")
-	if _, err := shop.CreateConfig(inboundSvc, 900009, 10); err != ErrNoShopInbound {
+	if _, err := shop.CreateConfig(inboundSvc, 900009, 10, ""); err != ErrNoShopInbound {
 		t.Errorf("unset inbound = %v, want ErrNoShopInbound", err)
 	}
 	setShop(t, 2000, 0, 4242, nil)
-	if _, err := shop.CreateConfig(inboundSvc, 900009, 10); err != ErrNoShopInbound {
+	if _, err := shop.CreateConfig(inboundSvc, 900009, 10, ""); err != ErrNoShopInbound {
 		t.Errorf("inbound that does not exist = %v, want ErrNoShopInbound", err)
 	}
 }
@@ -442,7 +444,7 @@ func TestPausingSurvivesABillingRun(t *testing.T) {
 	if _, err := shop.Adjust(900011, 100000, "seed"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	cfg, err := shop.CreateConfig(inboundSvc, 900011, 10)
+	cfg, err := shop.CreateConfig(inboundSvc, 900011, 10, "")
 	if err != nil {
 		t.Fatalf("create config: %v", err)
 	}
@@ -497,7 +499,7 @@ func TestResumingWithAnEmptyWalletStaysOff(t *testing.T) {
 	if _, err := shop.Adjust(900012, 5000, "seed"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	cfg, err := shop.CreateConfig(inboundSvc, 900012, 10)
+	cfg, err := shop.CreateConfig(inboundSvc, 900012, 10, "")
 	if err != nil {
 		t.Fatalf("create config: %v", err)
 	}
@@ -530,7 +532,7 @@ func TestAddVolumeRaisesTheCapWithoutCharging(t *testing.T) {
 	if _, err := shop.Adjust(900013, 100000, "seed"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	cfg, err := shop.CreateConfig(inboundSvc, 900013, 10)
+	cfg, err := shop.CreateConfig(inboundSvc, 900013, 10, "")
 	if err != nil {
 		t.Fatalf("create config: %v", err)
 	}
@@ -560,5 +562,214 @@ func TestAddVolumeRaisesTheCapWithoutCharging(t *testing.T) {
 	}
 	if _, err := shop.AddVolume(inboundSvc, cfg.Id, 0); err != ErrVolumeInvalid {
 		t.Errorf("adding zero returned %v, want ErrVolumeInvalid", err)
+	}
+}
+
+// TestAutoNameCarriesNoTelegramId: the config name travels in share links, in
+// the subscription page and in the panel's client list. Putting the buyer's
+// Telegram id in it would identify them to anyone who sees any of those.
+func TestAutoNameCarriesNoTelegramId(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34021, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0"})
+
+	const telegramId = int64(918273645)
+	_, _ = shop.User(telegramId, "", "")
+	if _, err := shop.Adjust(telegramId, 100000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, err := shop.CreateConfig(inboundSvc, telegramId, 10, "")
+	if err != nil {
+		t.Fatalf("create config: %v", err)
+	}
+	if strings.Contains(cfg.Email, "918273645") {
+		t.Errorf("generated name %q leaks the buyer's Telegram id", cfg.Email)
+	}
+	if !strings.HasPrefix(cfg.Email, "cfg-") {
+		t.Errorf("generated name %q does not look like a shop config name", cfg.Email)
+	}
+	// Two configs in a row must not collide.
+	second, err := shop.CreateConfig(inboundSvc, telegramId, 10, "")
+	if err != nil {
+		t.Fatalf("create second config: %v", err)
+	}
+	if second.Email == cfg.Email {
+		t.Error("two generated names collided")
+	}
+}
+
+// TestBuyerChosenName covers the other half: a name the buyer typed is used
+// as-is, and the ones that would break the panel are refused.
+func TestBuyerChosenName(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34022, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0"})
+
+	_, _ = shop.User(900051, "", "")
+	if _, err := shop.Adjust(900051, 100000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	cfg, err := shop.CreateConfig(inboundSvc, 900051, 5, "my-phone")
+	if err != nil {
+		t.Fatalf("create with a chosen name: %v", err)
+	}
+	if cfg.Email != "my-phone" {
+		t.Errorf("config name = %q, want my-phone", cfg.Email)
+	}
+	// The panel keys clients by this, so a duplicate has to be refused.
+	if _, err := shop.CreateConfig(inboundSvc, 900051, 5, "my-phone"); !errors.Is(err, ErrNameTaken) {
+		t.Errorf("duplicate name returned %v, want ErrNameTaken", err)
+	}
+	for _, bad := range []string{"ab", strings.Repeat("x", 33), "has space", "quote\"", "emoji😀", "semi;colon"} {
+		if _, err := shop.CreateConfig(inboundSvc, 900051, 5, bad); !errors.Is(err, ErrNameInvalid) {
+			t.Errorf("name %q returned %v, want ErrNameInvalid", bad, err)
+		}
+	}
+	// Surrounding whitespace is the user's keyboard, not their intent.
+	if cfg, err := shop.CreateConfig(inboundSvc, 900051, 5, "  laptop  "); err != nil {
+		t.Errorf("padded name refused: %v", err)
+	} else if cfg.Email != "laptop" {
+		t.Errorf("padded name stored as %q", cfg.Email)
+	}
+}
+
+// TestDeadConfigsAreSweptAfterTheGracePeriod is the clean-up: a config whose
+// traffic ran out, or whose owner's wallet is empty, disappears from both the
+// bot and the panel once it has been that way longer than the admin allows.
+func TestDeadConfigsAreSweptAfterTheGracePeriod(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34023, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0", "shopDeleteDeadDays": "7"})
+
+	_, _ = shop.User(900061, "", "")
+	if _, err := shop.Adjust(900061, 100000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	alive, err := shop.CreateConfig(inboundSvc, 900061, 10, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	spent, err := shop.CreateConfig(inboundSvc, 900061, 10, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	meter(t, spent.Email, 10*gb) // used its whole allowance
+
+	// First pass only marks; nothing is old enough to sweep.
+	if deleted := shop.MaintainConfigs(inboundSvc); len(deleted) != 0 {
+		t.Fatalf("first pass deleted %v, want nothing", deleted)
+	}
+	marked, _ := shop.GetConfig(spent.Id)
+	if marked.DeadSince == 0 {
+		t.Error("the out-of-traffic config was not marked dead")
+	}
+	healthy, _ := shop.GetConfig(alive.Id)
+	if healthy.DeadSince != 0 {
+		t.Error("a healthy config was marked dead")
+	}
+
+	// Backdate it past the grace period.
+	if err := database.GetDB().Model(&model.BotConfig{}).Where("id = ?", spent.Id).
+		Update("dead_since", nowMilli()-8*24*60*60*1000).Error; err != nil {
+		t.Fatalf("backdate: %v", err)
+	}
+	deleted := shop.MaintainConfigs(inboundSvc)
+	if len(deleted) != 1 || deleted[0].Email != spent.Email {
+		t.Fatalf("swept %v, want just %s", deleted, spent.Email)
+	}
+	if _, err := shop.GetConfig(spent.Id); err == nil {
+		t.Error("the config row survived the sweep")
+	}
+	if _, err := shop.clientService.GetRecordByEmail(nil, spent.Email); err == nil {
+		t.Error("the panel client survived the sweep — it should go from both sides")
+	}
+	if _, err := shop.GetConfig(alive.Id); err != nil {
+		t.Error("the healthy config was swept too")
+	}
+}
+
+// TestSweepLeavesPausedAndRecoveredConfigsAlone: pausing is a choice, and a
+// config that comes back to life must lose its death mark rather than carry an
+// old timestamp into the next outage.
+func TestSweepLeavesPausedAndRecoveredConfigsAlone(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34024, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0", "shopDeleteDeadDays": "1"})
+
+	_, _ = shop.User(900071, "", "")
+	if _, err := shop.Adjust(900071, 100000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	paused, err := shop.CreateConfig(inboundSvc, 900071, 10, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := shop.SetConfigPaused(inboundSvc, paused.Id, true); err != nil {
+		t.Fatalf("pause: %v", err)
+	}
+	shop.MaintainConfigs(inboundSvc)
+	reloaded, _ := shop.GetConfig(paused.Id)
+	if reloaded.DeadSince != 0 {
+		t.Error("a config the owner paused was marked dead")
+	}
+
+	// A wallet that empties and then refills clears the mark.
+	other, err := shop.CreateConfig(inboundSvc, 900071, 10, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := shop.Adjust(900071, -100000, "drain"); err != nil {
+		t.Fatalf("drain: %v", err)
+	}
+	shop.MaintainConfigs(inboundSvc)
+	if got, _ := shop.GetConfig(other.Id); got.DeadSince == 0 {
+		t.Fatal("an empty wallet did not mark the config dead")
+	}
+	if _, err := shop.Adjust(900071, 50000, "refill"); err != nil {
+		t.Fatalf("refill: %v", err)
+	}
+	shop.MaintainConfigs(inboundSvc)
+	if got, _ := shop.GetConfig(other.Id); got.DeadSince != 0 {
+		t.Error("topping up did not clear the death mark")
+	}
+}
+
+// TestSweepIsOffByDefault: a panel that never sets the grace period must not
+// start deleting people's configs after an upgrade.
+func TestSweepIsOffByDefault(t *testing.T) {
+	setupBulkDB(t)
+	shop := &ShopService{}
+	inboundSvc := &InboundService{}
+	ib := mkInbound(t, 34025, model.VLESS, `{"clients":[]}`)
+	setShop(t, 2000, 0, ib.Id, map[string]string{"shopMinBalance": "0"})
+
+	_, _ = shop.User(900081, "", "")
+	if _, err := shop.Adjust(900081, 100000, "seed"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, err := shop.CreateConfig(inboundSvc, 900081, 10, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	meter(t, cfg.Email, 20*gb)
+	shop.MaintainConfigs(inboundSvc)
+	if err := database.GetDB().Model(&model.BotConfig{}).Where("id = ?", cfg.Id).
+		Update("dead_since", int64(1)).Error; err != nil {
+		t.Fatalf("backdate: %v", err)
+	}
+	if deleted := shop.MaintainConfigs(inboundSvc); len(deleted) != 0 {
+		t.Errorf("swept %v with the grace period unset", deleted)
+	}
+	if _, err := shop.GetConfig(cfg.Id); err != nil {
+		t.Error("a config was deleted with the sweep switched off")
 	}
 }

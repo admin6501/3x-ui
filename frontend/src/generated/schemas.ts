@@ -181,6 +181,12 @@ export const SCHEMAS: Record<string, unknown> = {
         "minimum": 0,
         "type": "integer"
       },
+      "shopDeleteDeadDays": {
+        "description": "ShopDeleteDeadDays is how long a dead config survives before the shop deletes it. 0 = never.",
+        "maximum": 3650,
+        "minimum": 0,
+        "type": "integer"
+      },
       "shopInboundId": {
         "description": "Inbound the shop creates configs on",
         "minimum": 0,
@@ -541,6 +547,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "sessionMaxAge",
       "shopBillingInterval",
       "shopConfigDays",
+      "shopDeleteDeadDays",
       "shopInboundId",
       "shopJoinChannel",
       "shopMaxTopUp",
@@ -818,6 +825,12 @@ export const SCHEMAS: Record<string, unknown> = {
       },
       "shopConfigDays": {
         "description": "Validity of a new config in days; 0 = no expiry",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shopDeleteDeadDays": {
+        "description": "ShopDeleteDeadDays is how long a dead config survives before the shop deletes it. 0 = never.",
+        "maximum": 3650,
         "minimum": 0,
         "type": "integer"
       },
@@ -1189,6 +1202,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "sessionMaxAge",
       "shopBillingInterval",
       "shopConfigDays",
+      "shopDeleteDeadDays",
       "shopInboundId",
       "shopJoinChannel",
       "shopMaxTopUp",

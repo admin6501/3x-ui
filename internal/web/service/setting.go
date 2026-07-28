@@ -166,6 +166,9 @@ var defaultValueMap = map[string]string{
 	"shopConfigDays":  "0",
 	// How often, in minutes, the billing run meters every config.
 	"shopBillingInterval": "2",
+	// Days a config may stay dead (out of traffic, or wallet empty) before the
+	// shop deletes it. 0 = never delete.
+	"shopDeleteDeadDays": "0",
 
 	// Event bus — per-subscriber event filtering (empty = all disabled)
 	"tgEnabledEvents":   "login.attempt,cpu.high",
@@ -1143,6 +1146,17 @@ func ClampShopBillingInterval(v int) int {
 		return ShopBillingIntervalMax
 	}
 	return v
+}
+
+// GetShopDeleteDeadDays is how many days a config may sit dead — out of traffic,
+// or with an empty wallet — before the shop deletes it from both the bot and the
+// panel. 0 means never.
+func (s *SettingService) GetShopDeleteDeadDays() (int, error) {
+	v, err := s.getInt("shopDeleteDeadDays")
+	if err != nil || v < 0 {
+		return 0, err
+	}
+	return v, nil
 }
 
 // GetShopJoinChannel is the channel a user must be a member of before the shop

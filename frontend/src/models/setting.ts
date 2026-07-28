@@ -127,6 +127,7 @@ export class AllSetting {
   shopJoinChannel = '';
   shopConfigDays = 0;
   shopBillingInterval = 2;
+  shopDeleteDeadDays = 0;
 
   constructor(data?: unknown) {
     if (data != null) {
