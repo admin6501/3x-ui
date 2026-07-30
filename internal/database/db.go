@@ -514,7 +514,7 @@ func runSeeders(isUsersEmpty bool) error {
 	}
 
 	if empty && isUsersEmpty {
-		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted"}
+		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted", "InboundRealityMinClientVerPin"}
 		for _, name := range seeders {
 			if err := db.Create(&model.HistoryOfSeeders{SeederName: name}).Error; err != nil {
 				return err
@@ -621,6 +621,12 @@ func runSeeders(isUsersEmpty bool) error {
 
 	if !slices.Contains(seedersHistory, "NodeInboundsAdopted") {
 		if err := seedNodeInboundsAdopted(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "InboundRealityMinClientVerPin") {
+		if err := pinRealityMinClientVer(); err != nil {
 			return err
 		}
 	}
@@ -1636,6 +1642,39 @@ func stripRealityTcpFinalMask() error {
 		log.Printf("InboundRealityFinalmaskTcpStrip: nothing to strip")
 	}
 	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityFinalmaskTcpStrip"}).Error
+}
+
+// pinRealityMinClientVer backfills the REALITY client floor onto inbounds saved
+// while the panel still left the field blank.
+//
+// Without this the value only ever reached the generated config, so the core
+// enforced a floor the edit form showed as empty — the operator could see
+// clients being refused but not the setting refusing them.
+func pinRealityMinClientVer() error {
+	var inbounds []model.Inbound
+	if err := db.Model(&model.Inbound{}).
+		Where("stream_settings LIKE ?", "%realitySettings%").
+		Find(&inbounds).Error; err != nil {
+		return err
+	}
+	pinned := 0
+	for i := range inbounds {
+		ib := &inbounds[i]
+		rewritten, changed := model.PinRealityMinClientVerJSON(ib.StreamSettings)
+		if !changed {
+			continue
+		}
+		if err := db.Model(&model.Inbound{}).Where("id = ?", ib.Id).
+			Update("stream_settings", rewritten).Error; err != nil {
+			return err
+		}
+		pinned++
+		log.Printf("InboundRealityMinClientVerPin: set minClientVer=%s on REALITY inbound %d (%s); set it to 0.0.0 there if your clients have not updated", model.RealityDefaultMinClientVer, ib.Id, ib.Remark)
+	}
+	if pinned == 0 {
+		log.Printf("InboundRealityMinClientVerPin: nothing to pin")
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityMinClientVerPin"}).Error
 }
 
 // postgresConnectBackoff is how long to keep retrying the first connection,

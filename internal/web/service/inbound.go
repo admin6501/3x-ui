@@ -457,6 +457,16 @@ func (s *InboundService) normalizeStreamSettings(inbound *model.Inbound) {
 	}
 }
 
+// normalizeRealityMinClientVer stamps the REALITY client floor onto the inbound
+// before it is stored, so the value the core enforces is the value the edit
+// form shows. Pinning only the generated config left the panel displaying an
+// empty field while clients were being refused by a floor nobody could see.
+func (s *InboundService) normalizeRealityMinClientVer(inbound *model.Inbound) {
+	if pinned, changed := model.PinRealityMinClientVerJSON(inbound.StreamSettings); changed {
+		inbound.StreamSettings = pinned
+	}
+}
+
 // normalizeMtprotoSecret rebuilds an mtproto inbound's FakeTLS secret so it is
 // always valid and matches the configured domain before the row is persisted.
 func (s *InboundService) normalizeMtprotoSecret(inbound *model.Inbound) {
@@ -577,6 +587,7 @@ func (s *InboundService) normalizeMtprotoXrayPort(inbound *model.Inbound, oldSet
 func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, bool, error) {
 	// Normalize streamSettings based on protocol
 	s.normalizeStreamSettings(inbound)
+	s.normalizeRealityMinClientVer(inbound)
 	s.normalizeMtprotoSecret(inbound)
 	if err := s.normalizeMtprotoXrayPort(inbound, ""); err != nil {
 		return inbound, false, err
@@ -976,6 +987,7 @@ func (s *InboundService) SetInboundEnable(id int, enable bool) (bool, error) {
 func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, bool, error) {
 	// Normalize streamSettings based on protocol
 	s.normalizeStreamSettings(inbound)
+	s.normalizeRealityMinClientVer(inbound)
 	s.normalizeMtprotoSecret(inbound)
 	inbound.SubSortIndex = normalizeSubSortIndex(inbound.SubSortIndex)
 	if err := validateFinalMaskRealityCombo(inbound); err != nil {
