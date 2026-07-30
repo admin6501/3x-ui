@@ -15,14 +15,34 @@ import (
 	"gorm.io/gorm"
 )
 
+// MigrationRemoveOrphanedTraffics deletes client_traffics rows whose client no
+// longer exists anywhere.
+//
+// "Anywhere" has to mean both places a client can live. This originally keyed
+// orphanhood off presence in some inbound's settings.clients[] JSON, which was
+// the only definition before clients became a table of their own. Detaching a
+// client from its last inbound deliberately keeps its traffic row so it can be
+// re-attached later without losing its usage and expiry — but such a client has
+// no entry in any inbound's JSON, so the old query deleted its row on every
+// `x-ui migrate` and every backup restore, while the client itself sat
+// untouched in the list.
+//
+// Ported from upstream ff954ec4 (MHSanaei/3x-ui#6110).
 func (s *InboundService) MigrationRemoveOrphanedTraffics() {
 	db := database.GetDB()
 	query := fmt.Sprintf(
-		"DELETE FROM client_traffics WHERE email NOT IN (SELECT %s %s)",
+		"DELETE FROM client_traffics WHERE email NOT IN (SELECT email FROM clients) AND email NOT IN (SELECT %s %s)",
 		database.JSONFieldText("client.value", "email"),
 		database.JSONClientsFromInbound(),
 	)
-	db.Exec(query)
+	result := db.Exec(query)
+	if result.Error != nil {
+		logger.Warning("MigrationRemoveOrphanedTraffics failed:", result.Error)
+		return
+	}
+	if result.RowsAffected > 0 {
+		logger.Infof("MigrationRemoveOrphanedTraffics: removed %d orphaned client_traffics row(s)", result.RowsAffected)
+	}
 }
 
 func (s *InboundService) MigrationRequirements() {

@@ -581,6 +581,9 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 	if err := s.normalizeMtprotoXrayPort(inbound, ""); err != nil {
 		return inbound, false, err
 	}
+	if err := validateFinalMaskRealityCombo(inbound); err != nil {
+		return inbound, false, err
+	}
 	inbound.SubSortIndex = normalizeSubSortIndex(inbound.SubSortIndex)
 	inbound.TrafficMultiplier = NormalizeTrafficMultiplier(inbound.TrafficMultiplier)
 	if err := normalizeInboundShareAddressStrict(inbound); err != nil {
@@ -975,6 +978,9 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 	s.normalizeStreamSettings(inbound)
 	s.normalizeMtprotoSecret(inbound)
 	inbound.SubSortIndex = normalizeSubSortIndex(inbound.SubSortIndex)
+	if err := validateFinalMaskRealityCombo(inbound); err != nil {
+		return inbound, false, err
+	}
 
 	conflict, err := s.checkPortConflict(inbound, inbound.Id)
 	if err != nil {
@@ -1137,6 +1143,16 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 		if dirty {
 			markDirty = true
 		}
+		// A changed inbound is normally hot-swapped over gRPC as RemoveInbound
+		// + AddInbound, but xray-core does not reliably rebuild a REALITY
+		// listener's authenticator on a runtime re-add: a changed key or
+		// shortId looks applied in the panel while clients keep authenticating
+		// against the old parameters until someone restarts the core by hand.
+		// Restarting is the only way to make the edit real. Client-only edits
+		// go through the per-user path and still avoid restarts.
+		if realityAuthChanged(oldInbound, inbound) {
+			push = false
+		}
 		if oldInbound.NodeID == nil {
 			if !push {
 				needRestart = true
@@ -1246,6 +1262,13 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 
 	clients, ok := settings["clients"].([]any)
 	if !ok {
+		// No clients to filter, but fallbacks still have to be merged: they
+		// live in their own table and are only ever folded into settings by a
+		// builder, so a runtime inbound without this reaches the node with no
+		// fallbacks at all.
+		if err := s.injectFallbacks(&runtimeInbound, settings); err != nil {
+			return nil, err
+		}
 		return &runtimeInbound, nil
 	}
 
@@ -1283,6 +1306,13 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 	}
 
 	settings["clients"] = finalClients
+	if err := s.injectFallbacks(&runtimeInbound, settings); err != nil {
+		return nil, err
+	}
+	if runtimeInbound.Settings != inbound.Settings {
+		// injectFallbacks already serialised the map.
+		return &runtimeInbound, nil
+	}
 	modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return nil, err
@@ -1290,6 +1320,38 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 	runtimeInbound.Settings = string(modifiedSettings)
 
 	return &runtimeInbound, nil
+}
+
+// injectFallbacks folds an inbound's fallback rules into the settings map the
+// runtime config is built from.
+//
+// Fallbacks live in the inbound_fallbacks table and were only merged by the
+// master's own config builder, so a node-hosted inbound was pushed without
+// them: the fallback rules an operator configured simply did not exist on the
+// node, and every connection that should have been handed to a child inbound
+// was dropped instead.
+func (s *InboundService) injectFallbacks(runtimeInbound *model.Inbound, settings map[string]any) error {
+	if !inboundCanHostFallbacks(runtimeInbound) {
+		return nil
+	}
+	fallbacks, err := s.fallbackService.BuildFallbacksJSON(nil, runtimeInbound.Id)
+	if err != nil {
+		return err
+	}
+	if len(fallbacks) == 0 {
+		return nil
+	}
+	generic := make([]any, 0, len(fallbacks))
+	for _, f := range fallbacks {
+		generic = append(generic, f)
+	}
+	settings["fallbacks"] = generic
+	merged, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	runtimeInbound.Settings = string(merged)
+	return nil
 }
 
 // updateClientTraffics syncs the ClientTraffic rows with the inbound's clients

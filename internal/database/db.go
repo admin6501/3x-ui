@@ -514,7 +514,7 @@ func runSeeders(isUsersEmpty bool) error {
 	}
 
 	if empty && isUsersEmpty {
-		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "ApiTokensHash", "LegacyProxySettingsCleanup"}
+		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted"}
 		for _, name := range seeders {
 			if err := db.Create(&model.HistoryOfSeeders{SeederName: name}).Error; err != nil {
 				return err
@@ -603,6 +603,24 @@ func runSeeders(isUsersEmpty bool) error {
 
 	if !slices.Contains(seedersHistory, "LegacyProxySettingsCleanup") {
 		if err := clearLegacyProxySettings(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "FreedomFinalRulesPrivateEgressBlock") {
+		if err := blockFreedomPrivateEgress(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "InboundRealityFinalmaskTcpStrip") {
+		if err := stripRealityTcpFinalMask(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "NodeInboundsAdopted") {
+		if err := seedNodeInboundsAdopted(); err != nil {
 			return err
 		}
 	}
@@ -1270,7 +1288,7 @@ func InitDB(dbPath string) error {
 		if dsn == "" {
 			return errors.New("XUI_DB_TYPE=postgres but XUI_DB_DSN is empty")
 		}
-		db, err = gorm.Open(postgres.Open(dsn), c)
+		db, err = openPostgresWithRetry(dsn, c)
 		if err != nil {
 			return err
 		}
@@ -1282,7 +1300,8 @@ func InitDB(dbPath string) error {
 		// Keep journal_mode=DELETE so the DB stays a single file (no -wal/-shm
 		// sidecars). synchronous defaults to FULL for durability but is tunable.
 		sync := sqliteSynchronous()
-		dsn := dbPath + "?_journal_mode=DELETE&_busy_timeout=10000&_synchronous=" + sync + "&_txlock=immediate"
+		journal := sqliteJournalMode()
+		dsn := dbPath + "?_journal_mode=" + journal + "&_busy_timeout=10000&_synchronous=" + sync + "&_txlock=immediate"
 		db, err = gorm.Open(sqlite.Open(dsn), c)
 		if err != nil {
 			return err
@@ -1295,7 +1314,7 @@ func InitDB(dbPath string) error {
 		// cache_size/mmap_size/temp_store create no extra files, so the single-file
 		// guarantee holds; they just cut disk I/O on the 50k-row hot paths.
 		pragmas := []string{
-			"PRAGMA journal_mode=DELETE",
+			"PRAGMA journal_mode=" + journal,
 			"PRAGMA busy_timeout=10000",
 			"PRAGMA synchronous=" + sync,
 			fmt.Sprintf("PRAGMA cache_size=-%d", envInt("XUI_DB_CACHE_MB", 32)*1024),
@@ -1407,7 +1426,10 @@ func Checkpoint() error {
 	if IsPostgres() {
 		return nil
 	}
-	return db.Exec("PRAGMA wal_checkpoint;").Error
+	// TRUNCATE, not the default PASSIVE: the panel and Telegram backups copy
+	// the main database file, so the WAL has to be folded back into it first
+	// or the copy is missing every write still sitting in the log.
+	return db.Exec("PRAGMA wal_checkpoint(TRUNCATE);").Error
 }
 
 // ValidateSQLiteDB opens the provided sqlite DB path with a throw-away connection
@@ -1434,4 +1456,231 @@ func ValidateSQLiteDB(dbPath string) error {
 		return errors.New("sqlite integrity check failed: " + res)
 	}
 	return nil
+}
+
+// seedNodeInboundsAdopted keeps the previous reconcile behaviour for nodes that
+// were already syncing before the inbounds_adopted_at gate existed. Without it
+// every existing node would look un-adopted after the upgrade and stop sweeping
+// tags the panel really had deleted.
+func seedNodeInboundsAdopted() error {
+	if err := db.Model(&model.Node{}).
+		Where("inbounds_adopted_at = 0").
+		Update("inbounds_adopted_at", time.Now().Unix()).Error; err != nil {
+		return err
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "NodeInboundsAdopted"}).Error
+}
+
+// blockFreedomPrivateEgress prepends a private-range block to the default
+// freedom outbound's finalRules on installs still carrying the stock rules.
+//
+// The routing table blocks geoip:private, but with domainStrategy AsIs the
+// router never resolves a domain — so a hostname whose A record points at a
+// private address (127-0-0-1.nip.io and friends) never matches that rule, and
+// freedom's allow-all finalRules then let a proxy client reach loopback
+// services on the panel host, including xray's own gRPC API and the metrics
+// listener.
+//
+// Only the stock allow-only and the older private-only-allow shapes are
+// rewritten; anything an operator customised is left alone.
+func blockFreedomPrivateEgress() error {
+	var setting model.Setting
+	err := db.Model(model.Setting{}).Where("key = ?", "xrayTemplateConfig").First(&setting).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return db.Create(&model.HistoryOfSeeders{SeederName: "FreedomFinalRulesPrivateEgressBlock"}).Error
+	}
+	if err != nil {
+		return err
+	}
+
+	updated, changed, rErr := rewriteFreedomFinalRulesPrivateEgress(setting.Value)
+	if rErr != nil {
+		log.Printf("FreedomFinalRulesPrivateEgressBlock: skip (invalid xrayTemplateConfig json): %v", rErr)
+		return db.Create(&model.HistoryOfSeeders{SeederName: "FreedomFinalRulesPrivateEgressBlock"}).Error
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		if changed {
+			if err := tx.Model(&model.Setting{}).Where("key = ?", "xrayTemplateConfig").
+				Update("value", updated).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Create(&model.HistoryOfSeeders{SeederName: "FreedomFinalRulesPrivateEgressBlock"}).Error
+	})
+}
+
+func rewriteFreedomFinalRulesPrivateEgress(raw string) (string, bool, error) {
+	if strings.TrimSpace(raw) == "" {
+		return raw, false, nil
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return raw, false, err
+	}
+	outbounds, ok := cfg["outbounds"].([]any)
+	if !ok {
+		return raw, false, nil
+	}
+	changed := false
+	for _, ob := range outbounds {
+		obj, ok := ob.(map[string]any)
+		if !ok {
+			continue
+		}
+		if proto, _ := obj["protocol"].(string); proto != "freedom" {
+			continue
+		}
+		settings, ok := obj["settings"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if !isAllowOnlyFinalRules(settings["finalRules"]) && !isLegacyPrivateOnlyFinalRules(settings["finalRules"]) {
+			continue
+		}
+		settings["finalRules"] = []any{
+			map[string]any{"action": "block", "ip": []any{"geoip:private"}},
+			map[string]any{"action": "allow"},
+		}
+		changed = true
+	}
+	if !changed {
+		return raw, false, nil
+	}
+	out, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return raw, false, err
+	}
+	return string(out), true, nil
+}
+
+// isAllowOnlyFinalRules matches the stock single allow-everything rule.
+func isAllowOnlyFinalRules(v any) bool {
+	rules, ok := v.([]any)
+	if !ok || len(rules) != 1 {
+		return false
+	}
+	rule, ok := rules[0].(map[string]any)
+	if !ok {
+		return false
+	}
+	if action, _ := rule["action"].(string); action != "allow" {
+		return false
+	}
+	// A bare {"action":"allow"} and nothing else: any selector means the
+	// operator narrowed it and the rule is no longer the stock one.
+	return len(rule) == 1
+}
+
+// sqliteJournalMode picks the journal mode for a new sqlite connection.
+//
+// WAL by default. With journal_mode=DELETE every write serialises the whole
+// database and blocks readers, and this panel runs a lot of concurrent
+// background work — traffic sampling, node sync, mtproto reconcile, shop
+// billing — so transactions regularly outwaited the 10s busy timeout and jobs
+// failed with "database is locked". Under WAL readers no longer block writers
+// or vice versa; writer-writer access still serialises safely.
+//
+// XUI_DB_JOURNAL_MODE=DELETE restores the old behaviour for setups that copy
+// the live database file directly rather than through the panel's backup.
+func sqliteJournalMode() string {
+	switch strings.ToUpper(strings.TrimSpace(os.Getenv("XUI_DB_JOURNAL_MODE"))) {
+	case "DELETE":
+		return "DELETE"
+	case "TRUNCATE":
+		return "TRUNCATE"
+	case "PERSIST":
+		return "PERSIST"
+	case "MEMORY":
+		return "MEMORY"
+	default:
+		return "WAL"
+	}
+}
+
+// stripRealityTcpFinalMask removes finalmask.tcp from REALITY inbounds.
+//
+// The combination crashes xray-core on the first connection
+// (XTLS/Xray-core#6453), taking the whole core down rather than degrading one
+// inbound. The save-time validator blocks it going forward, but an inbound
+// stored before that validator existed would sail through an upgrade and knock
+// the core over at boot — with nothing in the panel pointing at the cause.
+//
+// Only the TCP mask is removed; other finalmask transports on the same inbound
+// are left alone.
+func stripRealityTcpFinalMask() error {
+	var inbounds []model.Inbound
+	if err := db.Model(&model.Inbound{}).
+		Where("stream_settings LIKE ?", "%finalmask%").
+		Find(&inbounds).Error; err != nil {
+		return err
+	}
+	stripped := 0
+	for i := range inbounds {
+		ib := &inbounds[i]
+		if !model.StreamHasReality(ib.StreamSettings) {
+			continue
+		}
+		rewritten, changed := model.StripTcpFinalMask(ib.StreamSettings)
+		if !changed {
+			continue
+		}
+		if err := db.Model(&model.Inbound{}).Where("id = ?", ib.Id).
+			Update("stream_settings", rewritten).Error; err != nil {
+			return err
+		}
+		stripped++
+		log.Printf("InboundRealityFinalmaskTcpStrip: removed the TCP finalmask from REALITY inbound %d (%s); it would have crashed xray-core", ib.Id, ib.Remark)
+	}
+	if stripped == 0 {
+		log.Printf("InboundRealityFinalmaskTcpStrip: nothing to strip")
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityFinalmaskTcpStrip"}).Error
+}
+
+// postgresConnectBackoff is how long to keep retrying the first connection,
+// and how long to wait between attempts.
+var postgresConnectBackoff = []time.Duration{
+	time.Second, 2 * time.Second, 3 * time.Second, 5 * time.Second,
+	8 * time.Second, 13 * time.Second, 17 * time.Second, 21 * time.Second,
+}
+
+// openPostgresWithRetry connects to PostgreSQL, tolerating a database that is
+// down or still starting.
+//
+// Failing instantly on the first attempt made the panel exit with a generic
+// startup error, and systemd restarted it every 5 seconds forever — flooding
+// the journal while hiding the real driver error, which was never logged. A
+// database that comes up a minute after the host boots is entirely normal, so
+// the first connection is worth waiting for.
+//
+// The real driver error is logged on every attempt: "connection refused" and
+// "password authentication failed" need completely different responses, and
+// the previous behaviour distinguished neither.
+func openPostgresWithRetry(dsn string, c *gorm.Config) (*gorm.DB, error) {
+	var lastErr error
+	for attempt, wait := range postgresConnectBackoff {
+		conn, err := gorm.Open(postgres.Open(dsn), c)
+		if err == nil {
+			if attempt > 0 {
+				log.Printf("postgres: connected after %d retries", attempt)
+			}
+			return conn, nil
+		}
+		lastErr = err
+		log.Printf("postgres: connection attempt %d/%d failed: %v (retrying in %s)",
+			attempt+1, len(postgresConnectBackoff)+1, err, wait)
+		time.Sleep(wait)
+	}
+	// One final attempt so the total is a whole number of tries rather than
+	// ending on a sleep.
+	conn, err := gorm.Open(postgres.Open(dsn), c)
+	if err == nil {
+		log.Printf("postgres: connected after %d retries", len(postgresConnectBackoff))
+		return conn, nil
+	}
+	if err != nil {
+		lastErr = err
+	}
+	return nil, fmt.Errorf("postgres unreachable after %d attempts: %w", len(postgresConnectBackoff)+1, lastErr)
 }

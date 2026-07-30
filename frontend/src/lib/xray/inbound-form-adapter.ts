@@ -12,6 +12,7 @@ import type { Sniffing } from '@/schemas/primitives';
 import type { z } from 'zod';
 import { normalizeStreamSettingsForWire } from '@/lib/xray/stream-wire-normalize';
 import { canEnableSniffing } from '@/lib/xray/protocol-capabilities';
+import { SockoptStreamSettingsSchema } from '@/schemas/protocols/stream/sockopt';
 import { XHttpXmuxSchema } from '@/schemas/protocols/stream/xhttp';
 
 const XMUX_DEFAULTS = XHttpXmuxSchema.parse({});
@@ -163,6 +164,18 @@ export function rawInboundToFormValues(row: RawInboundRow): InboundFormValues {
     healStreamNetworkKey(streamSettings as unknown as Record<string, unknown>);
     synthesizeTlsCertUseFile(streamSettings as unknown as Record<string, unknown>);
     const streamRecord = streamSettings as unknown as Record<string, unknown>;
+    // A sockopt object saved before a control existed is missing that key, so
+    // its Select renders blank and picking the default does not help — the
+    // wire normalizer drops default values, recreating the gap on the next
+    // edit. Re-parsing through the schema fills absent keys with their
+    // defaults, mirroring the xhttpSettings handling below.
+    const so = streamRecord.sockopt;
+    if (so && typeof so === 'object' && !Array.isArray(so)) {
+      const parsed = SockoptStreamSettingsSchema.safeParse(so);
+      if (parsed.success) {
+        streamRecord.sockopt = { ...(so as Record<string, unknown>), ...parsed.data };
+      }
+    }
     const xh = streamRecord.xhttpSettings;
     if (xh && typeof xh === 'object' && !Array.isArray(xh)) {
       const xhttp = xh as Record<string, unknown>;

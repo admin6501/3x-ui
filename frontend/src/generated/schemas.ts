@@ -2130,6 +2130,7 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "boolean"
       },
       "apiToken": {
+        "description": "Write-only: read endpoints redact this and report presence through\nNodeView.HasApiToken instead. An empty value on update therefore\nmeans \"keep the stored token\", which is why it is not `required`\nhere — NodeController.add enforces presence at creation time.",
         "example": "abcdef0123456789",
         "type": "string"
       },

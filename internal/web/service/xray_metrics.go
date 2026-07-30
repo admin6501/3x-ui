@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/eventbus"
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
@@ -48,7 +49,29 @@ type XrayMetricsService struct {
 	obsByTag map[string]ObsTagSnapshot
 }
 
-var validObsTag = regexp.MustCompile(`^[a-zA-Z0-9._\-]+$`)
+// validObsTag guards what reaches the observatory map keys and the metric
+// series names.
+//
+// This used to be ^[a-zA-Z0-9._-]+$, which silently dropped every outbound
+// whose tag was not plain ASCII — a tag written in Persian, Russian or Chinese
+// simply never appeared in the observatory, with nothing explaining why. Tags
+// are operator-chosen labels and there is no reason to restrict their script.
+//
+// The checks that matter are kept: a bounded length, valid UTF-8, and no
+// control characters, which is what could corrupt a log line or a map key.
+const maxObsTagLength = 128
+
+func validObsTag(tag string) bool {
+	if tag == "" || len(tag) > maxObsTagLength || !utf8.ValidString(tag) {
+		return false
+	}
+	for _, r := range tag {
+		if unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
+}
 
 func obsHistoryKey(tag string) string {
 	return "xrObs." + tag + ".delay"
@@ -89,7 +112,7 @@ func (s *XrayMetricsService) ObservatorySnapshot() []ObsTagSnapshot {
 }
 
 func (s *XrayMetricsService) HasObservatoryTag(tag string) bool {
-	if !validObsTag.MatchString(tag) {
+	if !validObsTag(tag) {
 		return false
 	}
 	s.mu.RLock()
@@ -99,7 +122,7 @@ func (s *XrayMetricsService) HasObservatoryTag(tag string) bool {
 }
 
 func (s *XrayMetricsService) AggregateObservatory(tag string, bucketSeconds, maxPoints int) []map[string]any {
-	if !validObsTag.MatchString(tag) {
+	if !validObsTag(tag) {
 		return []map[string]any{}
 	}
 	return xrayMetrics.aggregate(obsHistoryKey(tag), bucketSeconds, maxPoints)
@@ -199,7 +222,7 @@ func (s *XrayMetricsService) applyObservatory(t time.Time, entries map[string]ra
 		if tag == "" {
 			tag = key
 		}
-		if !validObsTag.MatchString(tag) {
+		if !validObsTag(tag) {
 			continue
 		}
 		snap := ObsTagSnapshot{

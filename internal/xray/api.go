@@ -176,6 +176,13 @@ func (x *XrayAPI) AddOutbound(outbound []byte) error {
 	}
 	client := *x.HandlerServiceClient
 
+	// A freedom outbound whose finalRules reference geoip:private opens
+	// geoip.dat during Build. Without this the in-process loader resolves it
+	// relative to the panel executable and the call fails with
+	// "stat /usr/local/x-ui/geoip.dat: no such file or directory" — which is
+	// every outbound since the default template gained that block rule.
+	ensureXrayAssetLocation()
+
 	conf := new(conf.OutboundDetourConfig)
 	if err := json.Unmarshal(outbound, conf); err != nil {
 		logger.Debug("Failed to unmarshal outbound:", err)
@@ -493,10 +500,14 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 		case "xchacha20-poly1305", "xchacha20-ietf-poly1305":
 			ssCipherType = shadowsocks.CipherType_XCHACHA20_POLY1305
 		default:
-			ssCipherType = shadowsocks.CipherType_NONE
+			// Not one of the AEAD ciphers handled here; the zero value routes
+			// this account to the shadowsocks-2022 branch below. xray-core
+			// renamed this constant from CipherType_NONE in v26.7.28 — same
+			// value, same meaning.
+			ssCipherType = shadowsocks.CipherType_UNKNOWN
 		}
 
-		if ssCipherType != shadowsocks.CipherType_NONE {
+		if ssCipherType != shadowsocks.CipherType_UNKNOWN {
 			account = serial.ToTypedMessage(&shadowsocks.Account{
 				Password:   password,
 				CipherType: ssCipherType,

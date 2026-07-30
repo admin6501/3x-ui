@@ -97,6 +97,25 @@ func applyHostStreamOverrides(ep map[string]any, stream map[string]any) {
 			stream["sockopt"] = sockopt
 		}
 	}
+	// Host header and path: the raw-link path applies these through the share
+	// params, but the Clash and JSON renderers read the transport settings
+	// object instead — so without this a Host record's override vanished from
+	// those two formats and the client connected with the inbound's original
+	// host/path, which the CDN in front of it does not accept.
+	if hh, ok := ep["hostHeader"].(string); ok && hh != "" {
+		for _, key := range []string{"wsSettings", "httpupgradeSettings", "xhttpSettings"} {
+			if ts, ok := stream[key].(map[string]any); ok && ts != nil {
+				ts["host"] = hh
+			}
+		}
+	}
+	if p, ok := ep["path"].(string); ok && p != "" {
+		for _, key := range []string{"wsSettings", "httpupgradeSettings", "xhttpSettings"} {
+			if ts, ok := stream[key].(map[string]any); ok && ts != nil {
+				ts["path"] = p
+			}
+		}
+	}
 	// Host finalmask: merge the host's masks into the stream's finalmask (the
 	// JSON renderer consumes streamSettings["finalmask"]; clash ignores it).
 	if fm, ok := ep["finalMask"].(string); ok && fm != "" {

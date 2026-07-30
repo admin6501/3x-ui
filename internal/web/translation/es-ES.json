@@ -2718,5 +2718,6 @@
       "tb": "TB",
       "unlimited": "ilimitado"
     }
-  }
+  },
+  "get": "No se pudo obtener"
 }

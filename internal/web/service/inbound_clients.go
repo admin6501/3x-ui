@@ -409,6 +409,27 @@ func (s *InboundService) GetClientInboundByEmail(email string) (traffic *xray.Cl
 			inbound, err = s.GetInbound(ids[0])
 		}
 	}
+	if err == nil && inbound != nil && !s.inboundHasClientEmail(inbound, email) {
+		// The pointed-at inbound still exists but no longer carries this
+		// client: it was moved. client_traffics.inbound_id is a legacy
+		// single-inbound pointer that a move does not update, so the lookup
+		// searched the old inbound and failed with "client not found in
+		// inbound for email" — which is what breaks the bot's link and QR for
+		// a config the buyer can plainly see. Re-resolve through the
+		// authoritative client_inbounds link.
+		moved, idErr := s.clientService.GetInboundIdsForEmail(db, email)
+		if idErr == nil {
+			for _, id := range moved {
+				if id == inbound.Id {
+					continue
+				}
+				if other, oErr := s.GetInbound(id); oErr == nil && s.inboundHasClientEmail(other, email) {
+					inbound = other
+					break
+				}
+			}
+		}
+	}
 	return traffic, inbound, err
 }
 
@@ -519,4 +540,20 @@ func (s *InboundService) DepletedEmailsByInbound(inboundId int) ([]string, error
 		result = append(result, e)
 	}
 	return result, nil
+}
+
+// inboundHasClientEmail reports whether an inbound's settings actually list
+// this client, which is what makes the traffic row's inbound pointer
+// trustworthy.
+func (s *InboundService) inboundHasClientEmail(inbound *model.Inbound, email string) bool {
+	clients, err := s.GetClients(inbound)
+	if err != nil {
+		return false
+	}
+	for _, client := range clients {
+		if client.Email == email {
+			return true
+		}
+	}
+	return false
 }

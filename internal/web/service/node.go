@@ -437,6 +437,14 @@ func (s *NodeService) Update(id int, in *model.Node) error {
 	if err := db.Where("id = ?", id).First(existing).Error; err != nil {
 		return err
 	}
+	// The edit form never receives the stored token (read endpoints redact
+	// it), so an empty value means "unchanged" rather than "clear it".
+	// Without this every save would wipe the credential and the node would go
+	// unreachable on the next tick.
+	apiToken := in.ApiToken
+	if apiToken == "" {
+		apiToken = existing.ApiToken
+	}
 	updates := map[string]any{
 		"name":                  in.Name,
 		"remark":                in.Remark,
@@ -444,7 +452,7 @@ func (s *NodeService) Update(id int, in *model.Node) error {
 		"address":               in.Address,
 		"port":                  in.Port,
 		"base_path":             in.BasePath,
-		"api_token":             in.ApiToken,
+		"api_token":             apiToken,
 		"enable":                in.Enable,
 		"allow_private_address": in.AllowPrivateAddress,
 		"tls_verify_mode":       in.TlsVerifyMode,
@@ -754,6 +762,18 @@ func (s *NodeService) ClearNodeDirty(id int, dirtyAt int64) error {
 	return database.GetDB().Model(model.Node{}).
 		Where("id = ? AND config_dirty_at = ?", id, dirtyAt).
 		Update("config_dirty", false).Error
+}
+
+// MarkNodeInboundsAdopted records that a clean traffic sync has imported this
+// node's pre-existing inbounds, which is what unblocks reconcile's delete
+// sweep. Written once: the guard only cares whether it is set.
+func (s *NodeService) MarkNodeInboundsAdopted(id int) error {
+	if id <= 0 {
+		return nil
+	}
+	return database.GetDB().Model(model.Node{}).
+		Where("id = ? AND inbounds_adopted_at = 0", id).
+		Update("inbounds_adopted_at", time.Now().Unix()).Error
 }
 
 func (s *NodeService) NodeSyncState(id int) (enabled bool, status string, dirty bool, dirtyAt int64, err error) {

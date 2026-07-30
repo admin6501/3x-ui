@@ -106,9 +106,15 @@ func overlayGlobalTraffic(db *gorm.DB, rows []*xray.ClientTraffic) {
 	if len(rows) == 0 {
 		return
 	}
+	// Rows older than globalTrafficFreshWindow come from a master that stopped
+	// pushing; folding their frozen counters in would keep showing usage the
+	// client no longer has.
+	freshSince := globalTrafficFreshSince()
 	// Cheap short-circuit for the common case (a panel no master pushes to).
 	var probe int64
-	if err := db.Model(&model.ClientGlobalTraffic{}).Limit(1).Count(&probe).Error; err != nil || probe == 0 {
+	if err := db.Model(&model.ClientGlobalTraffic{}).
+		Where("updated_at >= ?", freshSince).
+		Limit(1).Count(&probe).Error; err != nil || probe == 0 {
 		return
 	}
 
@@ -126,7 +132,7 @@ func overlayGlobalTraffic(db *gorm.DB, rows []*xray.ClientTraffic) {
 	}
 	for _, batch := range chunkStrings(emails, sqlInChunk) {
 		var globals []model.ClientGlobalTraffic
-		if err := db.Where("email IN ?", batch).Find(&globals).Error; err != nil {
+		if err := db.Where("email IN ? AND updated_at >= ?", batch, freshSince).Find(&globals).Error; err != nil {
 			logger.Warning("overlayGlobalTraffic:", err)
 			return
 		}
