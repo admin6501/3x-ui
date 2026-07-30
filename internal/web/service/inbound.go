@@ -581,6 +581,9 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 	if err := s.normalizeMtprotoXrayPort(inbound, ""); err != nil {
 		return inbound, false, err
 	}
+	if err := validateFinalMaskRealityCombo(inbound); err != nil {
+		return inbound, false, err
+	}
 	inbound.SubSortIndex = normalizeSubSortIndex(inbound.SubSortIndex)
 	inbound.TrafficMultiplier = NormalizeTrafficMultiplier(inbound.TrafficMultiplier)
 	if err := normalizeInboundShareAddressStrict(inbound); err != nil {
@@ -975,6 +978,9 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 	s.normalizeStreamSettings(inbound)
 	s.normalizeMtprotoSecret(inbound)
 	inbound.SubSortIndex = normalizeSubSortIndex(inbound.SubSortIndex)
+	if err := validateFinalMaskRealityCombo(inbound); err != nil {
+		return inbound, false, err
+	}
 
 	conflict, err := s.checkPortConflict(inbound, inbound.Id)
 	if err != nil {

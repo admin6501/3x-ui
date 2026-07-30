@@ -514,7 +514,7 @@ func runSeeders(isUsersEmpty bool) error {
 	}
 
 	if empty && isUsersEmpty {
-		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted"}
+		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted"}
 		for _, name := range seeders {
 			if err := db.Create(&model.HistoryOfSeeders{SeederName: name}).Error; err != nil {
 				return err
@@ -609,6 +609,12 @@ func runSeeders(isUsersEmpty bool) error {
 
 	if !slices.Contains(seedersHistory, "FreedomFinalRulesPrivateEgressBlock") {
 		if err := blockFreedomPrivateEgress(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "InboundRealityFinalmaskTcpStrip") {
+		if err := stripRealityTcpFinalMask(); err != nil {
 			return err
 		}
 	}
@@ -1590,4 +1596,44 @@ func sqliteJournalMode() string {
 	default:
 		return "WAL"
 	}
+}
+
+// stripRealityTcpFinalMask removes finalmask.tcp from REALITY inbounds.
+//
+// The combination crashes xray-core on the first connection
+// (XTLS/Xray-core#6453), taking the whole core down rather than degrading one
+// inbound. The save-time validator blocks it going forward, but an inbound
+// stored before that validator existed would sail through an upgrade and knock
+// the core over at boot — with nothing in the panel pointing at the cause.
+//
+// Only the TCP mask is removed; other finalmask transports on the same inbound
+// are left alone.
+func stripRealityTcpFinalMask() error {
+	var inbounds []model.Inbound
+	if err := db.Model(&model.Inbound{}).
+		Where("stream_settings LIKE ?", "%finalmask%").
+		Find(&inbounds).Error; err != nil {
+		return err
+	}
+	stripped := 0
+	for i := range inbounds {
+		ib := &inbounds[i]
+		if !model.StreamHasReality(ib.StreamSettings) {
+			continue
+		}
+		rewritten, changed := model.StripTcpFinalMask(ib.StreamSettings)
+		if !changed {
+			continue
+		}
+		if err := db.Model(&model.Inbound{}).Where("id = ?", ib.Id).
+			Update("stream_settings", rewritten).Error; err != nil {
+			return err
+		}
+		stripped++
+		log.Printf("InboundRealityFinalmaskTcpStrip: removed the TCP finalmask from REALITY inbound %d (%s); it would have crashed xray-core", ib.Id, ib.Remark)
+	}
+	if stripped == 0 {
+		log.Printf("InboundRealityFinalmaskTcpStrip: nothing to strip")
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityFinalmaskTcpStrip"}).Error
 }
