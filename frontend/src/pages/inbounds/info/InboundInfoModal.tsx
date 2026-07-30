@@ -259,7 +259,12 @@ export default function InboundInfoModal({
               </td>
             </tr>
           )}
-          {clientSettings?.password && (
+          {/* Trojan and Shadowsocks are the only protocols that authenticate on
+              this password — see the per-protocol switch in service/xray.go.
+              VLESS and VMess identify by uuid, and the core ignores the field
+              entirely. Rendering it there advertised a credential that does
+              nothing, which reads as a broken config. */}
+          {(dbInbound.isTrojan || dbInbound.isSS) && clientSettings?.password && (
             <tr>
               <td>{t('password')}</td>
               <td><Tag className="info-large-tag">{clientSettings.password}</Tag></td>
