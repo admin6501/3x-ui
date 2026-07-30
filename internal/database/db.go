@@ -1294,7 +1294,8 @@ func InitDB(dbPath string) error {
 		// Keep journal_mode=DELETE so the DB stays a single file (no -wal/-shm
 		// sidecars). synchronous defaults to FULL for durability but is tunable.
 		sync := sqliteSynchronous()
-		dsn := dbPath + "?_journal_mode=DELETE&_busy_timeout=10000&_synchronous=" + sync + "&_txlock=immediate"
+		journal := sqliteJournalMode()
+		dsn := dbPath + "?_journal_mode=" + journal + "&_busy_timeout=10000&_synchronous=" + sync + "&_txlock=immediate"
 		db, err = gorm.Open(sqlite.Open(dsn), c)
 		if err != nil {
 			return err
@@ -1307,7 +1308,7 @@ func InitDB(dbPath string) error {
 		// cache_size/mmap_size/temp_store create no extra files, so the single-file
 		// guarantee holds; they just cut disk I/O on the 50k-row hot paths.
 		pragmas := []string{
-			"PRAGMA journal_mode=DELETE",
+			"PRAGMA journal_mode=" + journal,
 			"PRAGMA busy_timeout=10000",
 			"PRAGMA synchronous=" + sync,
 			fmt.Sprintf("PRAGMA cache_size=-%d", envInt("XUI_DB_CACHE_MB", 32)*1024),
@@ -1419,7 +1420,10 @@ func Checkpoint() error {
 	if IsPostgres() {
 		return nil
 	}
-	return db.Exec("PRAGMA wal_checkpoint;").Error
+	// TRUNCATE, not the default PASSIVE: the panel and Telegram backups copy
+	// the main database file, so the WAL has to be folded back into it first
+	// or the copy is missing every write still sitting in the log.
+	return db.Exec("PRAGMA wal_checkpoint(TRUNCATE);").Error
 }
 
 // ValidateSQLiteDB opens the provided sqlite DB path with a throw-away connection
@@ -1560,4 +1564,30 @@ func isAllowOnlyFinalRules(v any) bool {
 	// A bare {"action":"allow"} and nothing else: any selector means the
 	// operator narrowed it and the rule is no longer the stock one.
 	return len(rule) == 1
+}
+
+// sqliteJournalMode picks the journal mode for a new sqlite connection.
+//
+// WAL by default. With journal_mode=DELETE every write serialises the whole
+// database and blocks readers, and this panel runs a lot of concurrent
+// background work — traffic sampling, node sync, mtproto reconcile, shop
+// billing — so transactions regularly outwaited the 10s busy timeout and jobs
+// failed with "database is locked". Under WAL readers no longer block writers
+// or vice versa; writer-writer access still serialises safely.
+//
+// XUI_DB_JOURNAL_MODE=DELETE restores the old behaviour for setups that copy
+// the live database file directly rather than through the panel's backup.
+func sqliteJournalMode() string {
+	switch strings.ToUpper(strings.TrimSpace(os.Getenv("XUI_DB_JOURNAL_MODE"))) {
+	case "DELETE":
+		return "DELETE"
+	case "TRUNCATE":
+		return "TRUNCATE"
+	case "PERSIST":
+		return "PERSIST"
+	case "MEMORY":
+		return "MEMORY"
+	default:
+		return "WAL"
+	}
 }
