@@ -176,6 +176,13 @@ func (x *XrayAPI) AddOutbound(outbound []byte) error {
 	}
 	client := *x.HandlerServiceClient
 
+	// A freedom outbound whose finalRules reference geoip:private opens
+	// geoip.dat during Build. Without this the in-process loader resolves it
+	// relative to the panel executable and the call fails with
+	// "stat /usr/local/x-ui/geoip.dat: no such file or directory" — which is
+	// every outbound since the default template gained that block rule.
+	ensureXrayAssetLocation()
+
 	conf := new(conf.OutboundDetourConfig)
 	if err := json.Unmarshal(outbound, conf); err != nil {
 		logger.Debug("Failed to unmarshal outbound:", err)

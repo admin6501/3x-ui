@@ -2,6 +2,11 @@
 Description=x-ui Service
 After=network.target
 Wants=network.target
+# Stop restarting after 6 failures in 5 minutes. Without a cap, a persistently
+# unreachable database (or any startup failure) restarts the unit every 5s
+# forever, flooding the journal and burying the real error.
+StartLimitIntervalSec=300
+StartLimitBurst=6
 
 [Service]
 EnvironmentFile=-/etc/default/x-ui

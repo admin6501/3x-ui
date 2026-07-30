@@ -1288,7 +1288,7 @@ func InitDB(dbPath string) error {
 		if dsn == "" {
 			return errors.New("XUI_DB_TYPE=postgres but XUI_DB_DSN is empty")
 		}
-		db, err = gorm.Open(postgres.Open(dsn), c)
+		db, err = openPostgresWithRetry(dsn, c)
 		if err != nil {
 			return err
 		}
@@ -1636,4 +1636,51 @@ func stripRealityTcpFinalMask() error {
 		log.Printf("InboundRealityFinalmaskTcpStrip: nothing to strip")
 	}
 	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityFinalmaskTcpStrip"}).Error
+}
+
+// postgresConnectBackoff is how long to keep retrying the first connection,
+// and how long to wait between attempts.
+var postgresConnectBackoff = []time.Duration{
+	time.Second, 2 * time.Second, 3 * time.Second, 5 * time.Second,
+	8 * time.Second, 13 * time.Second, 17 * time.Second, 21 * time.Second,
+}
+
+// openPostgresWithRetry connects to PostgreSQL, tolerating a database that is
+// down or still starting.
+//
+// Failing instantly on the first attempt made the panel exit with a generic
+// startup error, and systemd restarted it every 5 seconds forever — flooding
+// the journal while hiding the real driver error, which was never logged. A
+// database that comes up a minute after the host boots is entirely normal, so
+// the first connection is worth waiting for.
+//
+// The real driver error is logged on every attempt: "connection refused" and
+// "password authentication failed" need completely different responses, and
+// the previous behaviour distinguished neither.
+func openPostgresWithRetry(dsn string, c *gorm.Config) (*gorm.DB, error) {
+	var lastErr error
+	for attempt, wait := range postgresConnectBackoff {
+		conn, err := gorm.Open(postgres.Open(dsn), c)
+		if err == nil {
+			if attempt > 0 {
+				log.Printf("postgres: connected after %d retries", attempt)
+			}
+			return conn, nil
+		}
+		lastErr = err
+		log.Printf("postgres: connection attempt %d/%d failed: %v (retrying in %s)",
+			attempt+1, len(postgresConnectBackoff)+1, err, wait)
+		time.Sleep(wait)
+	}
+	// One final attempt so the total is a whole number of tries rather than
+	// ending on a sleep.
+	conn, err := gorm.Open(postgres.Open(dsn), c)
+	if err == nil {
+		log.Printf("postgres: connected after %d retries", len(postgresConnectBackoff))
+		return conn, nil
+	}
+	if err != nil {
+		lastErr = err
+	}
+	return nil, fmt.Errorf("postgres unreachable after %d attempts: %w", len(postgresConnectBackoff)+1, lastErr)
 }
