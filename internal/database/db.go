@@ -514,7 +514,7 @@ func runSeeders(isUsersEmpty bool) error {
 	}
 
 	if empty && isUsersEmpty {
-		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "ApiTokensHash", "LegacyProxySettingsCleanup"}
+		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted"}
 		for _, name := range seeders {
 			if err := db.Create(&model.HistoryOfSeeders{SeederName: name}).Error; err != nil {
 				return err
@@ -603,6 +603,12 @@ func runSeeders(isUsersEmpty bool) error {
 
 	if !slices.Contains(seedersHistory, "LegacyProxySettingsCleanup") {
 		if err := clearLegacyProxySettings(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "NodeInboundsAdopted") {
+		if err := seedNodeInboundsAdopted(); err != nil {
 			return err
 		}
 	}
@@ -1434,4 +1440,17 @@ func ValidateSQLiteDB(dbPath string) error {
 		return errors.New("sqlite integrity check failed: " + res)
 	}
 	return nil
+}
+
+// seedNodeInboundsAdopted keeps the previous reconcile behaviour for nodes that
+// were already syncing before the inbounds_adopted_at gate existed. Without it
+// every existing node would look un-adopted after the upgrade and stop sweeping
+// tags the panel really had deleted.
+func seedNodeInboundsAdopted() error {
+	if err := db.Model(&model.Node{}).
+		Where("inbounds_adopted_at = 0").
+		Update("inbounds_adopted_at", time.Now().Unix()).Error; err != nil {
+		return err
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "NodeInboundsAdopted"}).Error
 }

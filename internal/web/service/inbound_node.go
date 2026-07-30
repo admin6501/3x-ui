@@ -124,6 +124,15 @@ func (s *InboundService) ReconcileNode(ctx context.Context, rt *runtime.Remote, 
 			return fmt.Errorf("reconcile inbound %q: %w", ib.Tag, err)
 		}
 	}
+	// Adding a node imports nothing; its pre-existing inbounds only become
+	// central rows on the first clean traffic-sync tick. Until then "absent
+	// locally" means "not imported yet", not "deleted on the master" — and
+	// sweeping on that reading destroys the node's real inbounds at
+	// onboarding, disconnecting live clients with no confirmation. Pushes
+	// above still run; only the delete sweep waits.
+	if n.InboundsAdoptedAt == 0 {
+		return nil
+	}
 	// In "selected" sync mode the panel only manages the selected tags: the
 	// rest were never imported, so their absence from the local DB must not
 	// delete them from the node. Only a selected tag missing locally (the

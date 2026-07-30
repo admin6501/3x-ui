@@ -350,6 +350,13 @@ func (j *NodeTrafficSyncJob) syncOne(mgr *runtime.Manager, n *model.Node, doIpSy
 	}
 	service.FilterNodeSnapshot(n, snap)
 	_, _, dirty, _, _ := j.nodeService.NodeSyncState(n.Id)
+	// A clean tick means the node's inbounds have been imported, which is what
+	// makes "absent locally" trustworthy enough for reconcile to sweep.
+	if !dirty && n.InboundsAdoptedAt == 0 {
+		if markErr := j.nodeService.MarkNodeInboundsAdopted(n.Id); markErr != nil {
+			logger.Warningf("node traffic sync: mark inbounds adopted for %s failed: %v", n.Name, markErr)
+		}
+	}
 	changed, err := j.inboundService.SetRemoteTraffic(n.Id, snap, dirty)
 	if err != nil {
 		logger.Warningf("node traffic sync: merge for %s failed: %v", n.Name, err)

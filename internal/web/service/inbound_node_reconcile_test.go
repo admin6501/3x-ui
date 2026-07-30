@@ -85,8 +85,12 @@ func reconcileTestNode(t *testing.T, ts *httptest.Server, name, mode string, tag
 		Enable:              true,
 		AllowPrivateAddress: true,
 		Status:              "online",
-		InboundSyncMode:     mode,
-		InboundTags:         tags,
+		// Adopted: these tests exercise the steady state, which is also what
+		// the NodeInboundsAdopted seeder gives every pre-existing node. The
+		// un-adopted case has its own test below.
+		InboundsAdoptedAt: 1,
+		InboundSyncMode:   mode,
+		InboundTags:       tags,
 	}
 	if err := database.GetDB().Create(n).Error; err != nil {
 		t.Fatalf("create node: %v", err)
@@ -193,5 +197,60 @@ func TestEnsureInboundTagAllowed(t *testing.T) {
 	}
 	if len(gotAll.InboundTags) != 0 {
 		t.Fatalf("all-mode node must stay without tags, got %#v", gotAll.InboundTags)
+	}
+}
+
+// TestReconcileNode_NeverSweepsBeforeFirstAdoption is the regression for a node
+// losing its real inbounds at onboarding.
+//
+// Adding a node imports nothing; its pre-existing inbounds only become central
+// rows on the first clean traffic-sync tick. But any save of the node —
+// switching sync mode, or picking tags after "Load inbounds from node" — marks
+// it config-dirty, and the next tick ran reconcile before that first adoption.
+// With zero central rows the sweep saw every remote tag as undesired and
+// deleted the node's real inbounds, in "all" mode all of them, disconnecting
+// live clients with no confirmation.
+func TestReconcileNode_NeverSweepsBeforeFirstAdoption(t *testing.T) {
+	setupConflictDB(t)
+
+	ts, deletedIDs := fakeNodePanel(t, map[string]int{
+		"real-one": 1,
+		"real-two": 2,
+	})
+	node := reconcileTestNode(t, ts, "fresh-node", "all", nil)
+	// What a node looks like between "added" and its first clean sync.
+	node.InboundsAdoptedAt = 0
+
+	svc := InboundService{}
+	if err := svc.ReconcileNode(context.Background(), runtime.NewRemote(node, nil), node); err != nil {
+		t.Fatalf("ReconcileNode: %v", err)
+	}
+
+	if got := deletedIDs(); len(got) != 0 {
+		t.Fatalf("deleted remote ids = %v on a node whose inbounds were never imported; those are live inbounds", got)
+	}
+}
+
+// TestReconcileNode_SweepsOnceAdopted: the guard must not switch anti-entropy
+// off for good — a node that has synced before still sweeps tags the panel
+// really deleted, including while the node was unreachable.
+func TestReconcileNode_SweepsOnceAdopted(t *testing.T) {
+	setupConflictDB(t)
+
+	ts, deletedIDs := fakeNodePanel(t, map[string]int{
+		"keep": 1,
+		"gone": 2,
+	})
+	node := reconcileTestNode(t, ts, "adopted-node", "all", nil)
+	seedInboundConflictNode(t, "keep", "", 443, model.VLESS, `{"network":"tcp"}`, `{"clients":[]}`, &node.Id)
+
+	svc := InboundService{}
+	if err := svc.ReconcileNode(context.Background(), runtime.NewRemote(node, nil), node); err != nil {
+		t.Fatalf("ReconcileNode: %v", err)
+	}
+
+	got := deletedIDs()
+	if len(got) != 1 || got[0] != 2 {
+		t.Fatalf("deleted remote ids = %v, want [2]", got)
 	}
 }

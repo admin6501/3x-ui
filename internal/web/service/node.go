@@ -756,6 +756,18 @@ func (s *NodeService) ClearNodeDirty(id int, dirtyAt int64) error {
 		Update("config_dirty", false).Error
 }
 
+// MarkNodeInboundsAdopted records that a clean traffic sync has imported this
+// node's pre-existing inbounds, which is what unblocks reconcile's delete
+// sweep. Written once: the guard only cares whether it is set.
+func (s *NodeService) MarkNodeInboundsAdopted(id int) error {
+	if id <= 0 {
+		return nil
+	}
+	return database.GetDB().Model(model.Node{}).
+		Where("id = ? AND inbounds_adopted_at = 0", id).
+		Update("inbounds_adopted_at", time.Now().Unix()).Error
+}
+
 func (s *NodeService) NodeSyncState(id int) (enabled bool, status string, dirty bool, dirtyAt int64, err error) {
 	if id <= 0 {
 		return false, "", false, 0, errors.New("invalid node id")

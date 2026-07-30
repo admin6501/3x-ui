@@ -870,6 +870,11 @@ type Node struct {
         PinnedCertSha256    string   `json:"pinnedCertSha256" form:"pinnedCertSha256" gorm:"column:pinned_cert_sha256"`
         InboundSyncMode     string   `json:"inboundSyncMode" form:"inboundSyncMode" gorm:"column:inbound_sync_mode;default:all" validate:"omitempty,oneof=all selected"`
         InboundTags         []string `json:"inboundTags" form:"inboundTags" gorm:"serializer:json;column:inbound_tags"`
+        // InboundsAdoptedAt records the first clean traffic sync that imported
+        // this node's pre-existing inbounds. Reconcile must not sweep remote
+        // tags before it is set: with no central rows yet, every remote tag
+        // looks undesired and the sweep would destroy the node's real inbounds.
+        InboundsAdoptedAt   int64    `json:"-" gorm:"column:inbounds_adopted_at;default:0"`
         OutboundTag         string   `json:"outboundTag" form:"outboundTag" gorm:"column:outbound_tag"`
 
         // Guid is the remote panel's stable self-identifier (its panelGuid),
