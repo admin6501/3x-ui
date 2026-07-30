@@ -610,6 +610,29 @@ type TrafficSnapshot struct {
 	// the per-GUID endpoint — OnlineEmails is the fallback then.
 	OnlineTree    map[string][]string
 	LastOnlineMap map[string]int64
+	// Hosts carries the node's per-inbound host overrides, fetched only when
+	// the snapshot holds a tag with no central row yet.
+	Hosts []*model.Host
+}
+
+// FetchHosts pulls the node's host overrides so an inbound adopted from it
+// keeps its subscription TLS/SNI/fingerprint settings on the master.
+//
+// Best-effort by contract: the caller ignores the error, so an older node
+// without the endpoint simply adopts without overrides rather than failing the
+// whole traffic sync.
+func (r *Remote) FetchHosts(ctx context.Context) ([]*model.Host, error) {
+	env, err := r.do(ctx, http.MethodGet, "panel/api/hosts/list", nil)
+	if err != nil {
+		return nil, err
+	}
+	var hosts []*model.Host
+	if len(env.Obj) > 0 {
+		if err := json.Unmarshal(env.Obj, &hosts); err != nil {
+			return nil, fmt.Errorf("decode hosts: %w", err)
+		}
+	}
+	return hosts, nil
 }
 
 func (r *Remote) FetchTrafficSnapshot(ctx context.Context) (*TrafficSnapshot, error) {

@@ -477,6 +477,15 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			if newIb.Tag != snapIb.Tag {
 				tagToCentral[newIb.Tag] = &newIb
 			}
+			// Per-inbound Host overrides (TLS/SNI/fingerprint/ALPN) are looked
+			// up by local inbound id when subscriptions render. Nothing else in
+			// the node sync fetches them, so without this an adopted inbound
+			// gets zero Host rows on the master and its configs fall back to a
+			// bare TLS block, losing the fingerprint and SNI the node was
+			// actually configured with. Adoption is the only moment this can
+			// happen; the master is authoritative afterwards, exactly as it is
+			// for the inbound's own settings.
+			adoptNodeHosts(tx, snap.Hosts, snapIb.Id, newIb.Id)
 			structuralChange = true
 			continue
 		}
@@ -1068,4 +1077,62 @@ func (s *InboundService) FilterAndSortClientEmails(emails []string) ([]string, [
 	}
 
 	return validEmails, extraEmails, nil
+}
+
+// adoptNodeHosts copies a node's host overrides for one inbound onto the
+// freshly created central row, re-pointed at the central inbound id.
+//
+// A one-time import, not a continuous sync: after adoption the master owns
+// these rows, so a later edit on the node is deliberately not mirrored.
+func adoptNodeHosts(tx *gorm.DB, hosts []*model.Host, nodeInboundId, centralInboundId int) {
+	if len(hosts) == 0 || nodeInboundId <= 0 || centralInboundId <= 0 {
+		return
+	}
+	for _, h := range hosts {
+		if h == nil || h.InboundId != nodeInboundId {
+			continue
+		}
+		row := *h
+		row.Id = 0
+		row.InboundId = centralInboundId
+		if err := tx.Create(&row).Error; err != nil {
+			logger.Warningf("adoptNodeHosts: copy host %q for inbound %d failed: %v", h.Remark, centralInboundId, err)
+		}
+	}
+}
+
+// SnapshotHasUnadoptedTag reports whether a snapshot carries an inbound this
+// panel has no central row for yet — the only case where the node's host
+// overrides still need importing.
+func (s *InboundService) SnapshotHasUnadoptedTag(nodeID int, snap *runtime.TrafficSnapshot) bool {
+	if snap == nil || len(snap.Inbounds) == 0 {
+		return false
+	}
+	var existing []string
+	if err := database.GetDB().Model(&model.Inbound{}).
+		Where("node_id = ?", nodeID).
+		Pluck("tag", &existing).Error; err != nil {
+		// Unknown: assume adoption may be needed rather than skip the import.
+		return true
+	}
+	known := make(map[string]struct{}, len(existing))
+	for _, tag := range existing {
+		known[tag] = struct{}{}
+	}
+	prefix := nodeTagPrefix(&nodeID)
+	for _, ib := range snap.Inbounds {
+		if ib == nil {
+			continue
+		}
+		if _, ok := known[ib.Tag]; ok {
+			continue
+		}
+		if prefix != "" {
+			if _, ok := known[prefix+ib.Tag]; ok {
+				continue
+			}
+		}
+		return true
+	}
+	return false
 }

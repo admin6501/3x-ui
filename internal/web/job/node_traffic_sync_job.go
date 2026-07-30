@@ -349,6 +349,21 @@ func (j *NodeTrafficSyncJob) syncOne(mgr *runtime.Manager, n *model.Node, doIpSy
 		return
 	}
 	service.FilterNodeSnapshot(n, snap)
+	// Host overrides are only needed at adoption, and that is the one moment
+	// the snapshot carries a tag with no central row yet. Fetching them
+	// unconditionally would add a request to every 5s tick for nothing.
+	if j.inboundService.SnapshotHasUnadoptedTag(n.Id, snap) {
+		hostCtx, hostCancel := context.WithTimeout(context.Background(), nodeTrafficSyncRequestTimeout)
+		hosts, hostErr := rt.FetchHosts(hostCtx)
+		hostCancel()
+		if hostErr != nil {
+			// Best-effort: an older node without the endpoint adopts without
+			// overrides rather than failing the whole sync.
+			logger.Debug("node traffic sync: fetch hosts from ", n.Name, " failed: ", hostErr)
+		} else {
+			snap.Hosts = hosts
+		}
+	}
 	_, _, dirty, _, _ := j.nodeService.NodeSyncState(n.Id)
 	// A clean tick means the node's inbounds have been imported, which is what
 	// makes "absent locally" trustworthy enough for reconcile to sweep.
