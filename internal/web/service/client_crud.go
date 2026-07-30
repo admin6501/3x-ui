@@ -434,12 +434,19 @@ func (s *ClientService) Delete(inboundSvc *InboundService, id int, keepTraffic b
 	}
 
 	needRestart := false
+	// Collected rather than returned on the spot: a client attached across
+	// several nodes used to lose at most one inbound per attempt, because the
+	// loop stopped at the first unreachable one and the record cleanup below
+	// never ran. Operators with many nodes had to delete the same client once
+	// per node.
+	var delErrs []error
 	for _, ibId := range inboundIds {
 		if _, getErr := inboundSvc.GetInbound(ibId); getErr != nil {
 			if errors.Is(getErr, gorm.ErrRecordNotFound) {
 				continue
 			}
-			return needRestart, getErr
+			delErrs = append(delErrs, fmt.Errorf("inbound %d: %w", ibId, getErr))
+			continue
 		}
 
 		// Always delete by email — the client's stable identity. This removes
@@ -456,11 +463,18 @@ func (s *ClientService) Delete(inboundSvc *InboundService, id int, keepTraffic b
 			if errors.Is(delErr, ErrClientNotInInbound) {
 				continue
 			}
-			return needRestart, delErr
+			delErrs = append(delErrs, fmt.Errorf("inbound %d: %w", ibId, delErr))
+			continue
 		}
 		if nr {
 			needRestart = true
 		}
+	}
+	// A failed inbound still holds the client in its settings JSON, so the
+	// record is kept and the next delete retries exactly the leftovers.
+	// Reporting the failure beats returning success over a partial delete.
+	if len(delErrs) > 0 {
+		return needRestart, errors.Join(delErrs...)
 	}
 
 	db := database.GetDB()
@@ -602,17 +616,24 @@ func (s *ClientService) DeleteByEmail(inboundSvc *InboundService, email string, 
 		return false, common.NewError(fmt.Sprintf("client %q not found in any inbound or client record", email))
 	}
 	needRestart := false
+	// Same reasoning as Delete: keep going so every reachable inbound is
+	// cleaned in one pass instead of one per attempt.
+	var delErrs []error
 	for _, ibId := range inboundIds {
 		nr, delErr := s.DelInboundClientByEmail(inboundSvc, ibId, email, false)
 		if delErr != nil {
 			if errors.Is(delErr, ErrClientNotInInbound) {
 				continue
 			}
-			return needRestart, delErr
+			delErrs = append(delErrs, fmt.Errorf("inbound %d: %w", ibId, delErr))
+			continue
 		}
 		if nr {
 			needRestart = true
 		}
+	}
+	if len(delErrs) > 0 {
+		return needRestart, errors.Join(delErrs...)
 	}
 	if !keepTraffic {
 		db := database.GetDB()
