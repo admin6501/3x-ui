@@ -1246,6 +1246,13 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 
 	clients, ok := settings["clients"].([]any)
 	if !ok {
+		// No clients to filter, but fallbacks still have to be merged: they
+		// live in their own table and are only ever folded into settings by a
+		// builder, so a runtime inbound without this reaches the node with no
+		// fallbacks at all.
+		if err := s.injectFallbacks(&runtimeInbound, settings); err != nil {
+			return nil, err
+		}
 		return &runtimeInbound, nil
 	}
 
@@ -1283,6 +1290,13 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 	}
 
 	settings["clients"] = finalClients
+	if err := s.injectFallbacks(&runtimeInbound, settings); err != nil {
+		return nil, err
+	}
+	if runtimeInbound.Settings != inbound.Settings {
+		// injectFallbacks already serialised the map.
+		return &runtimeInbound, nil
+	}
 	modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return nil, err
@@ -1290,6 +1304,38 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 	runtimeInbound.Settings = string(modifiedSettings)
 
 	return &runtimeInbound, nil
+}
+
+// injectFallbacks folds an inbound's fallback rules into the settings map the
+// runtime config is built from.
+//
+// Fallbacks live in the inbound_fallbacks table and were only merged by the
+// master's own config builder, so a node-hosted inbound was pushed without
+// them: the fallback rules an operator configured simply did not exist on the
+// node, and every connection that should have been handed to a child inbound
+// was dropped instead.
+func (s *InboundService) injectFallbacks(runtimeInbound *model.Inbound, settings map[string]any) error {
+	if !inboundCanHostFallbacks(runtimeInbound) {
+		return nil
+	}
+	fallbacks, err := s.fallbackService.BuildFallbacksJSON(nil, runtimeInbound.Id)
+	if err != nil {
+		return err
+	}
+	if len(fallbacks) == 0 {
+		return nil
+	}
+	generic := make([]any, 0, len(fallbacks))
+	for _, f := range fallbacks {
+		generic = append(generic, f)
+	}
+	settings["fallbacks"] = generic
+	merged, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	runtimeInbound.Settings = string(merged)
+	return nil
 }
 
 // updateClientTraffics syncs the ClientTraffic rows with the inbound's clients
