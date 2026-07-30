@@ -253,14 +253,6 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 				}
 			}
 
-			// Make the REALITY client floor explicit rather than letting the
-			// core supply it invisibly — see model.RealityDefaultMinClientVer.
-			//
-			// Inbounds are normally pinned when they are saved, so this is the
-			// backstop for rows written before that existed and for configs
-			// assembled from anything but a stored inbound.
-			pinRealityMinClientVer(stream)
-
 			delete(stream, "externalProxy")
 
 			// xray-core v26.6.22 (#6258) renamed the XHTTP session keys and
@@ -1152,12 +1144,4 @@ func liftOutboundsXhttpSessionIDKeys(raw json_util.RawMessage) json_util.RawMess
 		return rewritten
 	}
 	return raw
-}
-
-const realityDefaultMinClientVer = model.RealityDefaultMinClientVer
-
-// pinRealityMinClientVer writes the default floor into a config being handed to
-// the core when the inbound carries no minClientVer of its own.
-func pinRealityMinClientVer(stream map[string]any) {
-	model.PinRealityMinClientVer(stream)
 }

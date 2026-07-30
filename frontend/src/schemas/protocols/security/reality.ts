@@ -58,11 +58,7 @@ export const RealityStreamSettingsSchema = z.preprocess(
     target: z.string().default(''),
     serverNames: z.array(z.string()).default([]),
     privateKey: z.string().default(''),
-    // Matches model.RealityDefaultMinClientVer: the floor the core applies to a
-    // blank field anyway, shown up front so a new inbound does not claim to
-    // have no minimum. Clearing it does not lift the floor — set 0.0.0 for
-    // that. An existing inbound keeps whatever it has stored.
-    minClientVer: z.string().default('26.3.27'),
+    minClientVer: z.string().default(''),
     maxClientVer: z.string().default(''),
     maxTimediff: z.number().int().min(0).default(0),
     shortIds: z.array(z.string()).default([]),
