@@ -253,6 +253,22 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 				}
 			}
 
+			// xray-core v26.7.28 made an empty REALITY "minClientVer" mean
+			// 26.3.27 rather than "no minimum", so upgrading the core silently
+			// raised the floor and refused every client built on an older core
+			// — REALITY inbounds only, which is why TLS and Shadowsocks kept
+			// working while REALITY stopped.
+			//
+			// The panel writes that floor explicitly rather than leaving the
+			// field blank. Behaviourally it matches what the core now does on
+			// its own; the point is that it is visible in the generated config
+			// and in the inbound's own settings, so the reason a client is
+			// refused can be read off the panel instead of inferred from a
+			// version bump. An operator who sets their own value keeps it —
+			// including 0.0.0, which restores the pre-upgrade behaviour for a
+			// client base that has not updated.
+			pinRealityMinClientVer(stream)
+
 			delete(stream, "externalProxy")
 
 			// xray-core v26.6.22 (#6258) renamed the XHTTP session keys and
@@ -1144,4 +1160,27 @@ func liftOutboundsXhttpSessionIDKeys(raw json_util.RawMessage) json_util.RawMess
 		return rewritten
 	}
 	return raw
+}
+
+// realityDefaultMinClientVer is the floor xray-core v26.7.28 applies when the
+// field is empty. Writing it explicitly keeps it visible rather than implied.
+//
+// Older clients have known REALITY fingerprinting weaknesses, which is why
+// upstream chose it. It does refuse clients built on an older core: an
+// operator whose users have not updated should set 0.0.0 on the inbound,
+// which this leaves alone.
+const realityDefaultMinClientVer = "26.3.27"
+
+// pinRealityMinClientVer writes the default floor when the inbound carries no
+// minClientVer, so the value is explicit in the config instead of being
+// supplied invisibly by the core.
+func pinRealityMinClientVer(stream map[string]any) {
+	reality, ok := stream["realitySettings"].(map[string]any)
+	if !ok || reality == nil {
+		return
+	}
+	if current, _ := reality["minClientVer"].(string); strings.TrimSpace(current) != "" {
+		return
+	}
+	reality["minClientVer"] = realityDefaultMinClientVer
 }
