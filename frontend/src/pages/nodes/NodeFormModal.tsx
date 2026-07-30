@@ -44,6 +44,7 @@ function defaultValues(): NodeFormValues {
     port: 2053,
     basePath: '/',
     apiToken: '',
+    hasApiToken: false,
     enable: true,
     allowPrivateAddress: false,
     tlsVerifyMode: 'verify',

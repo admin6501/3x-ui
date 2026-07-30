@@ -863,7 +863,11 @@ type Node struct {
         Address             string   `json:"address" form:"address" validate:"required" example:"node1.example.com"`
         Port                int      `json:"port" form:"port" validate:"gte=1,lte=65535" example:"2053"`
         BasePath            string   `json:"basePath" form:"basePath" example:"/"`
-        ApiToken            string   `json:"apiToken" form:"apiToken" validate:"required_unless=TlsVerifyMode mtls" example:"abcdef0123456789"`
+        // Write-only: read endpoints redact this and report presence through
+        // NodeView.HasApiToken instead. An empty value on update therefore
+        // means "keep the stored token", which is why it is not `required`
+        // here — NodeController.add enforces presence at creation time.
+        ApiToken            string   `json:"apiToken" form:"apiToken" example:"abcdef0123456789"`
         Enable              bool     `json:"enable" form:"enable" gorm:"default:true" example:"true"`
         AllowPrivateAddress bool     `json:"allowPrivateAddress" form:"allowPrivateAddress" gorm:"default:false"`
         TlsVerifyMode       string   `json:"tlsVerifyMode" form:"tlsVerifyMode" gorm:"column:tls_verify_mode;default:verify" validate:"omitempty,oneof=verify skip pin mtls"`

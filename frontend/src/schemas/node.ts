@@ -9,6 +9,9 @@ export const NodeRecordSchema = z.object({
   port: z.number().optional(),
   basePath: z.string().optional(),
   apiToken: z.string().optional(),
+  // Read endpoints redact the token and report presence instead, so the edit
+  // form can leave the field blank and mean "keep the stored one".
+  hasApiToken: z.boolean().optional().default(false),
   enable: z.boolean().optional(),
   status: z.string().optional(),
   latencyMs: z.number().optional(),
@@ -67,6 +70,9 @@ export const NodeFormSchema = z.object({
   // mTLS nodes authenticate via the client certificate, so the token is optional
   // there; every other verify mode still requires one (matches remote.do()).
   apiToken: z.string().trim(),
+  // Mirrors the server's presence flag so the refinement below can tell
+  // "no token yet" from "token stored, field intentionally blank".
+  hasApiToken: z.boolean().optional().default(false),
   enable: z.boolean(),
   allowPrivateAddress: z.boolean(),
   tlsVerifyMode: z.enum(['verify', 'skip', 'pin', 'mtls']),
@@ -77,7 +83,10 @@ export const NodeFormSchema = z.object({
   inboundTags: z.array(z.string()).nullish().transform((tags) => tags ?? []),
   outboundTag: z.string().optional(),
 }).superRefine((val, ctx) => {
-  if (val.tlsVerifyMode !== 'mtls' && val.apiToken.length === 0) {
+  // An empty field is fine when one is already stored: the backend reads that
+  // as "unchanged". Requiring it here would make every edit of an existing
+  // node impossible, since the form is never given the token to begin with.
+  if (val.tlsVerifyMode !== 'mtls' && val.apiToken.length === 0 && !val.hasApiToken) {
     ctx.addIssue({
       code: 'custom',
       path: ['apiToken'],

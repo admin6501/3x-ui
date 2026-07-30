@@ -437,6 +437,14 @@ func (s *NodeService) Update(id int, in *model.Node) error {
 	if err := db.Where("id = ?", id).First(existing).Error; err != nil {
 		return err
 	}
+	// The edit form never receives the stored token (read endpoints redact
+	// it), so an empty value means "unchanged" rather than "clear it".
+	// Without this every save would wipe the credential and the node would go
+	// unreachable on the next tick.
+	apiToken := in.ApiToken
+	if apiToken == "" {
+		apiToken = existing.ApiToken
+	}
 	updates := map[string]any{
 		"name":                  in.Name,
 		"remark":                in.Remark,
@@ -444,7 +452,7 @@ func (s *NodeService) Update(id int, in *model.Node) error {
 		"address":               in.Address,
 		"port":                  in.Port,
 		"base_path":             in.BasePath,
-		"api_token":             in.ApiToken,
+		"api_token":             apiToken,
 		"enable":                in.Enable,
 		"allow_private_address": in.AllowPrivateAddress,
 		"tls_verify_mode":       in.TlsVerifyMode,

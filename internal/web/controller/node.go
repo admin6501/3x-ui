@@ -83,7 +83,8 @@ func (a *NodeController) list(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.nodes.toasts.list"), err)
 		return
 	}
-	jsonObj(c, nodes, nil)
+	// Redacted: this endpoint is readable by every signed-in role.
+	jsonObj(c, service.NodeViews(nodes), nil)
 }
 
 func (a *NodeController) get(c *gin.Context) {
@@ -97,7 +98,7 @@ func (a *NodeController) get(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.nodes.toasts.obtain"), err)
 		return
 	}
-	jsonObj(c, n, nil)
+	jsonObj(c, service.NodeViewOf(n), nil)
 }
 
 // webCert returns the node's own web TLS certificate/key file paths so the
@@ -128,6 +129,13 @@ func (a *NodeController) ensureReachable(c *gin.Context, n *model.Node) error {
 func (a *NodeController) add(c *gin.Context) {
 	n, ok := middleware.BindAndValidate[model.Node](c)
 	if !ok {
+		return
+	}
+	// The model no longer marks ApiToken required: an empty value on update
+	// means "keep the stored one". At creation there is nothing to keep, so
+	// presence is enforced here instead.
+	if n.ApiToken == "" && n.TlsVerifyMode != "mtls" {
+		jsonMsg(c, I18nWeb(c, "pages.nodes.toasts.add"), errors.New("api token is required"))
 		return
 	}
 	if n.OutboundTag == "" {
@@ -167,6 +175,12 @@ func (a *NodeController) update(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.nodes.toasts.obtain"), err)
 		return
 	}
+	// The form leaves the token blank to mean "unchanged", so the probe has to
+	// use the stored one or it would always fail with a bad credential.
+	if n.ApiToken == "" {
+		n.ApiToken = old.ApiToken
+	}
+	n.Id = id
 	if n.OutboundTag == "" && old.OutboundTag == "" {
 		if err := a.ensureReachable(c, n); err != nil {
 			jsonMsg(c, I18nWeb(c, "pages.nodes.toasts.update"), err)
@@ -232,6 +246,23 @@ func (a *NodeController) setEnable(c *gin.Context) {
 	jsonMsg(c, I18nWeb(c, "pages.nodes.toasts.update"), nil)
 }
 
+// fillStoredApiToken restores a node's stored API token when the request left
+// it blank.
+//
+// Read endpoints redact the token, so the edit form genuinely does not have it
+// and sends an empty field to mean "unchanged". Every endpoint that reaches
+// out to the node with the posted credentials has to resolve that first, or
+// "Test", "Load inbounds from node" and the reachability probe would all fail
+// with an authentication error against a node whose token is perfectly fine.
+func (a *NodeController) fillStoredApiToken(n *model.Node) {
+	if n == nil || n.ApiToken != "" || n.Id <= 0 {
+		return
+	}
+	if stored, err := a.nodeService.GetById(n.Id); err == nil && stored != nil {
+		n.ApiToken = stored.ApiToken
+	}
+}
+
 func (a *NodeController) inbounds(c *gin.Context) {
 	n := &model.Node{}
 	if err := c.ShouldBind(n); err != nil {
@@ -240,6 +271,7 @@ func (a *NodeController) inbounds(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
+	a.fillStoredApiToken(n)
 	options, err := a.nodeService.GetRemoteInboundOptions(ctx, n)
 	jsonObj(c, options, err)
 }
@@ -256,6 +288,7 @@ func (a *NodeController) test(c *gin.Context) {
 	if n.BasePath == "" {
 		n.BasePath = "/"
 	}
+	a.fillStoredApiToken(n)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 6*time.Second)
 	defer cancel()
