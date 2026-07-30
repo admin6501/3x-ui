@@ -514,7 +514,7 @@ func runSeeders(isUsersEmpty bool) error {
 	}
 
 	if empty && isUsersEmpty {
-		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted", "InboundRealityMinClientVerPin"}
+		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted", "InboundRealityMinClientVerPin", "ClientPasswordCleanup"}
 		for _, name := range seeders {
 			if err := db.Create(&model.HistoryOfSeeders{SeederName: name}).Error; err != nil {
 				return err
@@ -627,6 +627,12 @@ func runSeeders(isUsersEmpty bool) error {
 
 	if !slices.Contains(seedersHistory, "InboundRealityMinClientVerPin") {
 		if err := pinRealityMinClientVer(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "ClientPasswordCleanup") {
+		if err := clearUnusedClientPasswords(); err != nil {
 			return err
 		}
 	}
@@ -1675,6 +1681,88 @@ func pinRealityMinClientVer() error {
 		log.Printf("InboundRealityMinClientVerPin: nothing to pin")
 	}
 	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityMinClientVerPin"}).Error
+}
+
+// clearUnusedClientPasswords drops passwords stored against clients of
+// protocols that do not authenticate by password.
+//
+// VLESS and VMess identify by uuid; the core ignores a password on them. The
+// panel nonetheless kept whatever was there — usually left behind by an inbound
+// that changed protocol — and displayed it in the connection info, so operators
+// saw a credential their clients were not using and reasonably read it as the
+// reason a config had stopped working.
+//
+// A client record is only cleared when every inbound it is linked to ignores
+// the password. A client shared with a Trojan or Shadowsocks inbound keeps it,
+// because there it is the actual credential.
+func clearUnusedClientPasswords() error {
+	var inbounds []model.Inbound
+	if err := db.Model(&model.Inbound{}).Find(&inbounds).Error; err != nil {
+		return err
+	}
+
+	usesPassword := make(map[int]bool, len(inbounds))
+	stripped := 0
+	for i := range inbounds {
+		ib := &inbounds[i]
+		usesPassword[ib.Id] = model.ProtocolUsesClientPassword(ib.Protocol)
+		if usesPassword[ib.Id] {
+			continue
+		}
+		rewritten, changed := model.StripClientPasswords(ib.Settings)
+		if !changed {
+			continue
+		}
+		if err := db.Model(&model.Inbound{}).Where("id = ?", ib.Id).
+			Update("settings", rewritten).Error; err != nil {
+			return err
+		}
+		stripped++
+		log.Printf("ClientPasswordCleanup: dropped unused client passwords from %s inbound %d (%s)", ib.Protocol, ib.Id, ib.Remark)
+	}
+
+	// Mirror the same cleanup into client_records, which is where the panel
+	// reads a client back from. Leaving it there would let the password return
+	// to the inbound settings on the next client edit.
+	var links []model.ClientInbound
+	if err := db.Model(&model.ClientInbound{}).Find(&links).Error; err != nil {
+		return err
+	}
+	keep := make(map[int]bool)
+	linked := make(map[int]bool)
+	for _, l := range links {
+		linked[l.ClientId] = true
+		if usesPassword[l.InboundId] {
+			keep[l.ClientId] = true
+		}
+	}
+	clearable := make([]int, 0, len(linked))
+	for id := range linked {
+		if !keep[id] {
+			clearable = append(clearable, id)
+		}
+	}
+
+	cleared := int64(0)
+	// Chunked so a panel with tens of thousands of clients does not build a
+	// single oversized IN (...) list.
+	for chunk := range slices.Chunk(clearable, 500) {
+		res := db.Model(&model.ClientRecord{}).
+			Where("id IN ?", chunk).
+			Where("password != ?", "").
+			Update("password", "")
+		if res.Error != nil {
+			return res.Error
+		}
+		cleared += res.RowsAffected
+	}
+
+	if stripped == 0 && cleared == 0 {
+		log.Printf("ClientPasswordCleanup: nothing to clear")
+	} else {
+		log.Printf("ClientPasswordCleanup: cleared %d client record(s) across %d inbound(s)", cleared, stripped)
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "ClientPasswordCleanup"}).Error
 }
 
 // postgresConnectBackoff is how long to keep retrying the first connection,
