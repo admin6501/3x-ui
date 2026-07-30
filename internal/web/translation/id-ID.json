@@ -2718,5 +2718,6 @@
       "tb": "TB",
       "unlimited": "tanpa batas"
     }
-  }
+  },
+  "get": "Gagal mengambil data"
 }

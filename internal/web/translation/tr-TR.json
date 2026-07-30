@@ -2718,5 +2718,6 @@
       "tb": "TB",
       "unlimited": "sınırsız"
     }
-  }
+  },
+  "get": "Veri alınamadı"
 }

@@ -93,3 +93,50 @@ func TestStripIsANoOpWhenThereIsNothingToDo(t *testing.T) {
 		}
 	}
 }
+
+// TestRealityEditForcesARestart: xray-core does not rebuild a REALITY
+// listener's authenticator on a runtime re-add, so a changed key or shortId
+// looks applied in the panel while clients keep authenticating against the old
+// parameters. Hot-swapping such an edit is silently wrong.
+func TestRealityEditForcesARestart(t *testing.T) {
+	const before = `{"network":"tcp","security":"reality","realitySettings":{"shortIds":["aa"]}}`
+	const after = `{"network":"tcp","security":"reality","realitySettings":{"shortIds":["bb"]}}`
+
+	if !realityAuthChanged(
+		&model.Inbound{StreamSettings: before},
+		&model.Inbound{StreamSettings: after},
+	) {
+		t.Error("a changed REALITY shortId must not be hot-swapped")
+	}
+
+	// Switching security on or off also changes what the listener authenticates
+	// with.
+	const plain = `{"network":"tcp","security":"tls"}`
+	if !realityAuthChanged(&model.Inbound{StreamSettings: plain}, &model.Inbound{StreamSettings: after}) {
+		t.Error("an inbound that starts using REALITY must restart")
+	}
+	if !realityAuthChanged(&model.Inbound{StreamSettings: before}, &model.Inbound{StreamSettings: plain}) {
+		t.Error("an inbound that stops using REALITY must restart")
+	}
+}
+
+// TestNonRealityEditsStillHotSwap keeps the guard from turning every save into
+// a core restart, which would drop every connected client on an unrelated edit.
+func TestNonRealityEditsStillHotSwap(t *testing.T) {
+	const reality = `{"network":"tcp","security":"reality","realitySettings":{"shortIds":["aa"]}}`
+
+	// Client-only edit: the stream is untouched.
+	if realityAuthChanged(&model.Inbound{StreamSettings: reality}, &model.Inbound{StreamSettings: reality}) {
+		t.Error("a client-only edit on a REALITY inbound must still hot-swap")
+	}
+	// Neither side uses REALITY.
+	if realityAuthChanged(
+		&model.Inbound{StreamSettings: `{"network":"ws","security":"tls"}`},
+		&model.Inbound{StreamSettings: `{"network":"ws","security":"tls","wsSettings":{"path":"/new"}}`},
+	) {
+		t.Error("a non-REALITY stream change must still hot-swap")
+	}
+	if realityAuthChanged(nil, nil) {
+		t.Error("nil inbounds must not force a restart")
+	}
+}

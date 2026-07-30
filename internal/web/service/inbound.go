@@ -1143,6 +1143,16 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 		if dirty {
 			markDirty = true
 		}
+		// A changed inbound is normally hot-swapped over gRPC as RemoveInbound
+		// + AddInbound, but xray-core does not reliably rebuild a REALITY
+		// listener's authenticator on a runtime re-add: a changed key or
+		// shortId looks applied in the panel while clients keep authenticating
+		// against the old parameters until someone restarts the core by hand.
+		// Restarting is the only way to make the edit real. Client-only edits
+		// go through the per-user path and still avoid restarts.
+		if realityAuthChanged(oldInbound, inbound) {
+			push = false
+		}
 		if oldInbound.NodeID == nil {
 			if !push {
 				needRestart = true

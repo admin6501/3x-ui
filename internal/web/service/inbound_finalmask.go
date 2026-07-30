@@ -24,3 +24,22 @@ func validateFinalMaskRealityCombo(inbound *model.Inbound) error {
 	}
 	return nil
 }
+
+// realityAuthChanged reports whether an inbound edit touches REALITY in a way
+// a runtime re-add would not actually apply.
+//
+// Any non-client change on an inbound that uses REALITY, or that starts using
+// it, counts: the stream settings carry the keys, shortIds and server names
+// the listener authenticates with, and xray-core does not rebuild that
+// authenticator when the inbound is removed and re-added over the API.
+func realityAuthChanged(oldInbound, newInbound *model.Inbound) bool {
+	if oldInbound == nil || newInbound == nil {
+		return false
+	}
+	if !model.StreamHasReality(oldInbound.StreamSettings) && !model.StreamHasReality(newInbound.StreamSettings) {
+		return false
+	}
+	// Client edits do not touch the stream, so an unchanged stream means this
+	// is not a REALITY parameter change and the hot swap is safe.
+	return oldInbound.StreamSettings != newInbound.StreamSettings
+}

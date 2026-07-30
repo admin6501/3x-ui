@@ -2718,5 +2718,6 @@
       "tb": "TB",
       "unlimited": "không giới hạn"
     }
-  }
+  },
+  "get": "Không lấy được dữ liệu"
 }
