@@ -36,14 +36,33 @@ func NewAPIController(g *gin.RouterGroup) *APIController {
 	return a
 }
 
+// apiPrincipal is the identity a token- or certificate-authenticated call runs
+// as. Both credentials are machine credentials minted by a settings.manage
+// holder, and every route under /panel/api is reachable with them by design —
+// so the principal carries full privilege rather than inheriting whatever role
+// the panel's first account happens to have.
+//
+// This matters for node-to-node traffic: a parent panel drives its nodes over
+// the node's API token, and those calls include permission-gated endpoints
+// (restartXrayService, clientIps). Deriving privilege from account #1 would
+// break the whole fleet the moment that account was demoted or replaced.
+func (a *APIController) apiPrincipal() *model.User {
+	principal := &model.User{Role: model.RoleSuperAdmin}
+	if u, err := a.userService.GetFirstUser(); err == nil && u != nil {
+		clone := *u
+		principal = &clone
+		principal.Role = model.RoleSuperAdmin
+		principal.AllowedInbounds = ""
+	}
+	return principal
+}
+
 func (a *APIController) checkAPIAuth(c *gin.Context) {
 	// A verified client certificate (a completed mTLS handshake) authenticates
 	// the caller, equivalent to a valid bearer token. api_authed must be set so
 	// the CSRF middleware lets cert-authed mutations through.
 	if c.Request.TLS != nil && len(c.Request.TLS.VerifiedChains) > 0 {
-		if u, err := a.userService.GetFirstUser(); err == nil {
-			session.SetAPIAuthUser(c, u)
-		}
+		session.SetAPIAuthUser(c, a.apiPrincipal())
 		c.Set("api_authed", true)
 		c.Next()
 		return
@@ -52,9 +71,7 @@ func (a *APIController) checkAPIAuth(c *gin.Context) {
 	if after, ok := strings.CutPrefix(auth, "Bearer "); ok {
 		tok := after
 		if a.apiTokenService.Match(tok) {
-			if u, err := a.userService.GetFirstUser(); err == nil {
-				session.SetAPIAuthUser(c, u)
-			}
+			session.SetAPIAuthUser(c, a.apiPrincipal())
 			c.Set("api_authed", true)
 			c.Next()
 			return
