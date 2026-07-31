@@ -65,6 +65,26 @@ func (s *ClientService) GetInboundIdsForEmail(tx *gorm.DB, email string) ([]int,
 	return ids, nil
 }
 
+// GetInboundIdsForSubId returns the union of inbounds reachable through a
+// subscription id. One subId can cover several clients, so the caller gets
+// every inbound any of them is attached to — a scope check must hold for the
+// whole set, not a single client.
+func (s *ClientService) GetInboundIdsForSubId(tx *gorm.DB, subId string) ([]int, error) {
+	if tx == nil {
+		tx = database.GetDB()
+	}
+	var ids []int
+	err := tx.Table("client_inbounds").
+		Distinct("client_inbounds.inbound_id").
+		Joins("JOIN clients ON clients.id = client_inbounds.client_id").
+		Where("clients.sub_id = ?", subId).
+		Scan(&ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func (s *ClientService) GetByID(id int) (*model.ClientRecord, error) {
 	row := &model.ClientRecord{}
 	if err := database.GetDB().Where("id = ?", id).First(row).Error; err != nil {

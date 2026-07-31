@@ -254,7 +254,7 @@ export const sections: readonly Section[] = [
     id: 'server',
     title: 'Server',
     description:
-      'System status, log retrieval, certificate generators, Xray binary management, and backup/restore. All under /panel/api/server.',
+      'System status, log retrieval, certificate generators, Xray binary management, and backup/restore. All under /panel/api/server. Permissions are per-endpoint rather than per-section: status, metrics, version checks and the key/certificate generators are open to any admin, while <code>getDb</code>, <code>getMigration</code>, <code>importDB</code>, <code>updatePanel</code>, <code>logs</code> and <code>clientIps</code> require <code>settings.manage</code>, and <code>getConfigJson</code>, <code>xraylogs</code>, <code>stopXrayService</code>, <code>restartXrayService</code>, <code>installXray</code> and <code>updateGeofile</code> require <code>xray.manage</code>. Among the built-in roles only <strong>super_admin</strong> holds either, so manager, reseller and readonly get 403 on those.',
     endpoints: [
       {
         method: 'GET',
@@ -1087,7 +1087,8 @@ export const sections: readonly Section[] = [
   {
     id: 'backup',
     title: 'Backup',
-    description: 'Operations that interact with the configured Telegram bot.',
+    description:
+      'Operations that interact with the configured Telegram bot. Sending a backup ships the whole database off the host, so it requires <code>settings.manage</code> — the same gate as <code>server/getDb</code>.',
     endpoints: [
       {
         method: 'POST',

@@ -63,12 +63,26 @@ func (j *NodeHeartbeatJob) Run() {
 	if !websocket.HasClients() {
 		return
 	}
-	updated, err := j.nodeService.GetNodeTree()
+	payload, err := j.broadcastPayload()
 	if err != nil {
 		logger.Warning("node heartbeat: load nodes for broadcast failed:", err)
 		return
 	}
-	websocket.BroadcastNodes(updated)
+	websocket.BroadcastNodes(payload)
+}
+
+// broadcastPayload builds the node list pushed to every connected session.
+//
+// It must return redacted views, never the raw rows: model.Node serialises
+// ApiToken, and this payload is fanned out to every WebSocket client whatever
+// its role — the same reason NodeController.list wraps its response in
+// service.NodeViews. Split out from Run so that property is testable.
+func (j *NodeHeartbeatJob) broadcastPayload() ([]*service.NodeView, error) {
+	updated, err := j.nodeService.GetNodeTree()
+	if err != nil {
+		return nil, err
+	}
+	return service.NodeViews(updated), nil
 }
 
 func (j *NodeHeartbeatJob) probeOne(n *model.Node) {

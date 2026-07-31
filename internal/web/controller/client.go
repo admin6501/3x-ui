@@ -690,7 +690,11 @@ func (a *ClientController) getTrafficByEmail(c *gin.Context) {
 }
 
 func (a *ClientController) getSubLinks(c *gin.Context) {
-	links, err := a.inboundService.GetSubLinks(resolveHost(c), c.Param("subId"))
+	subId := c.Param("subId")
+	if !guardClientSubIdScope(c, &a.clientService, subId) {
+		return
+	}
+	links, err := a.inboundService.GetSubLinks(resolveHost(c), subId)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
 		return

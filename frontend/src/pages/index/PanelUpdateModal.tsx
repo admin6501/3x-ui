@@ -4,6 +4,7 @@ import { CloudDownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 import { HttpUtil, PromiseUtil } from '@/utils';
+import { can } from '@/lib/permissions';
 import './PanelUpdateModal.css';
 
 export interface PanelUpdateInfo {
@@ -102,16 +103,20 @@ export default function PanelUpdateModal({ open, info, onClose, onBusy }: PanelU
           )}
         </div>
 
-        <div className="actions-row">
-          <Button
-            type="primary"
-            disabled={!info.updateAvailable}
-            onClick={updatePanel}
-            icon={<CloudDownloadOutlined />}
-          >
-            {t('pages.index.updatePanel')}
-          </Button>
-        </div>
+        {/* Version display is open to any admin; running the update is
+            settings.manage, matching the endpoint behind it. */}
+        {can('settings.manage') && (
+          <div className="actions-row">
+            <Button
+              type="primary"
+              disabled={!info.updateAvailable}
+              onClick={updatePanel}
+              icon={<CloudDownloadOutlined />}
+            >
+              {t('pages.index.updatePanel')}
+            </Button>
+          </div>
+        )}
       </Modal>
     </>
   );
