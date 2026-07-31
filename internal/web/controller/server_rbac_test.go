@@ -128,3 +128,54 @@ func TestServerRoutes_ObservationalEndpointsStayOpen(t *testing.T) {
 		}
 	}
 }
+
+// TestServerRoutes_ApiTokenKeepsFullPrivilege pins the node-to-node contract:
+// a parent panel drives its nodes with the node's API token, and those calls
+// land on permission-gated endpoints. The token must not inherit the role of
+// whatever account happens to be first in the table — here a readonly one —
+// or a demoted account #1 would silently break the fleet.
+func TestServerRoutes_ApiTokenKeepsFullPrivilege(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	dbDir := t.TempDir()
+	t.Setenv("XUI_DB_FOLDER", dbDir)
+	if err := database.InitDB(filepath.Join(dbDir, "x-ui.db")); err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	t.Cleanup(func() { _ = database.CloseDB() })
+
+	// Demote every existing account, so the first row is deliberately not a
+	// super_admin. The token must still carry full privilege.
+	if err := database.GetDB().Model(model.User{}).Where("1 = 1").
+		Update("role", model.RoleReadonly).Error; err != nil {
+		t.Fatalf("demote first user: %v", err)
+	}
+
+	a := &APIController{}
+	token, err := a.apiTokenService.Create("node-link")
+	if err != nil {
+		t.Fatalf("create api token: %v", err)
+	}
+
+	engine := gin.New()
+	store := cookie.NewStore([]byte("api-token-privilege-test"))
+	engine.Use(sessions.Sessions("3x-ui", store))
+	api := engine.Group("/panel/api")
+	api.Use(a.checkAPIAuth)
+	api.Use(guardWriteMethods())
+	(&ServerController{}).initRouter(api.Group("/server"))
+
+	// Read-only representatives of each gate, so the assertion is about the
+	// gate and not about a handler that wants a live xray process.
+	for _, rt := range []struct{ method, path string }{
+		{http.MethodGet, "/panel/api/server/getConfigJson"}, // xray.manage
+		{http.MethodGet, "/panel/api/server/clientIps"},     // settings.manage
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(rt.method, rt.path, nil)
+		req.Header.Set("Authorization", "Bearer "+token.Token)
+		engine.ServeHTTP(rec, req)
+		if rec.Code == http.StatusForbidden {
+			t.Errorf("%s %s: API token was refused (body: %s)", rt.method, rt.path, rec.Body.String())
+		}
+	}
+}
