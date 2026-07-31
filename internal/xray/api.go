@@ -500,14 +500,10 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 		case "xchacha20-poly1305", "xchacha20-ietf-poly1305":
 			ssCipherType = shadowsocks.CipherType_XCHACHA20_POLY1305
 		default:
-			// Not one of the AEAD ciphers handled here; the zero value routes
-			// this account to the shadowsocks-2022 branch below. xray-core
-			// renamed this constant from CipherType_NONE in v26.7.28 — same
-			// value, same meaning.
-			ssCipherType = shadowsocks.CipherType_UNKNOWN
+			ssCipherType = shadowsocks.CipherType_NONE
 		}
 
-		if ssCipherType != shadowsocks.CipherType_UNKNOWN {
+		if ssCipherType != shadowsocks.CipherType_NONE {
 			account = serial.ToTypedMessage(&shadowsocks.Account{
 				Password:   password,
 				CipherType: ssCipherType,
