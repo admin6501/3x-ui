@@ -42,6 +42,7 @@ import { useStatusQuery } from '@/api/queries/useStatusQuery';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import AppSidebar from '@/layouts/AppSidebar';
 import { LazyMount } from '@/components/utility';
+import { can } from '@/lib/permissions';
 import { setMessageInstance } from '@/utils/messageBus';
 import StatusCard from './StatusCard';
 import XrayStatusCard from './XrayStatusCard';
@@ -151,6 +152,12 @@ export default function IndexPage() {
     FileManager.downloadTextFile(configText, 'config.json');
   }
 
+  // The dashboard's maintenance controls all hit permission-gated endpoints:
+  // database export/import, panel self-update and panel logs need
+  // settings.manage; the xray runtime and its generated config need xray.manage.
+  const mayManagePanel = can('settings.manage');
+  const mayManageXray = can('xray.manage');
+
   const pageClass = `index-page ${isDark ? 'is-dark' : ''} ${isUltra ? 'is-ultra' : ''}`.trim();
 
   return (
@@ -200,18 +207,41 @@ export default function IndexPage() {
                       title={t('menu.link')}
                       hoverable
                       actions={[
-                        <Space className="action" key="logs" onClick={() => setLogsOpen(true)}>
-                          <BarsOutlined />
-                          {!isMobile && <span>{t('pages.index.logs')}</span>}
-                        </Space>,
-                        <Space className="action" key="config" onClick={openConfig}>
-                          <ControlOutlined />
-                          {!isMobile && <span>{t('pages.index.config')}</span>}
-                        </Space>,
-                        <Space className="action" key="backup" onClick={() => setBackupOpen(true)}>
-                          <CloudServerOutlined />
-                          {!isMobile && <span>{t('pages.index.backupTitle')}</span>}
-                        </Space>,
+                        // Panel logs and the database backup/restore pair are
+                        // settings.manage; the generated xray config is
+                        // xray.manage. Shown only to roles that hold them.
+                        ...(mayManagePanel
+                          ? [
+                              <Space
+                                className="action"
+                                key="logs"
+                                onClick={() => setLogsOpen(true)}
+                              >
+                                <BarsOutlined />
+                                {!isMobile && <span>{t('pages.index.logs')}</span>}
+                              </Space>,
+                            ]
+                          : []),
+                        ...(mayManageXray
+                          ? [
+                              <Space className="action" key="config" onClick={openConfig}>
+                                <ControlOutlined />
+                                {!isMobile && <span>{t('pages.index.config')}</span>}
+                              </Space>,
+                            ]
+                          : []),
+                        ...(mayManagePanel
+                          ? [
+                              <Space
+                                className="action"
+                                key="backup"
+                                onClick={() => setBackupOpen(true)}
+                              >
+                                <CloudServerOutlined />
+                                {!isMobile && <span>{t('pages.index.backupTitle')}</span>}
+                              </Space>,
+                            ]
+                          : []),
                       ]}
                     />
                   </Col>

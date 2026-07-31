@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 
 import type { Status } from '@/models/status';
+import { can } from '@/lib/permissions';
 import './XrayStatusCard.css';
 
 interface XrayStatusCardProps {
@@ -67,7 +68,10 @@ export default function XrayStatusCard({
               <span>{t('pages.index.xrayStatusError')}</span>
             </Col>
             <Col>
-              <BarsOutlined className="cursor-pointer" onClick={onOpenLogs} />
+              {/* jumps to the panel log viewer, which is settings.manage-gated */}
+              {can('settings.manage') && (
+                <BarsOutlined className="cursor-pointer" onClick={onOpenLogs} />
+              )}
             </Col>
           </Row>
         }
@@ -85,36 +89,43 @@ export default function XrayStatusCard({
       </Popover>
     );
 
-  const actions = [
-    // the xray log viewer reads the access log file, so the button only makes
-    // sense when one is configured (unlike IP limit, which no longer needs it)
-    ...(accessLogEnable
-      ? [
-          <Space className="action" key="xraylogs" onClick={onOpenXrayLogs}>
-            <BarsOutlined />
-            {!isMobile && <span>{t('pages.index.logs')}</span>}
-          </Space>,
-        ]
-      : []),
-    <Space className="action" key="stop" onClick={onStopXray}>
-      <PoweroffOutlined />
-      {!isMobile && <span>{t('pages.index.stopXray')}</span>}
-    </Space>,
-    <Space className="action" key="restart" onClick={onRestartXray}>
-      <ReloadOutlined />
-      {!isMobile && <span>{t('pages.index.restartXray')}</span>}
-    </Space>,
-    <Space className="action" key="switch" onClick={onOpenVersionSwitch}>
-      <ToolOutlined />
-      {!isMobile && (
-        <span>
-          {status.xray.version && status.xray.version !== 'Unknown'
-            ? `v${status.xray.version}`
-            : t('pages.index.xraySwitch')}
-        </span>
-      )}
-    </Space>,
-  ];
+  // Every action on this card drives an endpoint gated on xray.manage
+  // (start/stop/restart, version switch, the access-log reader). Hide them for
+  // roles without it rather than offer a button that answers 403.
+  const mayManageXray = can('xray.manage');
+
+  const actions = mayManageXray
+    ? [
+        // the xray log viewer reads the access log file, so the button only makes
+        // sense when one is configured (unlike IP limit, which no longer needs it)
+        ...(accessLogEnable
+          ? [
+              <Space className="action" key="xraylogs" onClick={onOpenXrayLogs}>
+                <BarsOutlined />
+                {!isMobile && <span>{t('pages.index.logs')}</span>}
+              </Space>,
+            ]
+          : []),
+        <Space className="action" key="stop" onClick={onStopXray}>
+          <PoweroffOutlined />
+          {!isMobile && <span>{t('pages.index.stopXray')}</span>}
+        </Space>,
+        <Space className="action" key="restart" onClick={onRestartXray}>
+          <ReloadOutlined />
+          {!isMobile && <span>{t('pages.index.restartXray')}</span>}
+        </Space>,
+        <Space className="action" key="switch" onClick={onOpenVersionSwitch}>
+          <ToolOutlined />
+          {!isMobile && (
+            <span>
+              {status.xray.version && status.xray.version !== 'Unknown'
+                ? `v${status.xray.version}`
+                : t('pages.index.xraySwitch')}
+            </span>
+          )}
+        </Space>,
+      ]
+    : [];
 
   return (
     <Card hoverable title={title} extra={extra} actions={actions} className="xray-status-card" />

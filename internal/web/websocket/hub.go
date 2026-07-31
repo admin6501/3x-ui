@@ -46,12 +46,23 @@ type clientOp struct {
 	c    *Client
 }
 
-// NewClient builds a Client ready for hub registration.
+// NewClient builds a Client ready for hub registration. The connection is
+// treated as unscoped — it receives broadcast payloads in full.
 func NewClient(id string) *Client {
 	return &Client{
 		ID:   id,
 		Send: make(chan []byte, clientSendQueue),
 	}
+}
+
+// NewScopedClient builds a Client for a session that is restricted to a subset
+// of the panel's inbounds (the reseller role, or any custom role carrying
+// inbounds.scoped). Scope-sensitive broadcasts are replaced by an invalidate
+// signal for these connections — see Hub.Broadcast.
+func NewScopedClient(id string) *Client {
+	c := NewClient(id)
+	c.Scoped = true
+	return c
 }
 
 // Message is the wire format sent to clients.
@@ -63,15 +74,38 @@ type Message struct {
 
 // Client represents a single WebSocket connection.
 type Client struct {
-	ID        string
+	ID string
+	// Scoped marks a connection whose session may only see a subset of the
+	// panel's inbounds. The hub never sends it a scope-sensitive payload; it
+	// gets an invalidate signal and re-fetches through the REST endpoints,
+	// which apply the reseller filter.
+	Scoped    bool
 	Send      chan []byte
 	closeOnce sync.Once
+}
+
+// envelope carries one broadcast through the hub. payload goes to unscoped
+// connections; when sensitive is set, scoped connections get scoped instead —
+// never payload, even if scoped ended up nil.
+type envelope struct {
+	payload   []byte
+	scoped    []byte
+	sensitive bool
+}
+
+// forClient picks the bytes this connection is allowed to receive. A nil
+// return means this client gets nothing for this broadcast.
+func (e envelope) forClient(c *Client) []byte {
+	if c.Scoped && e.sensitive {
+		return e.scoped
+	}
+	return e.payload
 }
 
 // Hub fan-outs messages to all connected clients.
 type Hub struct {
 	clients   map[*Client]struct{}
-	broadcast chan []byte
+	broadcast chan envelope
 	ops       chan clientOp
 	mu        sync.RWMutex
 	ctx       context.Context
@@ -86,7 +120,7 @@ func NewHub() *Hub {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Hub{
 		clients:       make(map[*Client]struct{}),
-		broadcast:     make(chan []byte, hubBroadcastQueue),
+		broadcast:     make(chan envelope, hubBroadcastQueue),
 		ops:           make(chan clientOp, hubOpsQueue),
 		ctx:           ctx,
 		cancel:        cancel,
@@ -99,6 +133,19 @@ var throttledMessageTypes = map[MessageType]struct{}{
 	MessageTypeOutbounds:   {},
 	MessageTypeTraffic:     {},
 	MessageTypeClientStats: {},
+}
+
+// scopeSensitiveTypes are the broadcasts that carry panel-wide inbound and
+// client data — inbound settings hold every client's credentials, and the
+// traffic/stats payloads cover every client on the panel. A scoped session may
+// only see its own inbounds, so instead of the payload it gets an invalidate
+// signal naming the REST collection to re-fetch; those endpoints apply
+// filterInboundsForRole / the reseller restriction.
+var scopeSensitiveTypes = map[MessageType]MessageType{
+	MessageTypeInbounds:    MessageTypeInbounds,
+	MessageTypeClients:     MessageTypeClients,
+	MessageTypeClientStats: MessageTypeClients,
+	MessageTypeTraffic:     MessageTypeClients,
 }
 
 func (h *Hub) shouldThrottle(msgType MessageType) bool {
@@ -170,8 +217,8 @@ func (h *Hub) runOnce() (stopped bool) {
 				h.removeClient(op.c)
 			}
 
-		case msg := <-h.broadcast:
-			h.fanout(msg)
+		case env := <-h.broadcast:
+			h.fanout(env)
 		}
 	}
 }
@@ -199,13 +246,14 @@ func (h *Hub) removeClient(c *Client) {
 	logger.Debugf("WebSocket client disconnected: %s (total: %d)", c.ID, n)
 }
 
-// fanout delivers msg to every client. Each send is non-blocking — a client
+// fanout delivers the envelope to every client, each connection receiving the
+// variant its session is allowed to see. Each send is non-blocking — a client
 // whose buffer is full is collected for direct removal at the end. We do NOT
 // route slow-client unregistrations through the unregister channel: under
 // burst load (panel restart, network blip) that channel can fill up while the
 // hub itself is the consumer, causing a self-deadlock.
-func (h *Hub) fanout(msg []byte) {
-	if msg == nil {
+func (h *Hub) fanout(env envelope) {
+	if env.payload == nil {
 		return
 	}
 	h.mu.RLock()
@@ -221,6 +269,11 @@ func (h *Hub) fanout(msg []byte) {
 
 	var dead []*Client
 	for _, c := range targets {
+		msg := env.forClient(c)
+		if msg == nil {
+			// Nothing this connection may see — not a delivery failure.
+			continue
+		}
 		if !trySend(c, msg) {
 			dead = append(dead, c)
 		}
@@ -264,6 +317,10 @@ func trySend(c *Client, msg []byte) (ok bool) {
 // message types (see throttledMessageTypes) within minBroadcastInterval of
 // the previous one are dropped — the next legitimate mutation will push the
 // fresh state.
+//
+// Scope-sensitive types never reach a scoped connection as a payload: those
+// clients are handed an invalidate signal so the panel-wide data is only ever
+// served to them through the scope-filtered REST endpoints.
 func (h *Hub) Broadcast(messageType MessageType, payload any) {
 	if h == nil || payload == nil || h.GetClientCount() == 0 {
 		return
@@ -285,29 +342,46 @@ func (h *Hub) Broadcast(messageType MessageType, payload any) {
 		h.broadcastInvalidate(messageType)
 		return
 	}
-	h.enqueue(data)
+	env := envelope{payload: data}
+	if refetch, sensitive := scopeSensitiveTypes[messageType]; sensitive {
+		env.sensitive = true
+		env.scoped = invalidateMessage(refetch)
+	}
+	h.enqueue(env)
 }
 
 // broadcastInvalidate queues a lightweight signal telling clients to re-fetch
 // the named data type via REST.
 func (h *Hub) broadcastInvalidate(originalType MessageType) {
+	data := invalidateMessage(originalType)
+	if data == nil {
+		return
+	}
+	h.enqueue(envelope{payload: data})
+}
+
+// invalidateMessage builds the wire form of a re-fetch signal for dataType.
+// Returns nil if it cannot be serialized, which the callers treat as "send
+// nothing" — dropping an update is always preferable to sending a scoped
+// session data it may not see.
+func invalidateMessage(dataType MessageType) []byte {
 	data, err := json.Marshal(Message{
 		Type:    MessageTypeInvalidate,
-		Payload: map[string]string{"type": string(originalType)},
+		Payload: map[string]string{"type": string(dataType)},
 		Time:    time.Now().UnixMilli(),
 	})
 	if err != nil {
 		logger.Error("WebSocket invalidate marshal failed:", err)
-		return
+		return nil
 	}
-	h.enqueue(data)
+	return data
 }
 
-// enqueue submits raw bytes to the broadcast channel. Dropped on backpressure
+// enqueue submits an envelope to the broadcast channel. Dropped on backpressure
 // (channel full for >100ms) or shutdown.
-func (h *Hub) enqueue(data []byte) {
+func (h *Hub) enqueue(env envelope) {
 	select {
-	case h.broadcast <- data:
+	case h.broadcast <- env:
 	case <-time.After(enqueueTimeout):
 		logger.Warning("WebSocket broadcast channel full, dropping message")
 	case <-h.ctx.Done():

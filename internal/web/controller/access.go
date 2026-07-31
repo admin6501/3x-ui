@@ -151,6 +151,29 @@ func guardClientEmailScope(c *gin.Context, svc *service.ClientService, email str
 	return false
 }
 
+// guardClientSubIdScope aborts with 403 when the logged-in reseller asks for a
+// subscription id whose clients live outside their allowed inbounds. The links
+// behind a subId embed the client's credentials, so this is the same class of
+// check as guardClientEmailScope — just keyed by subId, which is what the
+// subscription endpoints address clients by. No-op for non-scoped roles.
+func guardClientSubIdScope(c *gin.Context, svc *service.ClientService, subId string) bool {
+	set, isReseller := resellerAllowedSet(c)
+	if !isReseller {
+		return true
+	}
+	ids, err := svc.GetInboundIdsForSubId(nil, subId)
+	if err == nil {
+		for _, id := range ids {
+			if _, ok := set[id]; ok {
+				return true
+			}
+		}
+	}
+	pureJsonMsg(c, http.StatusForbidden, false, "forbidden: subscription is outside your reseller scope")
+	c.Abort()
+	return false
+}
+
 // guardInboundIdsScope ensures every id is within the reseller's allowed set
 // (and that at least one inbound was supplied). No-op for non-reseller roles.
 func guardInboundIdsScope(c *gin.Context, inboundIds []int) bool {

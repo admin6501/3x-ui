@@ -42,7 +42,25 @@ func NewServerController(g *gin.RouterGroup) *ServerController {
 }
 
 // initRouter sets up the routes for server status, Xray management, and utility endpoints.
+//
+// RBAC: the group itself is only login-gated, so every route that exposes
+// panel-wide data or performs a panel-wide operation carries its own
+// permission. Two gates are used:
+//
+//   - settings.manage — anything that dumps or replaces the panel's own state
+//     (database export/import, panel self-update, panel logs, the cross-inbound
+//     client-IP table). The database in particular holds admin password hashes,
+//     the session secret, node API tokens and every client credential, so it is
+//     strictly a super-admin-grade artefact.
+//   - xray.manage — the xray runtime and its generated config, matching how the
+//     xray template endpoints are gated in APIController.initRouter.
+//
+// Everything left ungated is either an observation of this panel's own health
+// (status, metrics, versions) or generates fresh key material for the inbound
+// form; none of it discloses stored secrets.
 func (a *ServerController) initRouter(g *gin.RouterGroup) {
+	panelAdmin := requirePermission(model.PermSettingsManage)
+	xrayAdmin := requirePermission(model.PermXrayManage)
 
 	g.GET("/status", a.status)
 	g.GET("/cpuHistory/:bucket", a.getCpuHistoryBucket)
@@ -53,9 +71,9 @@ func (a *ServerController) initRouter(g *gin.RouterGroup) {
 	g.GET("/xrayObservatoryHistory/:tag/:bucket", a.getXrayObservatoryHistoryBucket)
 	g.GET("/getXrayVersion", a.getXrayVersion)
 	g.GET("/getPanelUpdateInfo", a.getPanelUpdateInfo)
-	g.GET("/getConfigJson", a.getConfigJson)
-	g.GET("/getDb", a.getDb)
-	g.GET("/getMigration", a.getMigration)
+	g.GET("/getConfigJson", xrayAdmin, a.getConfigJson)
+	g.GET("/getDb", panelAdmin, a.getDb)
+	g.GET("/getMigration", panelAdmin, a.getMigration)
 	g.GET("/getNewUUID", a.getNewUUID)
 	g.GET("/getWebCertFiles", a.getWebCertFiles)
 	g.GET("/descendants", a.descendants)
@@ -63,22 +81,22 @@ func (a *ServerController) initRouter(g *gin.RouterGroup) {
 	g.GET("/getNewmldsa65", a.getNewmldsa65)
 	g.GET("/getNewmlkem768", a.getNewmlkem768)
 	g.GET("/getNewVlessEnc", a.getNewVlessEnc)
-	g.GET("/clientIps", a.getClientIps)
+	g.GET("/clientIps", panelAdmin, a.getClientIps)
 	g.GET("/fail2banStatus", a.getFail2banStatus)
 
-	g.POST("/stopXrayService", a.stopXrayService)
-	g.POST("/restartXrayService", a.restartXrayService)
-	g.POST("/installXray/:version", a.installXray)
-	g.POST("/updatePanel", a.updatePanel)
-	g.POST("/updateGeofile", a.updateGeofile)
-	g.POST("/updateGeofile/:fileName", a.updateGeofile)
-	g.POST("/logs/:count", a.getLogs)
-	g.POST("/xraylogs/:count", a.getXrayLogs)
-	g.POST("/importDB", a.importDB)
+	g.POST("/stopXrayService", xrayAdmin, a.stopXrayService)
+	g.POST("/restartXrayService", xrayAdmin, a.restartXrayService)
+	g.POST("/installXray/:version", xrayAdmin, a.installXray)
+	g.POST("/updatePanel", panelAdmin, a.updatePanel)
+	g.POST("/updateGeofile", xrayAdmin, a.updateGeofile)
+	g.POST("/updateGeofile/:fileName", xrayAdmin, a.updateGeofile)
+	g.POST("/logs/:count", panelAdmin, a.getLogs)
+	g.POST("/xraylogs/:count", xrayAdmin, a.getXrayLogs)
+	g.POST("/importDB", panelAdmin, a.importDB)
 	g.POST("/getNewEchCert", a.getNewEchCert)
 	g.POST("/getCertHash", a.getCertHash)
 	g.POST("/getRemoteCertHash", a.getRemoteCertHash)
-	g.POST("/clientIps", a.setClientIps)
+	g.POST("/clientIps", panelAdmin, a.setClientIps)
 }
 
 // startTask registers the @2s ticker that refreshes server status, samples

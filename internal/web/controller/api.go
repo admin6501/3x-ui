@@ -156,8 +156,9 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	reseller := api.Group("/reseller")
 	NewResellerController(reseller)
 
-	// Extra routes
-	api.POST("/backuptotgbot", a.BackuptoTgbot)
+	// Extra routes. The Telegram backup ships the whole database off the box,
+	// so it carries the same gate as the getDb/importDB pair.
+	api.POST("/backuptotgbot", requirePermission(model.PermSettingsManage), a.BackuptoTgbot)
 }
 
 // BackuptoTgbot sends a backup of the panel data to Telegram bot admins.

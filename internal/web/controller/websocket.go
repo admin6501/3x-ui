@@ -69,11 +69,15 @@ func (w *WebSocketController) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
+	// Read the session's scoping before the upgrade — afterwards the gin
+	// context's request is no longer a live HTTP request.
+	scoped := session.IsScoped(c)
+
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		logger.Error("Failed to upgrade WebSocket connection:", err)
 		return
 	}
 
-	w.service.HandleConnection(conn, getRemoteIp(c))
+	w.service.HandleConnection(conn, getRemoteIp(c), scoped)
 }
