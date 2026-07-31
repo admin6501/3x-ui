@@ -10,7 +10,7 @@ This folder ships a **fully self-contained** 3x-ui install for servers that have
 - `x-ui` — the panel binary (**amd64 / x86_64**). The React web UI is embedded
   inside the binary (no separate assets needed).
 - `x-ui.sh` — the admin/management CLI.
-- `bin/` — `xray-linux-amd64` (Xray-core v26.6.22) and geo data:
+- `bin/` — `xray-linux-amd64` (Xray-core v26.7.28) and geo data:
   `geoip.dat`, `geosite.dat`, `geoip_IR.dat`, `geosite_IR.dat`,
   `geoip_RU.dat`, `geosite_RU.dat`.
 - `x-ui.service.debian` / `x-ui.service.arch` / `x-ui.service.rhel` — systemd
