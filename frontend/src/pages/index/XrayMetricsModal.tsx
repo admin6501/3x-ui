@@ -15,6 +15,7 @@ import { HttpUtil, Msg, SizeFormatter } from '@/utils';
 import { Sparkline } from '@/components/viz';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import './XrayMetricsModal.css';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const OBS_KEY = 'xrObs';
 
@@ -279,7 +280,7 @@ export default function XrayMetricsModal({ open, onClose }: XrayMetricsModalProp
       title={
         <div className="metric-modal-title">
           <span>{t('pages.index.xrayMetricsTitle')}</span>
-          <Select
+          <OptionButtons
             value={bucket}
             size="small"
             className="bucket-select"

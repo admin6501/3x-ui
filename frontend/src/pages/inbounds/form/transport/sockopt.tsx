@@ -3,6 +3,7 @@ import { Alert, Form, InputNumber, Segmented, Select, Switch } from 'antd';
 
 import { CustomSockoptList } from '@/components/form';
 import { TCP_CONGESTION_OPTION } from '@/schemas/primitives';
+import OptionButtons from '@/components/form/OptionButtons';
 
 // Transport key that carries its own acceptProxyProtocol field (mirrored
 // alongside the sockopt-level one so the PROXY preset never silently no-ops).
@@ -240,7 +241,7 @@ export default function SockoptForm({
                   />
                 </Form.Item>
                 <Form.Item name={['streamSettings', 'sockopt', 'tproxy']} label="TProxy">
-                  <Select
+                  <OptionButtons
                     style={{ width: '50%' }}
                     options={[
                       { value: 'off', label: 'Off' },

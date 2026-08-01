@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Form, Input, Select, Switch } from 'antd';
+import { Form, Input, Switch } from 'antd';
 
 import AccountsList from './accounts-list';
+import OptionButtons from '@/components/form/OptionButtons';
 
 export default function MixedFields({ mixedUdpOn }: { mixedUdpOn: boolean }) {
   const { t } = useTranslation();
@@ -9,7 +10,7 @@ export default function MixedFields({ mixedUdpOn }: { mixedUdpOn: boolean }) {
     <>
       <AccountsList />
       <Form.Item name={['settings', 'auth']} label={t('pages.inbounds.info.auth')}>
-        <Select
+        <OptionButtons
           options={[
             { value: 'noauth', label: 'noauth' },
             { value: 'password', label: 'password' },

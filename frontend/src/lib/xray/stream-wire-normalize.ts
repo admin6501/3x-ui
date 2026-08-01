@@ -108,6 +108,65 @@ export function validateRealityTarget(target: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Parses a REALITY client version into its three bytes, padding a short value
+ * with zeros the way xray-core does. Returns undefined for anything the core
+ * would reject: a non-numeric part, more than three parts, or a part above 255
+ * (each is written into a single byte of the ClientHello session id).
+ */
+export function parseRealityClientVer(value: string): [number, number, number] | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parts = trimmed.split('.');
+  if (parts.length > 3) return undefined;
+  const nums: number[] = [];
+  for (const part of parts) {
+    if (!/^\d+$/.test(part)) return undefined;
+    const n = Number(part);
+    if (n > 255) return undefined;
+    nums.push(n);
+  }
+  while (nums.length < 3) nums.push(0);
+  return nums as [number, number, number];
+}
+
+/**
+ * Validates a REALITY client-version field; empty means "not set" and is
+ * valid. The value is saved exactly as typed and xray-core's part parser
+ * accepts no surrounding whitespace, so a value that differs from its
+ * trimmed form is rejected rather than silently passed to the wire.
+ */
+export function validateRealityClientVer(value: string): string | undefined {
+  if (!value) return undefined;
+  if (value !== value.trim() || !parseRealityClientVer(value)) {
+    return 'pages.inbounds.form.clientVerInvalid';
+  }
+  return undefined;
+}
+
+/**
+ * Validates the max client-version field: format first, then that a non-empty
+ * max is not below a non-empty min. An inverted range refuses every client —
+ * the handshake check requires clientVer >= min AND clientVer <= max — and it
+ * fails silently, falling back to the dest site rather than erroring.
+ * An empty or malformed min is left to the min field's own validation.
+ */
+export function validateRealityMaxClientVer(max: string, min: string): string | undefined {
+  const formatError = validateRealityClientVer(max);
+  if (formatError) return formatError;
+  const maxParts = parseRealityClientVer(max);
+  const minParts = parseRealityClientVer(min);
+  if (!maxParts || !minParts) return undefined;
+  for (let i = 0; i < 3; i++) {
+    if (maxParts[i] !== minParts[i]) {
+      return maxParts[i] < minParts[i]
+        ? 'pages.inbounds.form.maxClientVerBelowMin'
+        : undefined;
+    }
+  }
+  return undefined;
+}
+
 function dropEmptyStrings(obj: Record<string, unknown>, keys: readonly string[]): void {
   for (const key of keys) {
     const v = obj[key];

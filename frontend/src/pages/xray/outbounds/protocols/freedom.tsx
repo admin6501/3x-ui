@@ -4,13 +4,14 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 
 import { OutboundDomainStrategies } from '@/schemas/primitives';
 import type { OutboundFormValues } from '@/schemas/forms/outbound-form';
+import OptionButtons from '@/components/form/OptionButtons';
 
 export default function FreedomFields({ form }: { form: FormInstance<OutboundFormValues> }) {
   const { t } = useTranslation();
   return (
     <>
       <Form.Item label={t('pages.xray.balancer.balancerStrategy')} name={['settings', 'domainStrategy']}>
-        <Select
+        <OptionButtons
           options={[
             { value: '', label: `(${t('none')})` },
             ...OutboundDomainStrategies.map((s) => ({ value: s, label: s })),
@@ -24,7 +25,7 @@ export default function FreedomFields({ form }: { form: FormInstance<OutboundFor
         <InputNumber min={0} style={{ width: '100%' }} />
       </Form.Item>
       <Form.Item label={t('pages.xray.outboundForm.proxyProtocol')} name={['settings', 'proxyProtocol']}>
-        <Select
+        <OptionButtons
           options={[
             { value: 0, label: `(${t('none')})` },
             { value: 1, label: 'v1' },
@@ -163,7 +164,7 @@ export default function FreedomFields({ form }: { form: FormInstance<OutboundFor
                   </div>
                 </Form.Item>
                 <Form.Item label={t('pages.settings.subFormats.type')} name={[field.name, 'type']}>
-                  <Select
+                  <OptionButtons
                     options={['rand', 'base64', 'str', 'hex'].map((v) => ({
                       value: v,
                       label: v,
@@ -177,7 +178,7 @@ export default function FreedomFields({ form }: { form: FormInstance<OutboundFor
                   <Input />
                 </Form.Item>
                 <Form.Item label={t('pages.settings.subFormats.applyTo')} name={[field.name, 'applyTo']}>
-                  <Select
+                  <OptionButtons
                     options={['ip', 'ipv4', 'ipv6'].map((v) => ({
                       value: v,
                       label: v,
@@ -224,7 +225,7 @@ export default function FreedomFields({ form }: { form: FormInstance<OutboundFor
                   </div>
                 </Form.Item>
                 <Form.Item label={t('pages.xray.outboundForm.action')} name={[field.name, 'action']}>
-                  <Select
+                  <OptionButtons
                     options={['allow', 'block'].map((v) => ({
                       value: v,
                       label: v,

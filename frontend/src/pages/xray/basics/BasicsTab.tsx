@@ -24,6 +24,7 @@ import {
   MASK_ADDRESS,
   ROUTING_DOMAIN_STRATEGIES,
 } from './constants';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface BasicsTabProps {
   templateSettings: XraySettingsValue | null;
@@ -406,7 +407,7 @@ export default function BasicsTab({
             description={t('pages.xray.errorLogDesc')}
             paddings="small"
             control={
-              <Select
+              <OptionButtons
                 value={(log.error as string) || ''}
                 style={{ width: '100%' }}
                 options={[{ value: '', label: t('empty') }, ...ERROR_LOG.map((s) => ({ value: s, label: s }))]}
@@ -419,7 +420,7 @@ export default function BasicsTab({
             description={t('pages.xray.maskAddressDesc')}
             paddings="small"
             control={
-              <Select
+              <OptionButtons
                 value={(log.maskAddress as string) || ''}
                 style={{ width: '100%' }}
                 options={[{ value: '', label: t('empty') }, ...MASK_ADDRESS.map((s) => ({ value: s, label: s }))]}

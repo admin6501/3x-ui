@@ -12,6 +12,7 @@ import { DateTimePicker, SelectAllClearButtons } from '@/components/form';
 import { useClients, type InboundOption } from '@/hooks/useClients';
 import { useFail2banStatusQuery, getLimitIpNotice } from '@/api/queries/useFail2banStatusQuery';
 import { ClientBulkAddFormSchema, type ClientBulkAddFormValues } from '@/schemas/client';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const FLOW_OPTIONS = Object.values(TLS_FLOW_CONTROL);
 
@@ -233,7 +234,7 @@ export default function ClientBulkAddModal({
           </Form.Item>
 
           <Form.Item label={t('pages.clients.method')}>
-            <Select
+            <OptionButtons
               value={form.emailMethod}
               onChange={(v) => update('emailMethod', v)}
               options={[
@@ -302,7 +303,7 @@ export default function ClientBulkAddModal({
 
           {showFlow && (
             <Form.Item label={t('pages.clients.flow')}>
-              <Select
+              <OptionButtons
                 value={form.flow}
                 onChange={(v) => update('flow', v)}
                 style={{ width: 220 }}

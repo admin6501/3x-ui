@@ -32,6 +32,7 @@ import type { ClientRecord, InboundOption, ExternalLink, ExternalLinkInput } fro
 import { useFail2banStatusQuery, getLimitIpNotice } from '@/api/queries/useFail2banStatusQuery';
 import { useAllSettings } from '@/api/queries/useAllSettings';
 import { ClientFormSchema, ClientCreateFormSchema } from '@/schemas/client';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const FLOW_OPTIONS = Object.values(TLS_FLOW_CONTROL);
 const VMESS_SECURITY_OPTIONS = ['auto', 'aes-128-gcm', 'chacha20-poly1305', 'none', 'zero'] as const;
@@ -856,7 +857,7 @@ export default function ClientFormModal({
 
                     {showFlow && (
                       <Form.Item label={t('pages.clients.flow')}>
-                        <Select
+                        <OptionButtons
                           value={form.flow}
                           onChange={(v) => update('flow', v)}
                           options={[

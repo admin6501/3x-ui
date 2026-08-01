@@ -11,6 +11,7 @@ import {
   UTLS_FINGERPRINT,
 } from '@/schemas/primitives';
 import { SockoptStreamSettingsSchema } from '@/schemas/protocols/stream/sockopt';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const { TextArea } = Input;
 
@@ -40,7 +41,7 @@ export default function TlsForm({
         <Input placeholder={t('pages.inbounds.form.serverNameIndication')} />
       </Form.Item>
       <Form.Item name={['streamSettings', 'tlsSettings', 'cipherSuites']} label={t('pages.inbounds.form.cipherSuites')}>
-        <Select
+        <OptionButtons
           options={[
             { value: '', label: t('pages.inbounds.form.autoOption') },
             ...Object.entries(TLS_CIPHER_OPTION).map(([k, v]) => ({ value: v, label: k })),
@@ -67,7 +68,7 @@ export default function TlsForm({
         name={['streamSettings', 'tlsSettings', 'settings', 'fingerprint']}
         label="uTLS"
       >
-        <Select
+        <OptionButtons
           options={[
             { value: '', label: 'None' },
             ...Object.values(UTLS_FINGERPRINT).map((fp) => ({ value: fp, label: fp })),

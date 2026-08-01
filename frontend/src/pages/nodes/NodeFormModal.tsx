@@ -20,6 +20,7 @@ import { NodeFormSchema, type NodeFormValues, type ProbeResult } from '@/schemas
 import { antdRule } from '@/utils/zodForm';
 import { useOutboundTagGroups } from '@/api/queries/useOutboundTags';
 import './NodeFormModal.css';
+import OptionButtons from '@/components/form/OptionButtons';
 
 type Mode = 'add' | 'edit';
 
@@ -272,7 +273,7 @@ export default function NodeFormModal({
           <Row gutter={16}>
             <Col xs={24} md={6}>
               <Form.Item label={t('pages.nodes.scheme')} name="scheme">
-                <Select
+                <OptionButtons
                   options={[
                     { value: 'https', label: 'https' },
                     { value: 'http', label: 'http' },
@@ -334,7 +335,7 @@ export default function NodeFormModal({
             name="tlsVerifyMode"
             tooltip={t('pages.nodes.tlsVerifyModeHint')}
           >
-            <Select
+            <OptionButtons
               disabled={scheme === 'http'}
               options={[
                 { value: 'verify', label: t('pages.nodes.tlsVerify') },
@@ -406,7 +407,7 @@ export default function NodeFormModal({
             name="inboundSyncMode"
             tooltip={t('pages.nodes.inboundSyncModeHint')}
           >
-            <Select
+            <OptionButtons
               options={[
                 { value: 'all', label: t('pages.nodes.allInbounds') },
                 { value: 'selected', label: t('pages.nodes.selectedInbounds') },

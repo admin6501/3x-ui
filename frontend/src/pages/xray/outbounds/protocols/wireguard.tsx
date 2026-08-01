@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Input, InputNumber, Select, Space, Switch, type FormInstance } from 'antd';
+import { Button, Form, Input, InputNumber, Space, Switch, type FormInstance } from 'antd';
 import { DeleteOutlined, MinusOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { Wireguard } from '@/utils';
 import { InputAddon } from '@/components/ui';
 import { WireguardDomainStrategy } from '@/schemas/primitives';
 import type { OutboundFormValues } from '@/schemas/forms/outbound-form';
+import OptionButtons from '@/components/form/OptionButtons';
 
 export default function WireguardFields({ form }: { form: FormInstance<OutboundFormValues> }) {
   const { t } = useTranslation();
@@ -33,7 +34,7 @@ export default function WireguardFields({ form }: { form: FormInstance<OutboundF
         <Input disabled />
       </Form.Item>
       <Form.Item label={t('pages.xray.wireguard.domainStrategy')} name={['settings', 'domainStrategy']}>
-        <Select
+        <OptionButtons
           options={[
             { value: '', label: `(${t('none')})` },
             ...WireguardDomainStrategy.map((s) => ({ value: s, label: s })),

@@ -6,6 +6,7 @@ import type { NamePath } from 'antd/es/form/interface';
 
 import { RandomUtil } from '@/utils';
 import { OutboundProtocols, UTLS_FINGERPRINT } from '@/schemas/primitives';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const UTLS_FINGERPRINT_OPTIONS = Object.values(UTLS_FINGERPRINT).map((value) => ({ value, label: value }));
 
@@ -274,7 +275,7 @@ function TcpMaskItem({
       </Divider>
 
       <Form.Item label="Type" name={[fieldName, 'type']}>
-        <Select
+        <OptionButtons
           onChange={(v) =>
             form.setFieldValue([...absolutePath, 'settings'], defaultTcpMaskSettings(v))
           }
@@ -747,7 +748,7 @@ function SalamanderUdpMaskSettings({
           ? 'Salamander plus Gecko: splits each packet into random-padded fragments sized within the range below, defeating packet-length fingerprinting. Stored as Salamander with packetSize.'
           : 'Scrambles each packet into random-looking bytes.'}
       >
-        <Select
+        <OptionButtons
           value={mode}
           onChange={(next) => {
             if (next === 'gecko') {
@@ -944,7 +945,7 @@ function ItemEditor({
   return (
     <>
       <Form.Item label="Type" name={[fieldName, 'type']}>
-        <Select
+        <OptionButtons
           onChange={onTypeChange}
           options={[
             { value: 'array', label: 'Array' },
@@ -1030,7 +1031,7 @@ function QuicParamsForm({ base, form }: { base: (string | number)[]; form: FormI
   return (
     <>
       <Form.Item label="Congestion" name={[...base, 'congestion']}>
-        <Select
+        <OptionButtons
           options={[
             { value: 'reno', label: 'Reno' },
             { value: 'bbr', label: 'BBR' },

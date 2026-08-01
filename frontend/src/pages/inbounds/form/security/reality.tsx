@@ -3,7 +3,11 @@ import { Button, Collapse, Divider, Form, Input, InputNumber, Select, Space, Swi
 import { ReloadOutlined } from '@ant-design/icons';
 
 import { UTLS_FINGERPRINT } from '@/schemas/primitives';
-import { validateRealityTarget } from '@/lib/xray/stream-wire-normalize';
+import {
+  validateRealityClientVer,
+  validateRealityMaxClientVer,
+  validateRealityTarget,
+} from '@/lib/xray/stream-wire-normalize';
 
 interface RealityFormProps {
   saving: boolean;
@@ -87,14 +91,37 @@ export default function RealityForm({
       <Form.Item
         name={['streamSettings', 'realitySettings', 'minClientVer']}
         label={t('pages.inbounds.form.minClientVer')}
+        tooltip={t('pages.inbounds.form.minClientVerHint')}
+        rules={[
+          {
+            validator: async (_, value) => {
+              const errKey = validateRealityClientVer(typeof value === 'string' ? value : '');
+              if (errKey) throw new Error(t(errKey));
+            },
+          },
+        ]}
       >
-        <Input placeholder="25.9.11" />
+        <Input placeholder="26.3.27" />
       </Form.Item>
       <Form.Item
         name={['streamSettings', 'realitySettings', 'maxClientVer']}
         label={t('pages.inbounds.form.maxClientVer')}
+        tooltip={t('pages.inbounds.form.maxClientVerHint')}
+        dependencies={[['streamSettings', 'realitySettings', 'minClientVer']]}
+        rules={[
+          ({ getFieldValue }) => ({
+            validator: async (_, value) => {
+              const min = getFieldValue(['streamSettings', 'realitySettings', 'minClientVer']);
+              const errKey = validateRealityMaxClientVer(
+                typeof value === 'string' ? value : '',
+                typeof min === 'string' ? min : '',
+              );
+              if (errKey) throw new Error(t(errKey));
+            },
+          }),
+        ]}
       >
-        <Input placeholder="25.9.11" />
+        <Input placeholder="x.y.z" />
       </Form.Item>
       <Form.Item label={t('pages.inbounds.form.shortIds')}>
         <Space.Compact block style={{ display: 'flex' }}>
