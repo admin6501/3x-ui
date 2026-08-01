@@ -3,6 +3,7 @@ import { Form, Select, Switch } from 'antd';
 import type { FormInstance } from 'antd/es/form';
 
 import { SNIFFING_OPTION } from '@/schemas/primitives';
+import TagsInput from '@/components/form/TagsInput';
 
 const DEST_OPTIONS = Object.entries(SNIFFING_OPTION).map(([label, value]) => ({ value, label }));
 
@@ -51,10 +52,10 @@ export default function SniffingFields({ name, form, enableLabel }: SniffingFiel
             <Switch />
           </Form.Item>
           <Form.Item label={t('pages.inbounds.sniffingIpsExcluded')} name={[...name, 'ipsExcluded']}>
-            <Select mode="tags" tokenSeparators={[',']} placeholder="IP/CIDR/geoip:*/ext:*" style={{ width: '100%' }} />
+            <TagsInput placeholder="IP/CIDR/geoip:*/ext:*" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item label={t('pages.inbounds.sniffingDomainsExcluded')} name={[...name, 'domainsExcluded']}>
-            <Select mode="tags" tokenSeparators={[',']} placeholder="domain:*/ext:*" style={{ width: '100%' }} />
+            <TagsInput placeholder="domain:*/ext:*" style={{ width: '100%' }} />
           </Form.Item>
         </>
       )}

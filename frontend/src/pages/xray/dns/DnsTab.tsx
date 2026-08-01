@@ -23,6 +23,7 @@ import './DnsTab.css';
 import { STRATEGIES, DEFAULT_FAKEDNS } from './helpers';
 import type { DnsConfig, HostRow, FakednsRow } from './types';
 import { useDnsServerColumns, useFakednsColumns } from './useDnsColumns';
+import TagsInput from '@/components/form/TagsInput';
 
 interface DnsTabProps {
   templateSettings: XraySettingsValue | null;
@@ -342,8 +343,7 @@ export default function DnsTab({ templateSettings, setTemplateSettings }: DnsTab
                     syncHosts(next);
                   }}
                 />
-                <Select
-                  mode="tags"
+                <TagsInput
                   value={row.values}
                   placeholder={t('pages.xray.dns.hostsValues')}
                   style={{ flex: '2 1 320px' }}

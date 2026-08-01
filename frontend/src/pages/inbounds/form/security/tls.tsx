@@ -12,6 +12,7 @@ import {
 } from '@/schemas/primitives';
 import { SockoptStreamSettingsSchema } from '@/schemas/protocols/stream/sockopt';
 import OptionButtons from '@/components/form/OptionButtons';
+import TagsInput from '@/components/form/TagsInput';
 
 const { TextArea } = Input;
 
@@ -88,8 +89,7 @@ export default function TlsForm({
         label={t('pages.inbounds.form.curvePreferences')}
         tooltip={t('pages.inbounds.form.curvePreferencesTip')}
       >
-        <Select
-          mode="tags"
+        <TagsInput
           tokenSeparators={[',', ' ']}
           style={{ width: '100%' }}
           options={['X25519MLKEM768', 'X25519', 'P-256', 'P-384', 'P-521'].map((c) => ({
@@ -381,8 +381,7 @@ export default function TlsForm({
             name={['streamSettings', 'tlsSettings', 'settings', 'pinnedPeerCertSha256']}
             noStyle
           >
-            <Select
-              mode="tags"
+            <TagsInput
               tokenSeparators={[',', ' ']}
               placeholder={t('pages.inbounds.form.pinnedPeerCertSha256Placeholder')}
               style={{ width: 'calc(100% - 64px)' }}

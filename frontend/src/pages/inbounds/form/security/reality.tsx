@@ -23,6 +23,7 @@ import {
 } from '@/lib/xray/stream-wire-normalize';
 import type { RealityScanResult } from '@/generated/types';
 import RealityTargetScannerModal from './RealityTargetScannerModal';
+import TagsInput from '@/components/form/TagsInput';
 
 interface RealityFormProps {
   saving: boolean;
@@ -148,7 +149,7 @@ export default function RealityForm({
             name={['streamSettings', 'realitySettings', 'serverNames']}
             noStyle
           >
-            <Select mode="tags" tokenSeparators={[',']} style={{ flex: 1 }} />
+            <TagsInput style={{ flex: 1 }} />
           </Form.Item>
           <Button icon={<ReloadOutlined />} onClick={randomizeRealityTarget} />
         </Space.Compact>
@@ -200,7 +201,7 @@ export default function RealityForm({
             name={['streamSettings', 'realitySettings', 'shortIds']}
             noStyle
           >
-            <Select mode="tags" tokenSeparators={[',']} style={{ flex: 1 }} />
+            <TagsInput style={{ flex: 1 }} />
           </Form.Item>
           <Button icon={<ReloadOutlined />} onClick={randomizeShortIds} />
         </Space.Compact>

@@ -7,6 +7,7 @@ import type { NamePath } from 'antd/es/form/interface';
 import { RandomUtil } from '@/utils';
 import { OutboundProtocols, UTLS_FINGERPRINT } from '@/schemas/primitives';
 import OptionButtons from '@/components/form/OptionButtons';
+import TagsInput from '@/components/form/TagsInput';
 
 const UTLS_FINGERPRINT_OPTIONS = Object.values(UTLS_FINGERPRINT).map((value) => ({ value, label: value }));
 
@@ -340,7 +341,7 @@ function TcpMaskItem({
                 <Form.Item label="ASCII" name={[fieldName, 'settings', 'ascii']}><Input /></Form.Item>
                 <Form.Item label="Custom Table" name={[fieldName, 'settings', 'customTable']}><Input /></Form.Item>
                 <Form.Item label="Custom Tables" name={[fieldName, 'settings', 'customTables']}>
-                  <Select mode="tags" style={{ width: '100%' }} tokenSeparators={[',']} />
+                  <TagsInput style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item label="Padding Min" name={[fieldName, 'settings', 'paddingMin']}>
                   <InputNumber min={0} />
@@ -647,7 +648,7 @@ function UdpMaskItem({
           if (type === 'xdns') {
             return (
               <Form.Item label="Domains" name={[fieldName, 'settings', 'domains']}>
-                <Select mode="tags" style={{ width: '100%' }} tokenSeparators={[',']} />
+                <TagsInput style={{ width: '100%' }} />
               </Form.Item>
             );
           }
@@ -658,7 +659,7 @@ function UdpMaskItem({
                   <Switch />
                 </Form.Item>
                 <Form.Item label="IPs" name={[fieldName, 'settings', 'ips']}>
-                  <Select mode="tags" style={{ width: '100%' }} tokenSeparators={[',']} />
+                  <TagsInput style={{ width: '100%' }} />
                 </Form.Item>
               </>
             );
@@ -670,7 +671,7 @@ function UdpMaskItem({
                   <Input placeholder="realm://token@host:port/id" />
                 </Form.Item>
                 <Form.Item label="STUN Servers" name={[fieldName, 'settings', 'stunServers']}>
-                  <Select mode="tags" style={{ width: '100%' }} tokenSeparators={[',']} placeholder="host:port" />
+                  <TagsInput style={{ width: '100%' }} placeholder="host:port" />
                 </Form.Item>
                 <Divider plain style={{ margin: '8px 0' }}>TLS (optional)</Divider>
                 <Form.Item label="Server Name" name={[fieldName, 'settings', 'tlsConfig', 'serverName']}>

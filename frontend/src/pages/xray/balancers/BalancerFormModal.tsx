@@ -13,6 +13,7 @@ import {
   type BalancerStrategySettings,
   type BalancerStrategyType,
 } from '@/schemas/routing';
+import TagsInput from '@/components/form/TagsInput';
 
 export type BalancerFormValue = BalancerFormValues;
 
@@ -161,11 +162,9 @@ export default function BalancerFormModal({
           help={issues.selector || ''}
           hasFeedback
         >
-          <Select
-            mode="tags"
+          <TagsInput
             value={state.selector}
             onChange={(v) => update('selector', v)}
-            tokenSeparators={[',']}
             options={outboundTags.map((tg) => ({ value: tg, label: tg }))}
           />
         </Form.Item>
