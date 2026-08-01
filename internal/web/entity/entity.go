@@ -38,6 +38,12 @@ type AllSetting struct {
 	RemarkTemplate string `json:"remarkTemplate" form:"remarkTemplate"`                    // Subscription remark template ({{VAR}} tokens) rendered per client
 	Datepicker     string `json:"datepicker" form:"datepicker"`                            // Date picker format
 
+	// ClientActivityEnable turns on per-client activity tracking (connecting
+	// IPs, their ISP/country, and visited destinations). Off by default: it
+	// records the browsing of people using an anti-censorship proxy, so it is
+	// opt-in and the collected data can be wiped from the Client Activity page.
+	ClientActivityEnable bool `json:"clientActivityEnable" form:"clientActivityEnable"`
+
 	// Telegram bot settings
 	TgBotEnable     bool   `json:"tgBotEnable" form:"tgBotEnable"`                    // Enable Telegram bot notifications
 	TgBotToken      string `json:"tgBotToken" form:"tgBotToken"`                      // Telegram bot token

@@ -112,6 +112,7 @@ var defaultValueMap = map[string]string{
 	"panelOutbound":               "",
 
 	// LDAP defaults
+	"clientActivityEnable":  "false",
 	"ldapEnable":            "false",
 	"ldapHost":              "",
 	"ldapPort":              "389",
@@ -918,6 +919,20 @@ func (s *SettingService) GetAccessLogEnable() (bool, error) {
 		return false, err
 	}
 	return (accessLogPath != "none" && accessLogPath != ""), nil
+}
+
+// GetClientActivityEnable reports whether per-client activity tracking is on.
+// When false the collection job is idle and the endpoints report disabled, so
+// nothing about a client's traffic is recorded. It is off by default and must
+// be turned on deliberately: it records the IPs, networks and destinations of
+// people using an anti-censorship proxy, which is exactly the data the tool
+// exists to keep from being gathered.
+func (s *SettingService) GetClientActivityEnable() (bool, error) {
+	return s.getBool("clientActivityEnable")
+}
+
+func (s *SettingService) SetClientActivityEnable(enable bool) error {
+	return s.setBool("clientActivityEnable", enable)
 }
 
 // GetLdapEnable returns whether LDAP is enabled.

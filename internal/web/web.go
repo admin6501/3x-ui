@@ -281,15 +281,16 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 // node/xray state is unchanged, and export per-job duration/skipped/error
 // counters.
 const (
-	cadenceXrayRunning   = "@every 1s"
-	cadenceXrayRestart   = "@every 30s"
-	cadenceXrayTraffic   = "@every 5s"
-	cadenceMtproto       = "@every 10s"
-	cadenceClientIPScan  = "@every 10s"
-	cadenceNodeHeartbeat = "@every 5s"
-	cadenceNodeTraffic   = "@every 5s"
-	cadenceOutboundSub   = "@every 5m"
-	cadenceCheckHash     = "@every 2m"
+	cadenceXrayRunning    = "@every 1s"
+	cadenceXrayRestart    = "@every 30s"
+	cadenceXrayTraffic    = "@every 5s"
+	cadenceMtproto        = "@every 10s"
+	cadenceClientIPScan   = "@every 10s"
+	cadenceClientActivity = "@every 10s"
+	cadenceNodeHeartbeat  = "@every 5s"
+	cadenceNodeTraffic    = "@every 5s"
+	cadenceOutboundSub    = "@every 5m"
+	cadenceCheckHash      = "@every 2m"
 	// cpu.Percent samples over a full minute (blocking), so a finer cadence just
 	// stacks overlapping samplers; subscribers rate-limit alerts to 1/min anyway.
 	cadenceCPUAlarm    = "@every 1m"
@@ -330,6 +331,10 @@ func (s *Server) startTask(restartXray bool) {
 
 	// check client ips from log file every 10 sec
 	s.cron.AddJob(cadenceClientIPScan, job.NewCheckClientIpJob())
+
+	// Per-client activity collection (opt-in via clientActivityEnable). The job
+	// self-gates on the setting, so it stays idle until an operator turns it on.
+	s.cron.AddJob(cadenceClientActivity, job.NewClientActivityJob())
 
 	s.cron.AddJob(cadenceNodeHeartbeat, job.NewNodeHeartbeatJob())
 

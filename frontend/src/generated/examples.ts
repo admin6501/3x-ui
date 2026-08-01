@@ -3,6 +3,7 @@ export const EXAMPLES: Record<string, unknown> = {
   "AllSetting": {
     "autoDeleteExpiredDays": 0,
     "autoDeleteExpiredEnable": false,
+    "clientActivityEnable": false,
     "datepicker": "",
     "expireDiff": 0,
     "externalTrafficInformEnable": false,
@@ -123,6 +124,7 @@ export const EXAMPLES: Record<string, unknown> = {
   "AllSettingView": {
     "autoDeleteExpiredDays": 0,
     "autoDeleteExpiredEnable": false,
+    "clientActivityEnable": false,
     "datepicker": "",
     "expireDiff": 0,
     "externalTrafficInformEnable": false,
@@ -282,6 +284,60 @@ export const EXAMPLES: Record<string, unknown> = {
     "tgId": 0,
     "totalGB": 0,
     "updated_at": 0
+  },
+  "ClientActivityDetail": {
+    "email": "",
+    "ips": [
+      {
+        "asn": "",
+        "country": "",
+        "countryCode": "",
+        "hits": 0,
+        "ip": "",
+        "isp": "",
+        "lastSeen": 0,
+        "org": ""
+      }
+    ],
+    "online": false,
+    "visits": [
+      {
+        "dest": "",
+        "hits": 0,
+        "lastSeen": 0,
+        "network": ""
+      }
+    ]
+  },
+  "ClientActivityIP": {
+    "asn": "",
+    "country": "",
+    "countryCode": "",
+    "hits": 0,
+    "ip": "",
+    "isp": "",
+    "lastSeen": 0,
+    "org": ""
+  },
+  "ClientActivitySummary": {
+    "countries": [
+      ""
+    ],
+    "destCount": 0,
+    "email": "",
+    "ipCount": 0,
+    "lastSeen": 0,
+    "online": false,
+    "operators": [
+      ""
+    ],
+    "recordCount": 0
+  },
+  "ClientActivityVisit": {
+    "dest": "",
+    "hits": 0,
+    "lastSeen": 0,
+    "network": ""
   },
   "ClientInbound": {
     "clientId": 0,

@@ -91,6 +91,8 @@ func initModels() error {
 		&model.ClientGlobalTraffic{},
 		&model.OutboundSubscription{},
 		&model.ClientDevice{},
+		&model.ClientActivity{},
+		&model.IPGeo{},
 	}
 	for _, mdl := range models {
 		if err := db.AutoMigrate(mdl); err != nil {

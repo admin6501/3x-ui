@@ -44,6 +44,7 @@ export class AllSetting {
   subDomain = '';
   externalTrafficInformEnable = false;
   externalTrafficInformURI = '';
+  clientActivityEnable = false;
   restartXrayOnClientDisable = true;
   subCertFile = '';
   subKeyFile = '';

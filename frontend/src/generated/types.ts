@@ -10,6 +10,7 @@ export type transportBits = number;
 export interface AllSetting {
   autoDeleteExpiredDays: number;
   autoDeleteExpiredEnable: boolean;
+  clientActivityEnable: boolean;
   datepicker: string;
   expireDiff: number;
   externalTrafficInformEnable: boolean;
@@ -131,6 +132,7 @@ export interface AllSetting {
 export interface AllSettingView {
   autoDeleteExpiredDays: number;
   autoDeleteExpiredEnable: boolean;
+  clientActivityEnable: boolean;
   datepicker: string;
   expireDiff: number;
   externalTrafficInformEnable: boolean;
@@ -293,6 +295,42 @@ export interface Client {
   tgId: number;
   totalGB: number;
   updated_at?: number;
+}
+
+export interface ClientActivityDetail {
+  email: string;
+  ips: ClientActivityIP[];
+  online: boolean;
+  visits: ClientActivityVisit[];
+}
+
+export interface ClientActivityIP {
+  asn: string;
+  country: string;
+  countryCode: string;
+  hits: number;
+  ip: string;
+  isp: string;
+  lastSeen: number;
+  org: string;
+}
+
+export interface ClientActivitySummary {
+  countries: string[];
+  destCount: number;
+  email: string;
+  ipCount: number;
+  lastSeen: number;
+  online: boolean;
+  operators: string[];
+  recordCount: number;
+}
+
+export interface ClientActivityVisit {
+  dest: string;
+  hits: number;
+  lastSeen: number;
+  network: string;
 }
 
 export interface ClientInbound {

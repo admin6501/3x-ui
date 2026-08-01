@@ -37,6 +37,10 @@ interface Window {
   // Permissions granted to the logged-in account. Drives which menu entries
   // and actions the SPA offers — the server enforces every one of them again.
   X_UI_PERMS?: string[];
+  // Whether per-client activity tracking is on. Page-load state, like the
+  // role/perms above — the sidebar offers the Client Activity entry only when
+  // it is true. Flipping the setting takes effect on the next load.
+  X_UI_CLIENT_ACTIVITY?: boolean;
   __SUB_PAGE_DATA__?: SubPageData;
 }
 

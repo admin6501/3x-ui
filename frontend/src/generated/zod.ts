@@ -24,6 +24,7 @@ export type transportBits = z.infer<typeof transportBitsSchema>;
 export const AllSettingSchema = z.object({
   autoDeleteExpiredDays: z.number().int().min(0),
   autoDeleteExpiredEnable: z.boolean(),
+  clientActivityEnable: z.boolean(),
   datepicker: z.string(),
   expireDiff: z.number().int().min(0),
   externalTrafficInformEnable: z.boolean(),
@@ -146,6 +147,7 @@ export type AllSetting = z.infer<typeof AllSettingSchema>;
 export const AllSettingViewSchema = z.object({
   autoDeleteExpiredDays: z.number().int().min(0),
   autoDeleteExpiredEnable: z.boolean(),
+  clientActivityEnable: z.boolean(),
   datepicker: z.string(),
   expireDiff: z.number().int().min(0),
   externalTrafficInformEnable: z.boolean(),
@@ -313,6 +315,46 @@ export const ClientSchema = z.object({
   updated_at: z.number().int().optional(),
 });
 export type Client = z.infer<typeof ClientSchema>;
+
+export const ClientActivityDetailSchema = z.object({
+  email: z.string(),
+  ips: z.array(z.lazy(() => ClientActivityIPSchema)),
+  online: z.boolean(),
+  visits: z.array(z.lazy(() => ClientActivityVisitSchema)),
+});
+export type ClientActivityDetail = z.infer<typeof ClientActivityDetailSchema>;
+
+export const ClientActivityIPSchema = z.object({
+  asn: z.string(),
+  country: z.string(),
+  countryCode: z.string(),
+  hits: z.number().int(),
+  ip: z.string(),
+  isp: z.string(),
+  lastSeen: z.number().int(),
+  org: z.string(),
+});
+export type ClientActivityIP = z.infer<typeof ClientActivityIPSchema>;
+
+export const ClientActivitySummarySchema = z.object({
+  countries: z.array(z.string()),
+  destCount: z.number().int(),
+  email: z.string(),
+  ipCount: z.number().int(),
+  lastSeen: z.number().int(),
+  online: z.boolean(),
+  operators: z.array(z.string()),
+  recordCount: z.number().int(),
+});
+export type ClientActivitySummary = z.infer<typeof ClientActivitySummarySchema>;
+
+export const ClientActivityVisitSchema = z.object({
+  dest: z.string(),
+  hits: z.number().int(),
+  lastSeen: z.number().int(),
+  network: z.string(),
+});
+export type ClientActivityVisit = z.infer<typeof ClientActivityVisitSchema>;
 
 export const ClientInboundSchema = z.object({
   clientId: z.number().int(),

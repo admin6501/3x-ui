@@ -38,6 +38,10 @@
             "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
             "type": "boolean"
           },
+          "clientActivityEnable": {
+            "description": "ClientActivityEnable turns on per-client activity tracking (connecting\nIPs, their ISP/country, and visited destinations). Off by default: it\nrecords the browsing of people using an anti-censorship proxy, so it is\nopt-in and the collected data can be wiped from the Client Activity page.",
+            "type": "boolean"
+          },
           "datepicker": {
             "description": "Date picker format",
             "type": "string"
@@ -530,6 +534,7 @@
         "required": [
           "autoDeleteExpiredDays",
           "autoDeleteExpiredEnable",
+          "clientActivityEnable",
           "datepicker",
           "expireDiff",
           "externalTrafficInformEnable",
@@ -659,6 +664,10 @@
           },
           "autoDeleteExpiredEnable": {
             "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
+            "type": "boolean"
+          },
+          "clientActivityEnable": {
+            "description": "ClientActivityEnable turns on per-client activity tracking (connecting\nIPs, their ISP/country, and visited destinations). Off by default: it\nrecords the browsing of people using an anti-censorship proxy, so it is\nopt-in and the collected data can be wiped from the Client Activity page.",
             "type": "boolean"
           },
           "datepicker": {
@@ -1177,6 +1186,7 @@
         "required": [
           "autoDeleteExpiredDays",
           "autoDeleteExpiredEnable",
+          "clientActivityEnable",
           "datepicker",
           "expireDiff",
           "externalTrafficInformEnable",
@@ -1459,6 +1469,146 @@
           "subId",
           "tgId",
           "totalGB"
+        ],
+        "type": "object"
+      },
+      "ClientActivityDetail": {
+        "description": "ClientActivityDetail is the full per-client view: its IPs (with operators) and\nits visited destinations, most-recent first.",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "ips": {
+            "items": {
+              "$ref": "#/components/schemas/ClientActivityIP"
+            },
+            "type": "array"
+          },
+          "online": {
+            "type": "boolean"
+          },
+          "visits": {
+            "items": {
+              "$ref": "#/components/schemas/ClientActivityVisit"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "email",
+          "ips",
+          "online",
+          "visits"
+        ],
+        "type": "object"
+      },
+      "ClientActivityIP": {
+        "description": "ClientActivityIP pairs a source IP with the operator resolved for it.",
+        "properties": {
+          "asn": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "countryCode": {
+            "type": "string"
+          },
+          "hits": {
+            "type": "integer"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "isp": {
+            "type": "string"
+          },
+          "lastSeen": {
+            "type": "integer"
+          },
+          "org": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "asn",
+          "country",
+          "countryCode",
+          "hits",
+          "ip",
+          "isp",
+          "lastSeen",
+          "org"
+        ],
+        "type": "object"
+      },
+      "ClientActivitySummary": {
+        "description": "ClientActivitySummary is one row of the activity list: a client, how many\ndistinct IPs and destinations were seen for it, the operators behind those\nIPs, whether it is online now, and when it was last seen.",
+        "properties": {
+          "countries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "destCount": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string"
+          },
+          "ipCount": {
+            "type": "integer"
+          },
+          "lastSeen": {
+            "type": "integer"
+          },
+          "online": {
+            "type": "boolean"
+          },
+          "operators": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "recordCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "countries",
+          "destCount",
+          "email",
+          "ipCount",
+          "lastSeen",
+          "online",
+          "operators",
+          "recordCount"
+        ],
+        "type": "object"
+      },
+      "ClientActivityVisit": {
+        "description": "ClientActivityVisit is one visited destination with how often and how\nrecently it was reached.",
+        "properties": {
+          "dest": {
+            "type": "string"
+          },
+          "hits": {
+            "type": "integer"
+          },
+          "lastSeen": {
+            "type": "integer"
+          },
+          "network": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dest",
+          "hits",
+          "lastSeen",
+          "network"
         ],
         "type": "object"
       },
@@ -2699,6 +2849,10 @@
     {
       "name": "Reseller",
       "description": "Self-service snapshot for the logged-in account, used by the reseller dashboard. Lives under /panel/api/reseller and is open to any authenticated user — a non-reseller role gets its username and role back with the usage/quota fields zeroed."
+    },
+    {
+      "name": "Client Activity",
+      "description": "Per-client activity tracking: the IPs each client connects from, the network operator behind each IP, and the destinations they reach. Lives under /panel/api/clientActivity and requires the settings.manage permission — among built-in roles only super_admin holds it, so managers and resellers get 403. This is the browsing record of proxy users; it is collected only while the clientActivityEnable setting is on, and it can be wiped in full. When tracking is off the read endpoints return enabled=false and an empty list."
     }
   ],
   "paths": {
@@ -12623,6 +12777,207 @@
                     ],
                     "recent": []
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/clientActivity/status": {
+      "get": {
+        "tags": [
+          "Client Activity"
+        ],
+        "summary": "Report whether per-client activity tracking is currently enabled, so a client can render the \"turn it on in settings\" state instead of an empty table.",
+        "operationId": "get_panel_api_clientActivity_status",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "enabled": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/clientActivity/list": {
+      "get": {
+        "tags": [
+          "Client Activity"
+        ],
+        "summary": "List every client with recorded activity, most recently seen first: distinct IP and destination counts, the operators and countries seen, whether the client is online now, last-seen time and total record count.",
+        "operationId": "get_panel_api_clientActivity_list",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "enabled": true,
+                    "clients": [
+                      {
+                        "email": "alice@example.com",
+                        "ipCount": 2,
+                        "destCount": 37,
+                        "operators": [
+                          "Example Telecom"
+                        ],
+                        "countries": [
+                          "Germany"
+                        ],
+                        "online": true,
+                        "lastSeen": 1735689600,
+                        "recordCount": 412
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/clientActivity/detail/{email}": {
+      "get": {
+        "tags": [
+          "Client Activity"
+        ],
+        "summary": "Return one client’s connecting IPs (each with the resolved operator, country and hit count) and its most recent visited destinations. The optional limit query caps the destination list (default 200, max 1000).",
+        "operationId": "get_panel_api_clientActivity_detail_email",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "description": "The client email whose activity to return.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum destinations to return (default 200, max 1000).",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {
+                      "$ref": "#/components/schemas/ClientActivityDetail"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "email": "",
+                    "ips": [
+                      {
+                        "asn": "",
+                        "country": "",
+                        "countryCode": "",
+                        "hits": 0,
+                        "ip": "",
+                        "isp": "",
+                        "lastSeen": 0,
+                        "org": ""
+                      }
+                    ],
+                    "online": false,
+                    "visits": [
+                      {
+                        "dest": "",
+                        "hits": 0,
+                        "lastSeen": 0,
+                        "network": ""
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/clientActivity/clear": {
+      "post": {
+        "tags": [
+          "Client Activity"
+        ],
+        "summary": "Delete all recorded activity and the cached IP-operator lookups. Does not change the setting: if tracking is still on, collection resumes on the next tick.",
+        "operationId": "post_panel_api_clientActivity_clear",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "msg": "Activity data cleared"
                 }
               }
             }
