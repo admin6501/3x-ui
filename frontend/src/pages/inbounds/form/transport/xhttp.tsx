@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { AutoComplete, Form, Input, InputNumber, Select, Switch, type FormInstance } from 'antd';
+import { AutoComplete, Form, Input, InputNumber, Switch, type FormInstance } from 'antd';
 
 import { HeaderMapEditor } from '@/components/form';
 import type { InboundFormValues } from '@/schemas/forms/inbound-form';
 import { XHTTP_SESSION_ID_TABLES, XHttpXmuxSchema } from '@/schemas/protocols/stream/xhttp';
 import { validateSessionIDLength, validateSessionIDTable } from '@/lib/xray/xhttp-session-id';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const XMUX_DEFAULTS = XHttpXmuxSchema.parse({});
 
@@ -34,7 +35,7 @@ export default function XhttpForm({ form }: { form: FormInstance<InboundFormValu
         <Input />
       </Form.Item>
       <Form.Item name={['streamSettings', 'xhttpSettings', 'mode']} label={t('pages.inbounds.info.mode')}>
-        <Select
+        <OptionButtons
           style={{ width: '50%' }}
           options={(['auto', 'packet-up', 'stream-up', 'stream-one'] as const).map((m) => ({
             value: m,
@@ -102,7 +103,7 @@ export default function XhttpForm({ form }: { form: FormInstance<InboundFormValu
         name={['streamSettings', 'xhttpSettings', 'uplinkHTTPMethod']}
         label={t('pages.inbounds.form.uplinkHttpMethod')}
       >
-        <Select
+        <OptionButtons
           options={[
             { value: '', label: 'Default (POST)' },
             { value: 'POST', label: 'POST' },
@@ -140,7 +141,7 @@ export default function XhttpForm({ form }: { form: FormInstance<InboundFormValu
             name={['streamSettings', 'xhttpSettings', 'xPaddingPlacement']}
             label={t('pages.inbounds.form.paddingPlacement')}
           >
-            <Select
+            <OptionButtons
               options={[
                 { value: '', label: 'Default (queryInHeader)' },
                 { value: 'queryInHeader', label: 'queryInHeader' },
@@ -154,7 +155,7 @@ export default function XhttpForm({ form }: { form: FormInstance<InboundFormValu
             name={['streamSettings', 'xhttpSettings', 'xPaddingMethod']}
             label={t('pages.inbounds.form.paddingMethod')}
           >
-            <Select
+            <OptionButtons
               options={[
                 { value: '', label: 'Default (repeat-x)' },
                 { value: 'repeat-x', label: 'repeat-x' },
@@ -168,7 +169,7 @@ export default function XhttpForm({ form }: { form: FormInstance<InboundFormValu
         name={['streamSettings', 'xhttpSettings', 'sessionIDPlacement']}
         label={t('pages.inbounds.form.sessionPlacement')}
       >
-        <Select
+        <OptionButtons
           options={[
             { value: '', label: 'Default (path)' },
             { value: 'path', label: 'path' },
@@ -212,7 +213,7 @@ export default function XhttpForm({ form }: { form: FormInstance<InboundFormValu
         name={['streamSettings', 'xhttpSettings', 'seqPlacement']}
         label={t('pages.inbounds.form.sequencePlacement')}
       >
-        <Select
+        <OptionButtons
           options={[
             { value: '', label: 'Default (path)' },
             { value: 'path', label: 'path' },
@@ -236,7 +237,7 @@ export default function XhttpForm({ form }: { form: FormInstance<InboundFormValu
             name={['streamSettings', 'xhttpSettings', 'uplinkDataPlacement']}
             label={t('pages.inbounds.form.uplinkDataPlacement')}
           >
-            <Select
+            <OptionButtons
               options={[
                 { value: '', label: 'Default (body)' },
                 { value: 'body', label: 'body' },

@@ -73,6 +73,7 @@ import {
 } from './transport';
 import { RealityForm, TlsForm } from './security';
 import './OutboundFormModal.css';
+import OptionButtons from '@/components/form/OptionButtons';
 
 // Pattern A rewrite of OutboundFormModal. Built as a sibling `.new.tsx`
 // file so the build stays green section-by-section. The atomic swap at
@@ -373,7 +374,7 @@ export default function OutboundFormModal({
                       name="protocol"
                       rules={[antdRule(OutboundFormBaseSchema.shape.tag, t)]}
                     >
-                      <Select options={PROTOCOL_OPTIONS} />
+                      <OptionButtons options={PROTOCOL_OPTIONS} />
                     </Form.Item>
 
                     <Form.Item

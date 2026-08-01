@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Form, Input, InputNumber, Select, Switch } from 'antd';
+import { Form, Input, InputNumber, Switch } from 'antd';
 
 import { HeaderMapEditor } from '@/components/form';
+import OptionButtons from '@/components/form/OptionButtons';
 
 export default function TunnelFields() {
   const { t } = useTranslation();
@@ -14,7 +15,7 @@ export default function TunnelFields() {
         <InputNumber min={0} max={65535} />
       </Form.Item>
       <Form.Item name={['settings', 'allowedNetwork']} label={t('pages.inbounds.form.allowedNetwork')}>
-        <Select
+        <OptionButtons
           options={[
             { value: 'tcp,udp', label: 'TCP, UDP' },
             { value: 'tcp', label: 'TCP' },

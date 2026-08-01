@@ -6,6 +6,7 @@ import { AimOutlined } from '@ant-design/icons';
 import { HttpUtil } from '@/utils';
 import { useInboundOptions } from '@/api/queries/useInboundOptions';
 import { buildRemarkByTag, formatInboundTag } from './helpers';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface RouteTesterProps {
   inboundTags: string[];
@@ -84,7 +85,7 @@ export default function RouteTester({ inboundTags, isMobile }: RouteTesterProps)
           />
         </Col>
         <Col xs={12} sm={3}>
-          <Select
+          <OptionButtons
             style={{ width: '100%' }}
             value={network}
             onChange={setNetwork}

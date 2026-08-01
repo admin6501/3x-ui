@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Form, InputNumber, Select, Switch, type FormInstance } from 'antd';
+import { Form, InputNumber, Switch, type FormInstance } from 'antd';
 
 import type { OutboundFormValues } from '@/schemas/forms/outbound-form';
 
 import { isMuxAllowed } from '../outbound-form-helpers';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface MuxFormProps {
   form: FormInstance<OutboundFormValues>;
@@ -46,7 +47,7 @@ export default function MuxForm({ form, protocol, network }: MuxFormProps) {
                   label={t('pages.settings.subFormats.xudpUdp443')}
                   name={['mux', 'xudpProxyUDP443']}
                 >
-                  <Select
+                  <OptionButtons
                     options={['reject', 'allow', 'skip'].map((v) => ({
                       value: v,
                       label: v,

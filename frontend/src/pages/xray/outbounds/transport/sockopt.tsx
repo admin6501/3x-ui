@@ -7,6 +7,7 @@ import { HappyEyeballsSchema, SockoptStreamSettingsSchema } from '@/schemas/prot
 import type { OutboundFormValues } from '@/schemas/forms/outbound-form';
 
 import { ADDRESS_PORT_STRATEGY_OPTIONS } from '../outbound-form-constants';
+import OptionButtons from '@/components/form/OptionButtons';
 
 export default function SockoptForm({
   form,
@@ -118,7 +119,7 @@ export default function SockoptForm({
                   label="TProxy"
                   name={['streamSettings', 'sockopt', 'tproxy']}
                 >
-                  <Select
+                  <OptionButtons
                     options={[
                       { value: 'off', label: 'off' },
                       { value: 'redirect', label: 'redirect' },

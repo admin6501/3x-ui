@@ -1,0 +1,32 @@
+/*
+ * A dropdown collapses to one line no matter how many options it holds; a
+ * button row does not. Let it wrap instead of overflowing the form, and square
+ * off the corners antd rounds only on the first/last button of a single line —
+ * otherwise a wrapped row shows rounding in the middle of the group.
+ */
+.option-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.option-buttons .ant-radio-button-wrapper {
+  /* Keep labels readable on narrow screens rather than truncating them. */
+  white-space: nowrap;
+}
+
+@media (max-width: 575px) {
+  /*
+   * On a phone a long option row is easier to hit when each button can grow to
+   * fill the line rather than crowding into a strip of narrow targets.
+   */
+  .option-buttons {
+    display: flex;
+    width: 100%;
+  }
+
+  .option-buttons .ant-radio-button-wrapper {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

@@ -20,6 +20,7 @@ import { catTabLabel } from './catTabLabel';
 import { sanitizePath, normalizePath } from './uriPath';
 import SubJsonFinalMaskForm from './SubJsonFinalMaskForm';
 import './SubscriptionFormatsTab.css';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface SubscriptionFormatsTabProps {
   allSetting: AllSetting;
@@ -222,7 +223,7 @@ export default function SubscriptionFormatsTab({ allSetting, updateSetting }: Su
                     onChange={(v) => setMuxField('xudpConcurrency', Number(v) || 0)} />
                 </SettingListItem>
                 <SettingListItem paddings="small" title={t('pages.settings.subFormats.xudpUdp443')}>
-                  <Select
+                  <OptionButtons
                     value={muxObj.xudpProxyUDP443}
                     style={{ width: '100%' }}
                     onChange={(v) => setMuxField('xudpProxyUDP443', v)}

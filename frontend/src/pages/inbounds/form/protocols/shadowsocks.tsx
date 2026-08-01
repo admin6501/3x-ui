@@ -5,6 +5,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { RandomUtil } from '@/utils';
 import { SSMethodSchema } from '@/schemas/protocols/shared/shadowsocks';
 import type { InboundFormValues } from '@/schemas/forms/inbound-form';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface ShadowsocksFieldsProps {
   form: FormInstance<InboundFormValues>;
@@ -46,7 +47,7 @@ export default function ShadowsocksFields({ form, isSSWith2022 }: ShadowsocksFie
         </Form.Item>
       )}
       <Form.Item name={['settings', 'network']} label={t('pages.inbounds.network')}>
-        <Select
+        <OptionButtons
           style={{ width: 120 }}
           options={[
             { value: 'tcp,udp', label: 'TCP, UDP' },

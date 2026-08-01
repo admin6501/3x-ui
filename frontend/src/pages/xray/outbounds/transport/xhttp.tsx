@@ -7,6 +7,7 @@ import type { OutboundFormValues } from '@/schemas/forms/outbound-form';
 import { XHTTP_SESSION_ID_TABLES } from '@/schemas/protocols/stream/xhttp';
 
 import { MODE_OPTIONS } from '../outbound-form-constants';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface XhttpFormProps {
   form: FormInstance<OutboundFormValues>;
@@ -83,7 +84,7 @@ export default function XhttpForm({ form, onXmuxToggle }: XhttpFormProps) {
                 label={t('pages.inbounds.form.paddingPlacement')}
                 name={['streamSettings', 'xhttpSettings', 'xPaddingPlacement']}
               >
-                <Select
+                <OptionButtons
                   options={[
                     { value: '', label: 'Default (queryInHeader)' },
                     { value: 'queryInHeader', label: 'queryInHeader' },
@@ -97,7 +98,7 @@ export default function XhttpForm({ form, onXmuxToggle }: XhttpFormProps) {
                 label={t('pages.inbounds.form.paddingMethod')}
                 name={['streamSettings', 'xhttpSettings', 'xPaddingMethod']}
               >
-                <Select
+                <OptionButtons
                   options={[
                     { value: '', label: 'Default (repeat-x)' },
                     { value: 'repeat-x', label: 'repeat-x' },
@@ -263,7 +264,7 @@ export default function XhttpForm({ form, onXmuxToggle }: XhttpFormProps) {
                 label={t('pages.inbounds.form.uplinkDataPlacement')}
                 name={['streamSettings', 'xhttpSettings', 'uplinkDataPlacement']}
               >
-                <Select
+                <OptionButtons
                   options={[
                     { value: '', label: 'Default (body)' },
                     { value: 'body', label: 'body' },

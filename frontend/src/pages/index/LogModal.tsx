@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Checkbox, Form, Modal, Select, Space } from 'antd';
+import { Button, Checkbox, Form, Modal, Space } from 'antd';
 import { DownloadOutlined, SyncOutlined } from '@ant-design/icons';
 
 import { HttpUtil, FileManager, PromiseUtil } from '@/utils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { parseLogLine } from './logParse';
 import './LogModal.css';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface LogModalProps {
   open: boolean;
@@ -74,7 +75,7 @@ export default function LogModal({ open, onClose }: LogModalProps) {
       <Form layout="inline" className="log-toolbar">
         <Form.Item>
           <Space.Compact>
-            <Select
+            <OptionButtons
               value={rows}
               size="small"
               style={{ width: 70 }}
@@ -87,7 +88,7 @@ export default function LogModal({ open, onClose }: LogModalProps) {
                 { value: '500', label: '500' },
               ]}
             />
-            <Select
+            <OptionButtons
               value={level}
               size="small"
               style={{ width: 95 }}

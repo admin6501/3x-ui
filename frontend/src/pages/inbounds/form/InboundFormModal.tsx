@@ -82,6 +82,7 @@ import SniffingTab from './SniffingTab';
 
 import type { DBInbound } from '@/models/dbinbound';
 import type { NodeRecord } from '@/api/queries/useNodesQuery';
+import OptionButtons from '@/components/form/OptionButtons';
 
 
 // Render a field label with a hover tooltip icon instead of an `extra` help line below.
@@ -587,7 +588,7 @@ export default function InboundFormModal({
       )}
 
       <Form.Item name="protocol" label={t('pages.inbounds.protocol')}>
-        <Select options={PROTOCOL_OPTIONS} />
+        <OptionButtons options={PROTOCOL_OPTIONS} />
       </Form.Item>
 
       {protocolChanged && (
@@ -835,7 +836,7 @@ export default function InboundFormModal({
     <>
       {hasSelectableTransport && (
         <Form.Item label={t('transmission')} name={['streamSettings', 'network']}>
-          <Select
+          <OptionButtons
             style={{ width: '75%' }}
             onChange={onNetworkChange}
             options={[

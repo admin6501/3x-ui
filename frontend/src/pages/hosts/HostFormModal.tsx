@@ -20,6 +20,7 @@ import { useNodesQuery } from '@/api/queries/useNodesQuery';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { catTabLabel } from '@/pages/settings/catTabLabel';
 import { HostFinalMaskForm, HostMuxForm, HostSockoptForm } from './json-forms';
+import OptionButtons from '@/components/form/OptionButtons';
 
 // inboundId is optional in the form so a new host starts unselected (the Select
 // shows its placeholder instead of 0); the required rule enforces it on submit.
@@ -196,7 +197,7 @@ export default function HostFormModal({ open, mode, host, inboundOptions, save, 
               children: (
                 <>
                   <Form.Item name="security" label={t('pages.hosts.fields.security')}>
-                    <Select
+                    <OptionButtons
                       options={['same', 'tls', 'none', 'reality'].map((v) => ({ value: v, label: v }))}
                     />
                   </Form.Item>

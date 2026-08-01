@@ -22,7 +22,6 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { SelectProps } from 'antd';
 import {
   DeleteOutlined,
   EditOutlined,
@@ -43,6 +42,7 @@ import { useTheme } from '@/hooks/useTheme';
 import RolesCard, { customRoleKey, parseCustomRoleId, useCustomRoles } from './RolesCard';
 import '@/styles/page-shell.css';
 import './AdminsPage.css';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const BUILTIN_ROLES = ['super_admin', 'manager', 'reseller', 'readonly'] as const;
 // A role is either one of the built-ins or "custom:<id>", so the select can
@@ -162,15 +162,18 @@ export default function AdminsPage() {
     return set;
   }, [customRoles]);
 
-  const roleOptions = useMemo<SelectProps['options']>(() => {
-    const builtin = BUILTIN_ROLES.map((r) => ({ value: r as Role, label: t(`pages.admins.roles.${r}`, r) }));
-    if (customRoles.length === 0) return builtin;
+  // Flat rather than grouped under "built-in" / "your roles": the picker is a
+  // row of buttons, which has nowhere to put a group header. Built-ins come
+  // first and custom roles carry their own names, so the split stays legible
+  // without the headings.
+  const roleOptions = useMemo<{ value: string; label: string }[]>(() => {
+    const builtin = BUILTIN_ROLES.map((r) => ({
+      value: r as Role as string,
+      label: t(`pages.admins.roles.${r}`, r),
+    }));
     return [
-      { label: t('pages.admins.builtInRoles'), options: builtin },
-      {
-        label: t('pages.admins.yourRoles'),
-        options: customRoles.map((r) => ({ value: customRoleKey(r.id), label: r.name })),
-      },
+      ...builtin,
+      ...customRoles.map((r) => ({ value: customRoleKey(r.id), label: r.name })),
     ];
   }, [customRoles, t]);
 
@@ -559,7 +562,7 @@ export default function AdminsPage() {
             </Form.Item>
           )}
           <Form.Item name="role" label={t('pages.admins.role')} rules={[{ required: true }]}>
-            <Select options={roleOptions} data-testid="admin-role-select" />
+            <OptionButtons options={roleOptions} data-testid="admin-role-select" />
           </Form.Item>
           {scopedRoles.has(watchRole ?? '') && (
             <Form.Item

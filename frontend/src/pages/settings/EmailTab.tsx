@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Input, InputNumber, Select, Space, Switch, Tabs } from 'antd';
+import { Alert, Button, Input, InputNumber, Space, Switch, Tabs } from 'antd';
 import { MailOutlined, SendOutlined, SettingOutlined } from '@ant-design/icons';
 import { HttpUtil } from '@/utils';
 import type { AllSetting } from '@/models/setting';
@@ -8,6 +8,7 @@ import { SettingListItem } from '@/components/ui';
 import { EmailNotifications } from '@/components/ui/notifications/EmailNotifications';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { catTabLabel } from './catTabLabel';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface EmailTabProps {
   allSetting: AllSetting;
@@ -84,7 +85,7 @@ export default function EmailTab({ allSetting, updateSetting }: EmailTabProps) {
             </SettingListItem>
 
             <SettingListItem paddings="small" title={t('pages.settings.smtpEncryption')} description={t('pages.settings.smtpEncryptionDesc')}>
-              <Select
+              <OptionButtons
                 value={allSetting.smtpEncryptionType}
                 onChange={(v) => updateSetting({ smtpEncryptionType: v })}
                 options={[

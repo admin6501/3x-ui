@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Form, Input, InputNumber, Select, Switch, type FormInstance } from 'antd';
+import { Form, Input, InputNumber, Switch, type FormInstance } from 'antd';
 
 import { HeaderMapEditor } from '@/components/form';
+import OptionButtons from '@/components/form/OptionButtons';
 
 const MASQ_PATH = ['streamSettings', 'hysteriaSettings', 'masquerade'];
 
@@ -62,7 +63,7 @@ export default function HysteriaForm({ form }: { form: FormInstance }) {
                 label={t('pages.inbounds.form.type')}
                 name={[...MASQ_PATH, 'type']}
               >
-                <Select
+                <OptionButtons
                   options={[
                     { value: '', label: 'default (404 page)' },
                     { value: 'proxy', label: 'proxy (reverse proxy)' },

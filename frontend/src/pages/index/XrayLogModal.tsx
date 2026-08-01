@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Checkbox, Form, Input, Modal, Select, Tag } from 'antd';
+import { Button, Checkbox, Form, Input, Modal, Tag } from 'antd';
 import { DownloadOutlined, SyncOutlined } from '@ant-design/icons';
 
 import { HttpUtil, FileManager, IntlUtil, PromiseUtil } from '@/utils';
 import { useDatepicker } from '@/hooks/useDatepicker';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import './XrayLogModal.css';
+import OptionButtons from '@/components/form/OptionButtons';
 
 interface XrayLogModalProps {
   open: boolean;
@@ -124,7 +125,7 @@ export default function XrayLogModal({ open, onClose }: XrayLogModalProps) {
     >
       <Form layout="inline" className="log-toolbar">
         <Form.Item>
-          <Select
+          <OptionButtons
             value={rows}
             size="small"
             style={{ width: 70 }}

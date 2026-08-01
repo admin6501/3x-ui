@@ -4,12 +4,7 @@ import { screen, act, render, cleanup } from '@testing-library/react';
 import InboundFormModal from '@/pages/inbounds/form/InboundFormModal';
 import { DBInbound } from '@/models/dbinbound';
 import { ThemeProvider } from '@/hooks/useTheme';
-import {
-  renderWithProviders,
-  fieldLabels,
-  listSelectOptions,
-  chooseSelectOption,
-} from './test-utils';
+import { chooseSelectOption, fieldLabels, isFieldDisabled, listSelectOptions, renderWithProviders } from './test-utils';
 
 function renderModal() {
   return renderWithProviders(
@@ -122,8 +117,7 @@ describe('InboundFormModal', () => {
     );
 
     // The picker must be editable in edit mode (it used to be hard-disabled).
-    const protocolSelect = document.getElementById('protocol')?.closest('.ant-select');
-    expect(protocolSelect?.classList.contains('ant-select-disabled')).toBe(false);
+    expect(isFieldDisabled('protocol')).toBe(false);
 
     chooseSelectOption('protocol', 'trojan');
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
