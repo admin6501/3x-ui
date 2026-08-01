@@ -27,15 +27,20 @@ func NewClientActivityController(g *gin.RouterGroup) *ClientActivityController {
 	return a
 }
 
-// statusPayload tells the page whether tracking is on before it renders a table,
-// so a disabled feature shows the "enable it in settings" state rather than an
-// empty grid that looks broken.
+// statusPayload tells the page whether tracking is on, and whether the Xray
+// access log it reads from is on, before it renders a table — so a disabled
+// feature or a missing access log shows a clear "how to fix" state rather than
+// an empty grid that looks broken.
 type statusPayload struct {
-	Enabled bool `json:"enabled"`
+	Enabled          bool `json:"enabled"`
+	AccessLogEnabled bool `json:"accessLogEnabled"`
 }
 
 func (a *ClientActivityController) status(c *gin.Context) {
-	jsonObj(c, statusPayload{Enabled: a.activityService.Enabled()}, nil)
+	jsonObj(c, statusPayload{
+		Enabled:          a.activityService.Enabled(),
+		AccessLogEnabled: a.activityService.AccessLogEnabled(),
+	}, nil)
 }
 
 func (a *ClientActivityController) list(c *gin.Context) {
@@ -44,7 +49,11 @@ func (a *ClientActivityController) list(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.clientActivity.toasts.loadError"), err)
 		return
 	}
-	jsonObj(c, gin.H{"enabled": a.activityService.Enabled(), "clients": rows}, nil)
+	jsonObj(c, gin.H{
+		"enabled":          a.activityService.Enabled(),
+		"accessLogEnabled": a.activityService.AccessLogEnabled(),
+		"clients":          rows,
+	}, nil)
 }
 
 func (a *ClientActivityController) detail(c *gin.Context) {
