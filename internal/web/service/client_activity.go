@@ -357,6 +357,15 @@ func (s *ClientActivityService) Enabled() bool {
 	return enabled
 }
 
+// AccessLogEnabled reports whether Xray is writing an access log. Collection
+// reads from it, so with the log off (the default "none") nothing is recorded
+// even while tracking is on — the page surfaces this so the operator knows to
+// turn the access log on under Xray settings.
+func (s *ClientActivityService) AccessLogEnabled() bool {
+	path, err := xray.GetAccessLogPath()
+	return err == nil && path != "" && path != "none"
+}
+
 // ListSummaries returns one summary per client that has any recorded activity,
 // ordered by most recently seen.
 func (s *ClientActivityService) ListSummaries() ([]ClientActivitySummary, error) {

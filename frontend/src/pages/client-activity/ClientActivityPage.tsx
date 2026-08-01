@@ -32,8 +32,13 @@ import '@/styles/page-shell.css';
 
 interface ListResponse {
   enabled: boolean;
+  accessLogEnabled: boolean;
   clients: ClientActivitySummary[];
 }
+
+// How often the page re-polls while it is open, so newly-collected activity
+// appears without a manual refresh. Matches the collection job's cadence.
+const AUTO_REFRESH_MS = 10000;
 
 export default function ClientActivityPage() {
   const { t } = useTranslation();
@@ -44,6 +49,7 @@ export default function ClientActivityPage() {
   useEffect(() => { setMessageInstance(messageApi); }, [messageApi]);
 
   const [enabled, setEnabled] = useState(true);
+  const [accessLogEnabled, setAccessLogEnabled] = useState(true);
   const [rows, setRows] = useState<ClientActivitySummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
@@ -63,6 +69,7 @@ export default function ClientActivityPage() {
         return;
       }
       setEnabled(msg.obj.enabled);
+      setAccessLogEnabled(msg.obj.accessLogEnabled);
       setRows(msg.obj.clients ?? []);
       setFetchError(null);
     } catch (e) {
@@ -74,6 +81,14 @@ export default function ClientActivityPage() {
   }, [t]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Re-poll while the page is open so freshly-collected activity appears on its
+  // own; the collector and enricher run on a tick, so a one-shot fetch would
+  // otherwise look empty right after enabling.
+  useEffect(() => {
+    const id = window.setInterval(() => { void load(); }, AUTO_REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [load]);
 
   const openDetail = useCallback(async (email: string) => {
     setDetailOpen(true);
@@ -236,6 +251,15 @@ export default function ClientActivityPage() {
                       showIcon
                       style={{ marginBottom: 12 }}
                       message={t('pages.clientActivity.disabledNotice')}
+                    />
+                  )}
+                  {enabled && !accessLogEnabled && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                      message={t('pages.clientActivity.accessLogOffTitle')}
+                      description={t('pages.clientActivity.accessLogOffBody')}
                     />
                   )}
                   <Table<ClientActivitySummary>

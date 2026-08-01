@@ -2291,7 +2291,9 @@
         "loadError": "Failed to load activity",
         "clearError": "Failed to clear data",
         "cleared": "Activity data cleared"
-      }
+      },
+      "accessLogOffTitle": "Xray access log is off — nothing is being collected",
+      "accessLogOffBody": "This page reads from the Xray access log, which is currently disabled, so no IPs, operators or sites are recorded. Turn it on under Xray → Basics → Access Log (set it to ./access.log), then save to restart Xray. Data appears within a few seconds of a client connecting."
     }
   },
   "tgbot": {
