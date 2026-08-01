@@ -614,7 +614,9 @@
         "target": "Hedef",
         "maxTimeDiff": "Maks. Zaman Farkı (ms)",
         "minClientVer": "Min. Kullanıcı Sürümü",
+        "minClientVerHint": "Boş bırakmak sınırsız demek değildir: Xray-core, çalıştırdığınız çekirdek sürümünün yerleşik alt sınırını (güncel sürümlerde 26.3.27) uygular ve daha eski sürüm bildiren istemcileri reddeder — Mihomo ve sing-box gibi üçüncü taraf çekirdekler dahil. 1.0.0 girmek onları kabul eder; bedeli eski TLS parmak izlerine izin vermektir.",
         "maxClientVer": "Maks. Kullanıcı Sürümü",
+        "maxClientVerHint": "Boş, üst sınır yok demektir. Ayarlanırsa geçerli alt sınırın — Min. Kullanıcı Sürümü, o alan boşsa Xray-core'un yerleşik alt sınırı — altında olmamalıdır, aksi halde tüm istemciler reddedilir.",
         "shortIds": "Short IDs",
         "realityTargetHint": "Zorunlu. Bir port içermelidir (ör. example.com:443). Port belirtilmezse Xray-core başlamaz.",
         "realityTargetRequired": "REALITY hedefi zorunludur",
@@ -663,7 +665,9 @@
         "bytesPerSec": "Saniye Başına Bayt",
         "bytesPerSecTip": "Eşik aşıldıktan sonra fallback trafiğine uygulanan hız sınırı (bayt/sn); böylece sondalar sunucunuzu hedefe ücretsiz bant genişliği olarak kullanamaz. 0 = sınır yok (bu yönü devre dışı bırakır).",
         "burstBytesPerSec": "Saniye Başına Patlama Baytı",
-        "burstBytesPerSecTip": "Sabit hızın üzerindeki kısa patlamalar için pay (token-bucket boyutu). Saniye Başına Bayt değerinden düşükse ona eşitlenecek şekilde yükseltilir."
+        "burstBytesPerSecTip": "Sabit hızın üzerindeki kısa patlamalar için pay (token-bucket boyutu). Saniye Başına Bayt değerinden düşükse ona eşitlenecek şekilde yükseltilir.",
+        "clientVerInvalid": "İstemci sürümü noktayla ayrılmış en fazla üç sayıdan oluşmalıdır, her biri 0-255 (örn. 26.3.27)",
+        "maxClientVerBelowMin": "Maks. istemci sürümü, en düşük istemci sürümünün altında olamaz"
       },
       "info": {
         "mode": "Mod",

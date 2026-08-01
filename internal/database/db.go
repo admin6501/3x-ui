@@ -514,7 +514,7 @@ func runSeeders(isUsersEmpty bool) error {
 	}
 
 	if empty && isUsersEmpty {
-		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted", "ClientPasswordCleanup"}
+		seeders := []string{"UserPasswordHash", "ClientsTable", "InboundClientsArrayFix", "InboundClientTgIdFix", "InboundClientSubIdFix", "FreedomFinalRulesReverseFix", "FreedomFinalRulesPrivateEgressBlock", "InboundRealityFinalmaskTcpStrip", "ApiTokensHash", "LegacyProxySettingsCleanup", "NodeInboundsAdopted", "ClientPasswordCleanup", "InboundRealityMinClientVerUnpin"}
 		for _, name := range seeders {
 			if err := db.Create(&model.HistoryOfSeeders{SeederName: name}).Error; err != nil {
 				return err
@@ -615,6 +615,12 @@ func runSeeders(isUsersEmpty bool) error {
 
 	if !slices.Contains(seedersHistory, "InboundRealityFinalmaskTcpStrip") {
 		if err := stripRealityTcpFinalMask(); err != nil {
+			return err
+		}
+	}
+
+	if !slices.Contains(seedersHistory, "InboundRealityMinClientVerUnpin") {
+		if err := unpinRealityMinClientVer(); err != nil {
 			return err
 		}
 	}
@@ -1641,6 +1647,45 @@ func stripRealityTcpFinalMask() error {
 		log.Printf("InboundRealityFinalmaskTcpStrip: nothing to strip")
 	}
 	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityFinalmaskTcpStrip"}).Error
+}
+
+// unpinRealityMinClientVer undoes a migration this panel used to run, which
+// wrote xray-core's client-version floor into every stored REALITY inbound.
+//
+// That feature was reverted in the code, but the rows it had already rewritten
+// kept the value, and its history_of_seeders row meant it never ran again to
+// see them. The result was an inbound enforcing a floor nothing in the panel
+// asked for — and, once the core was pinned back to a build where an empty
+// field means no minimum at all, one the core would not have applied either.
+// Clients on older cores were refused with no setting on screen to explain it.
+//
+// Only the exact value that migration wrote is removed; an operator's own
+// choice is left alone. See model.UnpinRealityMinClientVer.
+func unpinRealityMinClientVer() error {
+	var inbounds []model.Inbound
+	if err := db.Model(&model.Inbound{}).
+		Where("stream_settings LIKE ?", "%minClientVer%").
+		Find(&inbounds).Error; err != nil {
+		return err
+	}
+	unpinned := 0
+	for i := range inbounds {
+		ib := &inbounds[i]
+		rewritten, changed := model.UnpinRealityMinClientVer(ib.StreamSettings)
+		if !changed {
+			continue
+		}
+		if err := db.Model(&model.Inbound{}).Where("id = ?", ib.Id).
+			Update("stream_settings", rewritten).Error; err != nil {
+			return err
+		}
+		unpinned++
+		log.Printf("InboundRealityMinClientVerUnpin: cleared the pinned minClientVer=%s from REALITY inbound %d (%s); the field is empty again, which on this core means no minimum", model.PinnedRealityMinClientVer, ib.Id, ib.Remark)
+	}
+	if unpinned == 0 {
+		log.Printf("InboundRealityMinClientVerUnpin: nothing to unpin")
+	}
+	return db.Create(&model.HistoryOfSeeders{SeederName: "InboundRealityMinClientVerUnpin"}).Error
 }
 
 // clearUnusedClientPasswords drops passwords stored against clients of
