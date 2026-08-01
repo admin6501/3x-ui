@@ -475,7 +475,10 @@
         "getNewVlessEncError": "Error while obtaining VlessEnc.",
         "invalidClientField": "Client {client}: {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} more)"
+        "moreIssues": "{message}  (+{count} more)",
+        "scanRealityTargetError": "Failed to scan REALITY target.",
+        "scanRealityTargetFeasible": "Target is feasible — filled target and SNI.",
+        "scanRealityTargetNotFeasible": "Target is reachable but not feasible for REALITY."
       },
       "form": {
         "moveUp": "Move up",
@@ -669,7 +672,15 @@
           "custom": "Custom"
         },
         "clientVerInvalid": "Client version must be up to three dot-separated numbers, each 0-255 (e.g. 26.3.27)",
-        "maxClientVerBelowMin": "Max Client Ver must not be lower than Min Client Ver"
+        "maxClientVerBelowMin": "Max Client Ver must not be lower than Min Client Ver",
+        "scan": "Scan",
+        "findTargets": "Find Targets",
+        "scanFeasible": "Feasible",
+        "scanNotFeasible": "Not feasible",
+        "scanCurve": "Key Exchange",
+        "scanCert": "Certificate",
+        "scanCertInvalid": "Not trusted",
+        "scanLatency": "Latency"
       },
       "info": {
         "mode": "Mode",

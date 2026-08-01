@@ -473,7 +473,10 @@
         "getNewVlessEncError": "Error al obtener el certificado VlessEnc.",
         "invalidClientField": "Cliente {client}: campo {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} más)"
+        "moreIssues": "{message}  (+{count} más)",
+        "scanRealityTargetError": "No se pudo escanear el objetivo REALITY.",
+        "scanRealityTargetFeasible": "El objetivo es apto: se rellenaron el objetivo y el SNI.",
+        "scanRealityTargetNotFeasible": "El objetivo es accesible pero no apto para REALITY."
       },
       "form": {
         "moveUp": "Subir",
@@ -667,7 +670,15 @@
           "custom": "Personalizada"
         },
         "clientVerInvalid": "La versión del cliente debe tener hasta tres números separados por puntos, cada uno 0-255 (p. ej. 26.3.27)",
-        "maxClientVerBelowMin": "La versión máxima del cliente no debe ser inferior a la versión mínima"
+        "maxClientVerBelowMin": "La versión máxima del cliente no debe ser inferior a la versión mínima",
+        "scan": "Escanear",
+        "findTargets": "Buscar objetivos",
+        "scanFeasible": "Apto",
+        "scanNotFeasible": "No apto",
+        "scanCurve": "Intercambio de claves",
+        "scanCert": "Certificado",
+        "scanCertInvalid": "No confiable",
+        "scanLatency": "Latencia"
       },
       "info": {
         "mode": "Modo",

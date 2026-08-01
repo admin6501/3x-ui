@@ -96,6 +96,8 @@ func (a *ServerController) initRouter(g *gin.RouterGroup) {
 	g.POST("/getNewEchCert", a.getNewEchCert)
 	g.POST("/getCertHash", a.getCertHash)
 	g.POST("/getRemoteCertHash", a.getRemoteCertHash)
+	g.POST("/scanRealityTarget", a.scanRealityTarget)
+	g.POST("/scanRealityTargets", a.scanRealityTargets)
 	g.POST("/clientIps", panelAdmin, a.setClientIps)
 }
 
@@ -448,6 +450,32 @@ func (a *ServerController) getRemoteCertHash(c *gin.Context) {
 		return
 	}
 	jsonObj(c, hashes, nil)
+}
+
+// scanRealityTarget runs a live TLS 1.3 probe against the candidate REALITY
+// target and returns a structured feasibility verdict plus the cert SAN names,
+// which the form offers as ready-made SNI values.
+func (a *ServerController) scanRealityTarget(c *gin.Context) {
+	xver, _ := strconv.Atoi(c.PostForm("xver"))
+	res, err := a.serverService.ScanRealityTarget(c.PostForm("target"), xver)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.scanRealityTargetError"), err)
+		return
+	}
+	jsonObj(c, res, nil)
+}
+
+// scanRealityTargets probes a batch of candidate REALITY targets (the supplied
+// comma-separated list, or the built-in seed set when empty) and returns each
+// verdict ranked by feasibility then latency, so a target can be picked from a
+// list rather than typed from memory.
+func (a *ServerController) scanRealityTargets(c *gin.Context) {
+	res, err := a.serverService.ScanRealityTargets(c.PostForm("targets"))
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.scanRealityTargetError"), err)
+		return
+	}
+	jsonObj(c, res, nil)
 }
 
 // getNewVlessEnc generates a new VLESS encryption key.

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FormInstance } from 'antd';
@@ -8,6 +9,7 @@ import { getRandomRealityTarget } from '@/models/reality-targets';
 import { createTlsSettingsWithDefaultCert } from '@/lib/xray/inbound-tls-defaults';
 import { RealityStreamSettingsSchema } from '@/schemas/protocols/security/reality';
 import type { InboundFormValues } from '@/schemas/forms/inbound-form';
+import type { RealityScanResult } from '@/generated/types';
 
 interface UseSecurityActionsArgs {
   form: FormInstance<InboundFormValues>;
@@ -71,6 +73,68 @@ export function useSecurityActions({ form, setSaving, messageApi, nodeId }: UseS
       ['streamSettings', 'realitySettings', 'serverNames'],
       tgt.sni.split(',').map((s) => s.trim()).filter(Boolean),
     );
+  };
+
+  // --- REALITY target discovery -------------------------------------------
+  // A usable target has to answer TLS 1.3 with X25519 and h2 behind a valid
+  // certificate; that is not something an operator can tell by looking at a
+  // hostname. The panel probes candidates itself and offers the ones that pass,
+  // so the field can be picked from a list instead of typed from memory — and
+  // the SNI values come from the certificate's own SAN list rather than a guess.
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<RealityScanResult | null>(null);
+
+  const applyRealityScanResult = (r: RealityScanResult) => {
+    setScanResult(r);
+    form.setFieldValue(['streamSettings', 'realitySettings', 'target'], r.target);
+    if (r.serverNames?.length) {
+      form.setFieldValue(['streamSettings', 'realitySettings', 'serverNames'], r.serverNames);
+    }
+  };
+
+  const scanRealityTarget = async () => {
+    const raw = form.getFieldValue(['streamSettings', 'realitySettings', 'target']);
+    const target = (typeof raw === 'string' ? raw : '').trim();
+    if (!target) {
+      messageApi.warning(t('pages.inbounds.form.realityTargetRequired'));
+      return;
+    }
+    const xver = Number(form.getFieldValue(['streamSettings', 'realitySettings', 'xver'])) || 0;
+    setScanning(true);
+    try {
+      const msg = await HttpUtil.post<RealityScanResult>(
+        '/panel/api/server/scanRealityTarget',
+        { target, xver },
+        { silent: true },
+      );
+      if (!msg?.success || !msg.obj) {
+        setScanResult(null);
+        messageApi.error(msg?.msg || t('pages.inbounds.toasts.scanRealityTargetError'));
+        return;
+      }
+      const r = msg.obj;
+      applyRealityScanResult(r);
+      if (r.feasible) {
+        messageApi.success(t('pages.inbounds.toasts.scanRealityTargetFeasible'));
+      } else {
+        messageApi.warning(r.reason || t('pages.inbounds.toasts.scanRealityTargetNotFeasible'));
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const scanRealityCandidates = async (targets?: string): Promise<RealityScanResult[]> => {
+    const msg = await HttpUtil.post<RealityScanResult[]>(
+      '/panel/api/server/scanRealityTargets',
+      targets ? { targets } : {},
+      { silent: true },
+    );
+    if (!msg?.success || !Array.isArray(msg.obj)) {
+      messageApi.error(msg?.msg || t('pages.inbounds.toasts.scanRealityTargetError'));
+      return [];
+    }
+    return msg.obj;
   };
 
   const randomizeShortIds = () => {
@@ -245,6 +309,11 @@ export function useSecurityActions({ form, setSaving, messageApi, nodeId }: UseS
     genMldsa65,
     clearMldsa65,
     randomizeRealityTarget,
+    scanning,
+    scanResult,
+    scanRealityTarget,
+    scanRealityCandidates,
+    applyRealityScanResult,
     randomizeShortIds,
     getNewEchCert,
     clearEchCert,

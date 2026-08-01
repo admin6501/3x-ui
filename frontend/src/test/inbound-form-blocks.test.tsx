@@ -99,6 +99,11 @@ describe('inbound security forms', () => {
       <RealityForm
         saving={false}
         randomizeRealityTarget={noop}
+        scanning={false}
+        scanResult={null}
+        scanRealityTarget={noop}
+        scanRealityCandidates={async () => []}
+        applyRealityScanResult={noop}
         randomizeShortIds={noop}
         genRealityKeypair={noop}
         clearRealityKeypair={noop}

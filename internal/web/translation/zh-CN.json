@@ -473,7 +473,10 @@
         "getNewVlessEncError": "获取VlessEnc证书时出错。",
         "invalidClientField": "客户端 {client}：字段 {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (另有 {count} 项)"
+        "moreIssues": "{message}  (另有 {count} 项)",
+        "scanRealityTargetError": "扫描 REALITY 目标失败。",
+        "scanRealityTargetFeasible": "目标可用 — 已填入目标和 SNI。",
+        "scanRealityTargetNotFeasible": "目标可达，但不适用于 REALITY。"
       },
       "form": {
         "echSockopt": "ECH Sockopt",
@@ -667,7 +670,15 @@
         },
         "verifyPeerCertByName": "按名称验证对端证书",
         "clientVerInvalid": "客户端版本须为最多三段以点分隔的数字，每段 0-255（例如 26.3.27）",
-        "maxClientVerBelowMin": "最大客户端版本不得低于最小客户端版本"
+        "maxClientVerBelowMin": "最大客户端版本不得低于最小客户端版本",
+        "scan": "扫描",
+        "findTargets": "查找目标",
+        "scanFeasible": "可用",
+        "scanNotFeasible": "不可用",
+        "scanCurve": "密钥交换",
+        "scanCert": "证书",
+        "scanCertInvalid": "不受信任",
+        "scanLatency": "延迟"
       },
       "info": {
         "mode": "模式",

@@ -473,7 +473,10 @@
         "getNewVlessEncError": "Erro ao obter o certificado VlessEnc.",
         "invalidClientField": "Cliente {client}: campo {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} mais)"
+        "moreIssues": "{message}  (+{count} mais)",
+        "scanRealityTargetError": "Falha ao escanear o alvo REALITY.",
+        "scanRealityTargetFeasible": "O alvo é viável — alvo e SNI preenchidos.",
+        "scanRealityTargetNotFeasible": "O alvo é acessível, mas não é viável para REALITY."
       },
       "form": {
         "echSockopt": "Sockopt ECH",
@@ -667,7 +670,15 @@
           "custom": "Personalizada"
         },
         "clientVerInvalid": "A versão do cliente deve ter até três números separados por pontos, cada um 0-255 (ex.: 26.3.27)",
-        "maxClientVerBelowMin": "A versão máxima do cliente não deve ser menor que a versão mínima"
+        "maxClientVerBelowMin": "A versão máxima do cliente não deve ser menor que a versão mínima",
+        "scan": "Escanear",
+        "findTargets": "Buscar alvos",
+        "scanFeasible": "Viável",
+        "scanNotFeasible": "Inviável",
+        "scanCurve": "Troca de chaves",
+        "scanCert": "Certificado",
+        "scanCertInvalid": "Não confiável",
+        "scanLatency": "Latência"
       },
       "info": {
         "mode": "Modo",

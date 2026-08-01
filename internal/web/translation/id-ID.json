@@ -473,7 +473,10 @@
         "getNewVlessEncError": "Terjadi kesalahan saat mendapatkan sertifikat VlessEnc.",
         "invalidClientField": "Klien {client}: kolom {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} lainnya)"
+        "moreIssues": "{message}  (+{count} lainnya)",
+        "scanRealityTargetError": "Gagal memindai target REALITY.",
+        "scanRealityTargetFeasible": "Target layak — target dan SNI terisi.",
+        "scanRealityTargetNotFeasible": "Target dapat dijangkau tetapi tidak layak untuk REALITY."
       },
       "form": {
         "moveUp": "Naik",
@@ -667,7 +670,15 @@
         "burstBytesPerSec": "Byte per detik burst",
         "burstBytesPerSecTip": "Kelonggaran untuk burst singkat di atas laju tetap (ukuran token-bucket). Jika lebih kecil dari Byte per detik, nilainya dinaikkan agar sama.",
         "clientVerInvalid": "Versi klien harus berupa maksimal tiga angka dipisah titik, masing-masing 0-255 (mis. 26.3.27)",
-        "maxClientVerBelowMin": "Versi klien maksimum tidak boleh lebih rendah dari versi klien minimum"
+        "maxClientVerBelowMin": "Versi klien maksimum tidak boleh lebih rendah dari versi klien minimum",
+        "scan": "Pindai",
+        "findTargets": "Cari Target",
+        "scanFeasible": "Layak",
+        "scanNotFeasible": "Tidak layak",
+        "scanCurve": "Pertukaran Kunci",
+        "scanCert": "Sertifikat",
+        "scanCertInvalid": "Tidak tepercaya",
+        "scanLatency": "Latensi"
       },
       "info": {
         "mode": "Mode",

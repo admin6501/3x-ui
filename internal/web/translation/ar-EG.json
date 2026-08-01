@@ -473,7 +473,10 @@
         "getNewVlessEncError": "حدث خطأ أثناء الحصول على VlessEnc.",
         "invalidClientField": "العميل {client}: الحقل {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} أخرى)"
+        "moreIssues": "{message}  (+{count} أخرى)",
+        "scanRealityTargetError": "فشل فحص هدف REALITY.",
+        "scanRealityTargetFeasible": "الهدف مناسب — تم ملء الهدف وSNI.",
+        "scanRealityTargetNotFeasible": "الهدف قابل للوصول لكنه غير مناسب لـ REALITY."
       },
       "form": {
         "moveUp": "أعلى",
@@ -667,7 +670,15 @@
         "burstBytesPerSec": "بايت في الثانية للدفقة",
         "burstBytesPerSecTip": "السماح بدفقات قصيرة فوق المعدل الثابت (حجم token-bucket). لو أقل من بايت في الثانية بيترفع ليطابقه.",
         "clientVerInvalid": "يجب أن يتكون إصدار العميل من ثلاثة أرقام كحد أقصى مفصولة بنقاط، كل منها 0-255 (مثل 26.3.27)",
-        "maxClientVerBelowMin": "أقصى إصدار للعميل يجب ألا يقل عن أدنى إصدار للعميل"
+        "maxClientVerBelowMin": "أقصى إصدار للعميل يجب ألا يقل عن أدنى إصدار للعميل",
+        "scan": "فحص",
+        "findTargets": "البحث عن أهداف",
+        "scanFeasible": "مناسب",
+        "scanNotFeasible": "غير مناسب",
+        "scanCurve": "تبادل المفاتيح",
+        "scanCert": "الشهادة",
+        "scanCertInvalid": "غير موثوق",
+        "scanLatency": "زمن الاستجابة"
       },
       "info": {
         "mode": "الوضع",
