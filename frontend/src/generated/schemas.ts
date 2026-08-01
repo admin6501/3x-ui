@@ -12,6 +12,10 @@ export const SCHEMAS: Record<string, unknown> = {
         "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
         "type": "boolean"
       },
+      "clientActivityEnable": {
+        "description": "ClientActivityEnable turns on per-client activity tracking (connecting\nIPs, their ISP/country, and visited destinations). Off by default: it\nrecords the browsing of people using an anti-censorship proxy, so it is\nopt-in and the collected data can be wiped from the Client Activity page.",
+        "type": "boolean"
+      },
       "datepicker": {
         "description": "Date picker format",
         "type": "string"
@@ -504,6 +508,7 @@ export const SCHEMAS: Record<string, unknown> = {
     "required": [
       "autoDeleteExpiredDays",
       "autoDeleteExpiredEnable",
+      "clientActivityEnable",
       "datepicker",
       "expireDiff",
       "externalTrafficInformEnable",
@@ -633,6 +638,10 @@ export const SCHEMAS: Record<string, unknown> = {
       },
       "autoDeleteExpiredEnable": {
         "description": "Auto-delete of expired clients. Both guards must pass for anything to be\nremoved: the switch must be on AND the grace period must be greater than\nzero, so a stray toggle can never wipe clients on its own.\nMaster switch for the auto-delete job",
+        "type": "boolean"
+      },
+      "clientActivityEnable": {
+        "description": "ClientActivityEnable turns on per-client activity tracking (connecting\nIPs, their ISP/country, and visited destinations). Off by default: it\nrecords the browsing of people using an anti-censorship proxy, so it is\nopt-in and the collected data can be wiped from the Client Activity page.",
         "type": "boolean"
       },
       "datepicker": {
@@ -1151,6 +1160,7 @@ export const SCHEMAS: Record<string, unknown> = {
     "required": [
       "autoDeleteExpiredDays",
       "autoDeleteExpiredEnable",
+      "clientActivityEnable",
       "datepicker",
       "expireDiff",
       "externalTrafficInformEnable",
@@ -1433,6 +1443,146 @@ export const SCHEMAS: Record<string, unknown> = {
       "subId",
       "tgId",
       "totalGB"
+    ],
+    "type": "object"
+  },
+  "ClientActivityDetail": {
+    "description": "ClientActivityDetail is the full per-client view: its IPs (with operators) and\nits visited destinations, most-recent first.",
+    "properties": {
+      "email": {
+        "type": "string"
+      },
+      "ips": {
+        "items": {
+          "$ref": "#/components/schemas/ClientActivityIP"
+        },
+        "type": "array"
+      },
+      "online": {
+        "type": "boolean"
+      },
+      "visits": {
+        "items": {
+          "$ref": "#/components/schemas/ClientActivityVisit"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "email",
+      "ips",
+      "online",
+      "visits"
+    ],
+    "type": "object"
+  },
+  "ClientActivityIP": {
+    "description": "ClientActivityIP pairs a source IP with the operator resolved for it.",
+    "properties": {
+      "asn": {
+        "type": "string"
+      },
+      "country": {
+        "type": "string"
+      },
+      "countryCode": {
+        "type": "string"
+      },
+      "hits": {
+        "type": "integer"
+      },
+      "ip": {
+        "type": "string"
+      },
+      "isp": {
+        "type": "string"
+      },
+      "lastSeen": {
+        "type": "integer"
+      },
+      "org": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "asn",
+      "country",
+      "countryCode",
+      "hits",
+      "ip",
+      "isp",
+      "lastSeen",
+      "org"
+    ],
+    "type": "object"
+  },
+  "ClientActivitySummary": {
+    "description": "ClientActivitySummary is one row of the activity list: a client, how many\ndistinct IPs and destinations were seen for it, the operators behind those\nIPs, whether it is online now, and when it was last seen.",
+    "properties": {
+      "countries": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "destCount": {
+        "type": "integer"
+      },
+      "email": {
+        "type": "string"
+      },
+      "ipCount": {
+        "type": "integer"
+      },
+      "lastSeen": {
+        "type": "integer"
+      },
+      "online": {
+        "type": "boolean"
+      },
+      "operators": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "recordCount": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "countries",
+      "destCount",
+      "email",
+      "ipCount",
+      "lastSeen",
+      "online",
+      "operators",
+      "recordCount"
+    ],
+    "type": "object"
+  },
+  "ClientActivityVisit": {
+    "description": "ClientActivityVisit is one visited destination with how often and how\nrecently it was reached.",
+    "properties": {
+      "dest": {
+        "type": "string"
+      },
+      "hits": {
+        "type": "integer"
+      },
+      "lastSeen": {
+        "type": "integer"
+      },
+      "network": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "dest",
+      "hits",
+      "lastSeen",
+      "network"
     ],
     "type": "object"
   },

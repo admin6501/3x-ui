@@ -123,7 +123,8 @@
     "plans": "Planes",
     "usage": "My Dashboard",
     "tutorials": "Tutoriales",
-    "shop": "Telegram Shop"
+    "shop": "Telegram Shop",
+    "clientActivity": "Client Activity"
   },
   "pages": {
     "login": {
@@ -1481,7 +1482,9 @@
       "shopBillingInterval": "Billing interval (minutes)",
       "shopBillingIntervalDesc": "How often the panel meters every config and debits its owner's wallet. Shorter means a wallet can go less far into the red before its configs are switched off; longer means fewer database reads. Between 1 and 1440; the default is 2. Takes effect on save — no restart needed.",
       "shopDeleteDeadDays": "Delete dead configs after (days)",
-      "shopDeleteDeadDaysDesc": "How long a config may sit out of traffic, or with an empty wallet, before the shop deletes it from both the bot and the panel. Its owner is told when it goes. A config its owner switched off on purpose is never deleted. 0 = never delete."
+      "shopDeleteDeadDaysDesc": "How long a config may sit out of traffic, or with an empty wallet, before the shop deletes it from both the bot and the panel. Its owner is told when it goes. A config its owner switched off on purpose is never deleted. 0 = never delete.",
+      "clientActivityEnable": "Client activity tracking",
+      "clientActivityEnableDesc": "Record each client’s connecting IPs, their network operator, and the sites they visit, shown on the Client Activity page. Off by default — this logs the browsing of people using the proxy, and the data can be wiped from that page."
     },
     "xray": {
       "title": "Xray Configuración",
@@ -2257,6 +2260,37 @@
         "review": "Awaiting review",
         "approved": "Approved",
         "rejected": "Rejected"
+      }
+    },
+    "clientActivity": {
+      "searchPlaceholder": "Search client, operator, country",
+      "clearButton": "Clear data",
+      "privacyNotice": "This records the IPs, operators and visited sites of everyone using the proxy. Keep it only as long as you need it — use “Clear data” to wipe it.",
+      "disabledNotice": "Tracking is off. Turn on “Client activity tracking” in Settings to start collecting; existing data is still shown until cleared.",
+      "empty": "No activity recorded yet.",
+      "clearConfirmTitle": "Clear all activity data?",
+      "clearConfirmBody": "This permanently deletes every recorded IP, operator lookup and visited site for all clients. Collection continues afterwards if tracking is still on.",
+      "clearConfirmOk": "Delete everything",
+      "col": {
+        "client": "Client",
+        "operator": "Operator",
+        "country": "Country",
+        "ips": "IPs",
+        "sites": "Sites",
+        "lastSeen": "Last seen",
+        "ip": "IP address",
+        "hits": "Hits",
+        "site": "Site",
+        "network": "Network"
+      },
+      "tab": {
+        "ips": "IP addresses",
+        "sites": "Visited sites"
+      },
+      "toasts": {
+        "loadError": "Failed to load activity",
+        "clearError": "Failed to clear data",
+        "cleared": "Activity data cleared"
       }
     }
   },

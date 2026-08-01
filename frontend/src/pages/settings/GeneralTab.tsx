@@ -281,6 +281,10 @@ export default function GeneralTab({ allSetting, updateSetting }: GeneralTabProp
               <Switch checked={allSetting.autoDeleteExpiredEnable}
                 onChange={(v) => updateSetting({ autoDeleteExpiredEnable: v })} />
             </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.clientActivityEnable')} description={t('pages.settings.clientActivityEnableDesc')}>
+              <Switch checked={allSetting.clientActivityEnable}
+                onChange={(v) => updateSetting({ clientActivityEnable: v })} />
+            </SettingListItem>
             <SettingListItem paddings="small" title={t('pages.settings.autoDeleteExpiredDays')} description={t('pages.settings.autoDeleteExpiredDaysDesc')}>
               <InputNumber value={allSetting.autoDeleteExpiredDays} min={0} disabled={!allSetting.autoDeleteExpiredEnable}
                 style={{ width: '100%' }}

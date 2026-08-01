@@ -14,6 +14,7 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   ExportOutlined,
+  EyeOutlined,
   FundOutlined,
   GithubOutlined,
   GlobalOutlined,
@@ -47,7 +48,7 @@ const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
 const REPO_URL = 'https://github.com/admin6501/3x-ui';
 const LOGOUT_KEY = '__logout__';
 
-type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans' | 'usage' | 'tutorials' | 'shop';
+type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing' | 'admins' | 'plans' | 'usage' | 'tutorials' | 'shop' | 'activity';
 
 const iconByName: Record<IconName, ComponentType> = {
   dashboard: DashboardOutlined,
@@ -67,6 +68,7 @@ const iconByName: Record<IconName, ComponentType> = {
   usage: FundOutlined,
   tutorials: ReadOutlined,
   shop: ShoppingOutlined,
+  activity: EyeOutlined,
 };
 
 function readCollapsed(): boolean {
@@ -195,6 +197,7 @@ export default function AppSidebar() {
       { key: '/outbound', icon: 'outbound', title: t('menu.outbounds') },
       { key: '/routing', icon: 'routing', title: t('menu.routing') },
       { key: '/settings', icon: 'setting', title: t('menu.settings') },
+      { key: '/client-activity', icon: 'activity', title: t('menu.clientActivity') },
       { key: '/xray', icon: 'tool', title: t('menu.xray') },
       { key: '/admins', icon: 'admins', title: t('menu.admins') },
       { key: '/shop', icon: 'shop', title: t('menu.shop') },
@@ -221,6 +224,12 @@ export default function AppSidebar() {
       '/outbound': () => perms.has('xray.manage'),
       '/routing': () => perms.has('xray.manage'),
       '/settings': () => perms.has('settings.manage'),
+      // Gated on settings.manage AND the tracking toggle: the page is empty
+      // until an operator turns collection on, so hide it until then.
+      '/client-activity': () =>
+        !scoped
+        && perms.has('settings.manage')
+        && (typeof window !== 'undefined' && window.X_UI_CLIENT_ACTIVITY === true),
       '/xray': () => perms.has('xray.manage'),
       '/admins': () => perms.has('admins.manage'),
       '/shop': () => perms.has('admins.manage'),

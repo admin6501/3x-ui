@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	htmlpkg "html"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -139,6 +140,15 @@ func serveDistPage(c *gin.Context, name string) {
 			}
 		}
 		script += `;window.X_UI_PERMS=[` + strings.Join(granted, ",") + `]`
+		// Whether per-client activity tracking is on, so the sidebar can offer
+		// the Client Activity entry only when there is something to show. Like
+		// the role/perms above this is page-load state — flipping the setting
+		// takes effect on the next load. Defaults to off on any read error.
+		activityOn := false
+		if v, err := (&service.SettingService{}).GetClientActivityEnable(); err == nil {
+			activityOn = v
+		}
+		script += `;window.X_UI_CLIENT_ACTIVITY=` + strconv.FormatBool(activityOn)
 	}
 	script += `;</script>`
 	inject := []byte(script)

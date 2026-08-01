@@ -1970,4 +1970,41 @@ export const sections: readonly Section[] = [
       },
     ],
   },
+  {
+    id: 'clientActivity',
+    title: 'Client Activity',
+    description:
+      'Per-client activity tracking: the IPs each client connects from, the network operator behind each IP, and the destinations they reach. Lives under /panel/api/clientActivity and requires the settings.manage permission — among built-in roles only super_admin holds it, so managers and resellers get 403. This is the browsing record of proxy users; it is collected only while the clientActivityEnable setting is on, and it can be wiped in full. When tracking is off the read endpoints return enabled=false and an empty list.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/clientActivity/status',
+        summary: 'Report whether per-client activity tracking is currently enabled, so a client can render the "turn it on in settings" state instead of an empty table.',
+        response: '{\n  "success": true,\n  "obj": { "enabled": true }\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/clientActivity/list',
+        summary: 'List every client with recorded activity, most recently seen first: distinct IP and destination counts, the operators and countries seen, whether the client is online now, last-seen time and total record count.',
+        response:
+          '{\n  "success": true,\n  "obj": {\n    "enabled": true,\n    "clients": [\n      {\n        "email": "alice@example.com",\n        "ipCount": 2,\n        "destCount": 37,\n        "operators": ["Example Telecom"],\n        "countries": ["Germany"],\n        "online": true,\n        "lastSeen": 1735689600,\n        "recordCount": 412\n      }\n    ]\n  }\n}',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/clientActivity/detail/:email',
+        summary: 'Return one client’s connecting IPs (each with the resolved operator, country and hit count) and its most recent visited destinations. The optional limit query caps the destination list (default 200, max 1000).',
+        params: [
+          { name: 'email', in: 'path', type: 'string', desc: 'The client email whose activity to return.' },
+          { name: 'limit', in: 'query', type: 'number', optional: true, desc: 'Maximum destinations to return (default 200, max 1000).' },
+        ],
+        responseSchema: 'ClientActivityDetail',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/clientActivity/clear',
+        summary: 'Delete all recorded activity and the cached IP-operator lookups. Does not change the setting: if tracking is still on, collection resumes on the next tick.',
+        response: '{\n  "success": true,\n  "msg": "Activity data cleared"\n}',
+      },
+    ],
+  },
 ];

@@ -79,6 +79,10 @@ func run(root, outDir string) error {
 				"InboundOption",
 				"ProbeResultUI",
 				"RealityScanResult",
+				"ClientActivitySummary",
+				"ClientActivityDetail",
+				"ClientActivityIP",
+				"ClientActivityVisit",
 			),
 		},
 		{

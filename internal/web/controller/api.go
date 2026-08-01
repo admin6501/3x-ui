@@ -173,6 +173,14 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	reseller := api.Group("/reseller")
 	NewResellerController(reseller)
 
+	// Client activity — connecting IPs, their operator, and visited
+	// destinations per client. This is the browsing record of proxy users, so
+	// it is gated to settings.manage as a unit (never resellers/managers) and
+	// stays empty unless the operator turns tracking on.
+	clientActivity := api.Group("/clientActivity")
+	clientActivity.Use(requirePermission(model.PermSettingsManage))
+	NewClientActivityController(clientActivity)
+
 	// Extra routes. The Telegram backup ships the whole database off the box,
 	// so it carries the same gate as the getDb/importDB pair.
 	api.POST("/backuptotgbot", requirePermission(model.PermSettingsManage), a.BackuptoTgbot)
