@@ -473,7 +473,10 @@
         "getNewVlessEncError": "取得VlessEnc憑證時發生錯誤。",
         "invalidClientField": "用戶端 {client}：欄位 {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (另有 {count} 項)"
+        "moreIssues": "{message}  (另有 {count} 項)",
+        "scanRealityTargetError": "掃描 REALITY 目標失敗。",
+        "scanRealityTargetFeasible": "目標可用 — 已填入目標與 SNI。",
+        "scanRealityTargetNotFeasible": "目標可達，但不適用於 REALITY。"
       },
       "form": {
         "moveUp": "上移",
@@ -667,7 +670,15 @@
           "custom": "自訂"
         },
         "clientVerInvalid": "客戶端版本須為最多三段以點分隔的數字，每段 0-255（例如 26.3.27）",
-        "maxClientVerBelowMin": "最大客戶端版本不得低於最小客戶端版本"
+        "maxClientVerBelowMin": "最大客戶端版本不得低於最小客戶端版本",
+        "scan": "掃描",
+        "findTargets": "尋找目標",
+        "scanFeasible": "可用",
+        "scanNotFeasible": "不可用",
+        "scanCurve": "金鑰交換",
+        "scanCert": "憑證",
+        "scanCertInvalid": "不受信任",
+        "scanLatency": "延遲"
       },
       "info": {
         "mode": "模式",

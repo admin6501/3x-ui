@@ -254,6 +254,11 @@ export default function InboundFormModal({
     genMldsa65,
     clearMldsa65,
     randomizeRealityTarget,
+    scanning,
+    scanResult,
+    scanRealityTarget,
+    scanRealityCandidates,
+    applyRealityScanResult,
     randomizeShortIds,
     getNewEchCert,
     clearEchCert,
@@ -948,6 +953,11 @@ export default function InboundFormModal({
         <RealityForm
           saving={saving}
           randomizeRealityTarget={randomizeRealityTarget}
+          scanning={scanning}
+          scanResult={scanResult}
+          scanRealityTarget={scanRealityTarget}
+          scanRealityCandidates={scanRealityCandidates}
+          applyRealityScanResult={applyRealityScanResult}
           randomizeShortIds={randomizeShortIds}
           genRealityKeypair={genRealityKeypair}
           clearRealityKeypair={clearRealityKeypair}

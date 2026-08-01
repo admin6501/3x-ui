@@ -473,7 +473,10 @@
         "getNewVlessEncError": "Lỗi khi lấy chứng chỉ VlessEnc.",
         "invalidClientField": "Khách hàng {client}: trường {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} lỗi khác)"
+        "moreIssues": "{message}  (+{count} lỗi khác)",
+        "scanRealityTargetError": "Quét mục tiêu REALITY thất bại.",
+        "scanRealityTargetFeasible": "Mục tiêu khả dụng — đã điền mục tiêu và SNI.",
+        "scanRealityTargetNotFeasible": "Mục tiêu có thể truy cập nhưng không khả dụng cho REALITY."
       },
       "form": {
         "echSockopt": "ECH Sockopt",
@@ -667,7 +670,15 @@
           "custom": "Tùy chỉnh"
         },
         "clientVerInvalid": "Phiên bản client phải gồm tối đa ba số cách nhau bằng dấu chấm, mỗi số 0-255 (ví dụ 26.3.27)",
-        "maxClientVerBelowMin": "Phiên bản client tối đa không được thấp hơn phiên bản client tối thiểu"
+        "maxClientVerBelowMin": "Phiên bản client tối đa không được thấp hơn phiên bản client tối thiểu",
+        "scan": "Quét",
+        "findTargets": "Tìm mục tiêu",
+        "scanFeasible": "Khả dụng",
+        "scanNotFeasible": "Không khả dụng",
+        "scanCurve": "Trao đổi khóa",
+        "scanCert": "Chứng chỉ",
+        "scanCertInvalid": "Không tin cậy",
+        "scanLatency": "Độ trễ"
       },
       "info": {
         "mode": "Chế độ",

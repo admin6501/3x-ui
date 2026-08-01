@@ -1,12 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Input,
-  InputNumber,
-  Select,
-  Switch,
-  Tabs,
-} from 'antd';
+import { Input, InputNumber, Switch, Tabs } from 'antd';
 import {
   PartitionOutlined,
   RocketOutlined,
@@ -21,6 +15,7 @@ import { sanitizePath, normalizePath } from './uriPath';
 import SubJsonFinalMaskForm from './SubJsonFinalMaskForm';
 import './SubscriptionFormatsTab.css';
 import OptionButtons from '@/components/form/OptionButtons';
+import TagsInput from '@/components/form/TagsInput';
 
 interface SubscriptionFormatsTabProps {
   allSetting: AllSetting;
@@ -246,8 +241,7 @@ export default function SubscriptionFormatsTab({ allSetting, updateSetting }: Su
             {directEnabled && (
               <div className="format-settings">
                 <SettingListItem paddings="small" title={<>{t('pages.settings.direct')} IPs</>}>
-                  <Select
-                    mode="tags"
+                  <TagsInput
                     value={directIPs}
                     style={{ width: '100%' }}
                     onChange={setDirectIPs}
@@ -255,8 +249,7 @@ export default function SubscriptionFormatsTab({ allSetting, updateSetting }: Su
                   />
                 </SettingListItem>
                 <SettingListItem paddings="small" title={<>{t('pages.settings.direct')} {t('domainName')}</>}>
-                  <Select
-                    mode="tags"
+                  <TagsInput
                     value={directDomains}
                     style={{ width: '100%' }}
                     onChange={setDirectDomains}

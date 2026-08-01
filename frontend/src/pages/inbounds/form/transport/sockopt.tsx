@@ -4,6 +4,7 @@ import { Alert, Form, InputNumber, Segmented, Select, Switch } from 'antd';
 import { CustomSockoptList } from '@/components/form';
 import { TCP_CONGESTION_OPTION } from '@/schemas/primitives';
 import OptionButtons from '@/components/form/OptionButtons';
+import TagsInput from '@/components/form/TagsInput';
 
 // Transport key that carries its own acceptProxyProtocol field (mirrored
 // alongside the sockopt-level one so the PROXY preset never silently no-ops).
@@ -255,10 +256,8 @@ export default function SockoptForm({
                   label={t('pages.inbounds.form.trustedXForwardedFor')}
                   tooltip={t('pages.inbounds.form.trustedXForwardedForHint')}
                 >
-                  <Select
-                    mode="tags"
+                  <TagsInput
                     style={{ width: '100%' }}
-                    tokenSeparators={[',']}
                     options={[
                       { value: 'CF-Connecting-IP', label: 'CF-Connecting-IP' },
                       { value: 'X-Real-IP', label: 'X-Real-IP' },

@@ -473,7 +473,10 @@
         "getNewVlessEncError": "Помилка при отриманні сертифіката VlessEnc.",
         "invalidClientField": "Клієнт {client}: поле {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} ще)"
+        "moreIssues": "{message}  (+{count} ще)",
+        "scanRealityTargetError": "Не вдалося просканувати ціль REALITY.",
+        "scanRealityTargetFeasible": "Ціль підходить — поля target і SNI заповнено.",
+        "scanRealityTargetNotFeasible": "Ціль доступна, але не підходить для REALITY."
       },
       "form": {
         "moveUp": "Вгору",
@@ -667,7 +670,15 @@
           "custom": "Користувацька"
         },
         "clientVerInvalid": "Версія клієнта — до трьох чисел через крапку, кожне 0-255 (наприклад 26.3.27)",
-        "maxClientVerBelowMin": "Макс. версія клієнта не має бути нижчою за мінімальну версію клієнта"
+        "maxClientVerBelowMin": "Макс. версія клієнта не має бути нижчою за мінімальну версію клієнта",
+        "scan": "Сканувати",
+        "findTargets": "Знайти цілі",
+        "scanFeasible": "Підходить",
+        "scanNotFeasible": "Не підходить",
+        "scanCurve": "Обмін ключами",
+        "scanCert": "Сертифікат",
+        "scanCertInvalid": "Ненадійний",
+        "scanLatency": "Затримка"
       },
       "info": {
         "mode": "Режим",

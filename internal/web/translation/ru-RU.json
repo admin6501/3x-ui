@@ -473,7 +473,10 @@
         "getNewVlessEncError": "Ошибка при получении сертификата VlessEnc.",
         "invalidClientField": "Клиент {client}: поле {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} ещё)"
+        "moreIssues": "{message}  (+{count} ещё)",
+        "scanRealityTargetError": "Не удалось просканировать цель REALITY.",
+        "scanRealityTargetFeasible": "Цель подходит — поля target и SNI заполнены.",
+        "scanRealityTargetNotFeasible": "Цель доступна, но не подходит для REALITY."
       },
       "form": {
         "echSockopt": "ECH Sockopt",
@@ -667,7 +670,15 @@
           "custom": "Пользовательская"
         },
         "clientVerInvalid": "Версия клиента — до трёх чисел через точку, каждое 0-255 (например 26.3.27)",
-        "maxClientVerBelowMin": "Макс. версия клиента не должна быть ниже минимальной версии клиента"
+        "maxClientVerBelowMin": "Макс. версия клиента не должна быть ниже минимальной версии клиента",
+        "scan": "Сканировать",
+        "findTargets": "Найти цели",
+        "scanFeasible": "Подходит",
+        "scanNotFeasible": "Не подходит",
+        "scanCurve": "Обмен ключами",
+        "scanCert": "Сертификат",
+        "scanCertInvalid": "Не доверенный",
+        "scanLatency": "Задержка"
       },
       "info": {
         "mode": "Режим",

@@ -473,7 +473,10 @@
         "getNewVlessEncError": "VlessEnc証明書の取得中にエラーが発生しました。",
         "invalidClientField": "クライアント {client}: フィールド {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (他 {count} 件)"
+        "moreIssues": "{message}  (他 {count} 件)",
+        "scanRealityTargetError": "REALITY ターゲットのスキャンに失敗しました。",
+        "scanRealityTargetFeasible": "ターゲットは利用可能です — ターゲットと SNI を入力しました。",
+        "scanRealityTargetNotFeasible": "ターゲットには到達できますが、REALITY には利用できません。"
       },
       "form": {
         "echSockopt": "ECH Sockopt",
@@ -667,7 +670,15 @@
           "custom": "カスタム"
         },
         "clientVerInvalid": "クライアントバージョンはドット区切りの数値（最大 3 つ、各 0-255）で指定してください（例：26.3.27）",
-        "maxClientVerBelowMin": "最大クライアントバージョンは最小クライアントバージョンを下回れません"
+        "maxClientVerBelowMin": "最大クライアントバージョンは最小クライアントバージョンを下回れません",
+        "scan": "スキャン",
+        "findTargets": "ターゲットを検索",
+        "scanFeasible": "利用可能",
+        "scanNotFeasible": "利用不可",
+        "scanCurve": "鍵交換",
+        "scanCert": "証明書",
+        "scanCertInvalid": "信頼できません",
+        "scanLatency": "レイテンシ"
       },
       "info": {
         "mode": "モード",

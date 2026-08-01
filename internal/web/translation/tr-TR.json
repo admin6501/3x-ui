@@ -473,7 +473,10 @@
         "getNewVlessEncError": "VlessEnc sertifikası alınırken hata oluştu.",
         "invalidClientField": "Kullanıcı {client}: {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} tane daha)"
+        "moreIssues": "{message}  (+{count} tane daha)",
+        "scanRealityTargetError": "REALITY hedefi taranamadı.",
+        "scanRealityTargetFeasible": "Hedef uygun — hedef ve SNI dolduruldu.",
+        "scanRealityTargetNotFeasible": "Hedefe ulaşılabiliyor ancak REALITY için uygun değil."
       },
       "form": {
         "moveUp": "Yukarı Taşı",
@@ -667,7 +670,15 @@
         "burstBytesPerSec": "Saniye Başına Patlama Baytı",
         "burstBytesPerSecTip": "Sabit hızın üzerindeki kısa patlamalar için pay (token-bucket boyutu). Saniye Başına Bayt değerinden düşükse ona eşitlenecek şekilde yükseltilir.",
         "clientVerInvalid": "İstemci sürümü noktayla ayrılmış en fazla üç sayıdan oluşmalıdır, her biri 0-255 (örn. 26.3.27)",
-        "maxClientVerBelowMin": "Maks. istemci sürümü, en düşük istemci sürümünün altında olamaz"
+        "maxClientVerBelowMin": "Maks. istemci sürümü, en düşük istemci sürümünün altında olamaz",
+        "scan": "Tara",
+        "findTargets": "Hedef bul",
+        "scanFeasible": "Uygun",
+        "scanNotFeasible": "Uygun değil",
+        "scanCurve": "Anahtar Değişimi",
+        "scanCert": "Sertifika",
+        "scanCertInvalid": "Güvenilmez",
+        "scanLatency": "Gecikme"
       },
       "info": {
         "mode": "Mod",

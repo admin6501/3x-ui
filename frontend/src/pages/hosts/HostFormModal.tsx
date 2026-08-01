@@ -21,6 +21,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { catTabLabel } from '@/pages/settings/catTabLabel';
 import { HostFinalMaskForm, HostMuxForm, HostSockoptForm } from './json-forms';
 import OptionButtons from '@/components/form/OptionButtons';
+import TagsInput from '@/components/form/TagsInput';
 
 // inboundId is optional in the form so a new host starts unselected (the Select
 // shows its placeholder instead of 0); the required rule enforces it on submit.
@@ -179,7 +180,7 @@ export default function HostFormModal({ open, mode, host, inboundOptions, save, 
                     <InputNumber min={0} max={65535} />
                   </Form.Item>
                   <Form.Item name="tags" label={t('pages.hosts.fields.tags')} tooltip={t('pages.hosts.hints.tags')}>
-                    <Select mode="tags" allowClear tokenSeparators={[',']} />
+                    <TagsInput allowClear />
                   </Form.Item>
                   <Form.Item name="nodeGuids" label={t('pages.hosts.fields.nodeGuids')} tooltip={t('pages.hosts.hints.nodeGuids')}>
                     <Select mode="multiple" allowClear options={nodeSelectOptions} optionFilterProp="label" />
@@ -223,7 +224,7 @@ export default function HostFormModal({ open, mode, host, inboundOptions, save, 
                         <Select mode="multiple" allowClear options={alpnOptions} />
                       </Form.Item>
                       <Form.Item name="pinnedPeerCertSha256" label={t('pages.hosts.fields.pins')}>
-                        <Select mode="tags" allowClear tokenSeparators={[',']} />
+                        <TagsInput allowClear />
                       </Form.Item>
                       <Form.Item name="verifyPeerCertByName" label={t('pages.hosts.fields.verifyPeerCertByName')} tooltip={t('pages.inbounds.form.verifyPeerCertByNameTip')}>
                         <Input placeholder="example.com" />

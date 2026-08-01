@@ -475,7 +475,10 @@
         "getNewVlessEncError": "خطا در دریافت گواهی VlessEnc.",
         "invalidClientField": "کلاینت {client}: فیلد {field} — {reason}",
         "invalidField": "{field} — {reason}",
-        "moreIssues": "{message}  (+{count} مورد دیگر)"
+        "moreIssues": "{message}  (+{count} مورد دیگر)",
+        "scanRealityTargetError": "اسکن هدف REALITY ناموفق بود.",
+        "scanRealityTargetFeasible": "هدف مناسب است — هدف و SNI پر شد.",
+        "scanRealityTargetNotFeasible": "هدف در دسترس است اما برای REALITY مناسب نیست."
       },
       "form": {
         "moveUp": "بالا",
@@ -669,7 +672,15 @@
           "custom": "سفارشی"
         },
         "clientVerInvalid": "نسخهٔ کلاینت باید حداکثر سه عدد جداشده با نقطه باشد، هر یک 0-255 (مثلاً 26.3.27)",
-        "maxClientVerBelowMin": "حداکثر نسخهٔ کلاینت نباید از حداقل نسخهٔ کلاینت کمتر باشد"
+        "maxClientVerBelowMin": "حداکثر نسخهٔ کلاینت نباید از حداقل نسخهٔ کلاینت کمتر باشد",
+        "scan": "اسکن",
+        "findTargets": "یافتن هدف‌ها",
+        "scanFeasible": "مناسب",
+        "scanNotFeasible": "نامناسب",
+        "scanCurve": "تبادل کلید",
+        "scanCert": "گواهی",
+        "scanCertInvalid": "نامعتبر",
+        "scanLatency": "تأخیر"
       },
       "info": {
         "mode": "حالت",

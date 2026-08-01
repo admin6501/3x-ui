@@ -5,6 +5,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { OutboundDomainStrategies } from '@/schemas/primitives';
 import type { OutboundFormValues } from '@/schemas/forms/outbound-form';
 import OptionButtons from '@/components/form/OptionButtons';
+import TagsInput from '@/components/form/TagsInput';
 
 export default function FreedomFields({ form }: { form: FormInstance<OutboundFormValues> }) {
   const { t } = useTranslation();
@@ -246,8 +247,7 @@ export default function FreedomFields({ form }: { form: FormInstance<OutboundFor
                   <Input placeholder="e.g. 80,443 or 1000-2000" />
                 </Form.Item>
                 <Form.Item label="IP / CIDR / geoip" name={[field.name, 'ip']}>
-                  <Select
-                    mode="tags"
+                  <TagsInput
                     tokenSeparators={[',', ' ']}
                     placeholder="e.g. 10.0.0.0/8, geoip:private"
                   />
