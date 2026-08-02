@@ -24,7 +24,12 @@ func (b *Bot) registerHandlers(h *th.BotHandler) {
 	}, th.CommandEqual("admin"))
 
 	h.HandleMessage(func(ctx *th.Context, msg telego.Message) error {
-		go b.guard(msg.Chat.ID, func() { b.send(msg.Chat.ID, b.idCard(msg)) })
+		go b.guard(msg.Chat.ID, func() {
+			if b.rejectIfBlocked(msg.Chat.ID) {
+				return
+			}
+			b.send(msg.Chat.ID, b.idCard(msg))
+		})
 		return nil
 	}, th.CommandEqual("id"))
 
@@ -39,6 +44,34 @@ func (b *Bot) registerHandlers(h *th.BotHandler) {
 		go b.guard(msg.Chat.ID, func() { b.onMessage(msg) })
 		return nil
 	}, th.AnyMessage())
+}
+
+// blockedFromBot reports whether this chat belongs to a blocked shop customer.
+// Admins are never treated as blocked — the flag is a customer's, and a shop
+// owner must keep running the bot even while blocking buyers. A chat with no
+// user row yet (never interacted) is not blocked.
+func (b *Bot) blockedFromBot(chatId int64) bool {
+	if b.isAdmin(chatId) {
+		return false
+	}
+	u, err := b.shopService.GetUser(chatId)
+	if err != nil || u == nil {
+		return false
+	}
+	return u.Blocked
+}
+
+// rejectIfBlocked short-circuits a blocked customer at any entry point: it tells
+// them they are blocked, with no keyboard (a blocked user has no actions), and
+// returns true so the caller bails before running anything. The block used to
+// be enforced only on the buy-config path, so a blocked user could still open
+// the wallet, top up, browse configs and press every other button.
+func (b *Bot) rejectIfBlocked(chatId int64) bool {
+	if !b.blockedFromBot(chatId) {
+		return false
+	}
+	b.send(chatId, b.m(msgBlocked))
+	return true
 }
 
 // guard keeps a panic in one handler from taking the whole bot down with it.
@@ -66,6 +99,9 @@ func (b *Bot) mainMenu(chatId int64) telego.ReplyMarkup {
 
 func (b *Bot) onStart(msg telego.Message) {
 	chatId := msg.Chat.ID
+	if b.rejectIfBlocked(chatId) {
+		return
+	}
 	b.states.clear(chatId)
 	if _, err := b.shopService.User(chatId, msg.From.Username, msg.From.FirstName); err != nil {
 		logger.Warning("shop: could not register user:", err)
@@ -87,6 +123,12 @@ func (b *Bot) onStart(msg telego.Message) {
 // then the reply-keyboard buttons.
 func (b *Bot) onMessage(msg telego.Message) {
 	chatId := msg.Chat.ID
+
+	// A blocked customer gets nothing but the notice — no conversation step, no
+	// button, not even a receipt upload. Admins are exempt (blockedFromBot).
+	if b.rejectIfBlocked(chatId) {
+		return
+	}
 
 	// A receipt is a photo, and only means anything mid-top-up.
 	if len(msg.Photo) > 0 {
@@ -157,6 +199,16 @@ func (b *Bot) showSupport(chatId int64) {
 
 func (b *Bot) onCallback(q telego.CallbackQuery) {
 	chatId := q.From.ID
+
+	// Same gate as the message side: a blocked customer pressing any inline
+	// button (top up, config actions, …) gets the notice and nothing runs.
+	// Answer the query too, so their client stops showing the button spinner.
+	if b.blockedFromBot(chatId) {
+		b.answer(q.ID, b.m(msgBlocked))
+		b.send(chatId, b.m(msgBlocked))
+		return
+	}
+
 	parts := strings.Split(q.Data, ":")
 	action := parts[0]
 
